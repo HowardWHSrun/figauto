@@ -202,15 +202,64 @@ header h1 {
     min-height: 20px;
 }
 
+/* Image and Comments Container */
+.image-comments-container {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+    min-height: 400px;
+}
+
 /* Image Container */
 .image-container {
-    flex: 1;
+    flex: 2;
     position: relative;
     border: 2px solid #ddd;
     border-radius: 8px;
     background-color: #f9f9f9;
     min-height: 400px;
     overflow: hidden;
+}
+
+/* Comments Section */
+.comments-section {
+    flex: 1;
+    background: #f8f9fa;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 300px;
+}
+
+.comments-section h3 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1a472a;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+
+.comments-section .form-group {
+    margin-bottom: 0;
+}
+
+.comments-section textarea {
+    width: 100%;
+    height: 320px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: 'Times New Roman', serif;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.comments-section textarea:focus {
+    outline: none;
+    border-color: #1a472a;
+    box-shadow: 0 0 5px rgba(26, 71, 42, 0.3);
 }
 
 #annotationCanvas {
@@ -280,6 +329,18 @@ header h1 {
         margin-bottom: 20px;
     }
     
+    .image-comments-container {
+        flex-direction: column;
+    }
+    
+    .comments-section {
+        min-width: auto;
+    }
+    
+    .comments-section textarea {
+        height: 150px;
+    }
+    
     .info-table table {
         font-size: 14px;
     }
@@ -305,6 +366,19 @@ header h1 {
     
     .right-panel {
         padding: 20px;
+    }
+    
+    .image-comments-container {
+        gap: 15px;
+    }
+    
+    .comments-section {
+        padding: 15px;
+    }
+    
+    .comments-section textarea {
+        height: 120px;
+        padding: 10px;
     }
     
     .modal-content {
