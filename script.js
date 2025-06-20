@@ -285,12 +285,12 @@ class FigureAnnotationTool {
         const exportCtx = exportCanvas.getContext('2d');
         
         // Calculate dimensions
-        const tableHeight = 70; // Reduced space for compact table header
+        const tableHeight = 80; // Adjusted for larger fonts
         const commentsWidth = 400; // Width for comments section
         const margin = 20;
         
         // Set export size: original image width + comments width, image height + table space
-        exportCanvas.width = this.image.width + commentsWidth + margin;
+        exportCanvas.width = this.image.width + commentsWidth + 10; // Reduced width due to smaller gap
         exportCanvas.height = this.image.height + tableHeight;
         
         console.log(`Export canvas size: ${exportCanvas.width} x ${exportCanvas.height}`);
@@ -304,8 +304,8 @@ class FigureAnnotationTool {
         // Draw compact table header (only over image area, excluding comments section)
         const tableY = margin;
         const tableWidth = this.image.width;
-        const cellHeight = 25; // Reduced for more compact table
-        const headerHeight = 20; // Reduced for more compact table
+        const cellHeight = 30; // Increased slightly for larger fonts
+        const headerHeight = 25; // Increased slightly for larger fonts
         
         // Table styling
         exportCtx.strokeStyle = '#333';
@@ -337,7 +337,7 @@ class FigureAnnotationTool {
         
         // Draw header text
         exportCtx.fillStyle = '#333';
-        exportCtx.font = 'bold 14px Arial'; // Reduced font size for compact header
+        exportCtx.font = 'bold 16px Arial'; // Increased font size for better readability
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
         
@@ -346,18 +346,18 @@ class FigureAnnotationTool {
         exportCtx.fillText('Location', margin + col1Width + col2Width + col3Width/2, tableY + headerHeight/2);
         
         // Draw data text
-        exportCtx.font = '12px Times New Roman'; // Reduced font size for compact data
+        exportCtx.font = '14px Times New Roman'; // Increased font size for better readability
         const dataY = tableY + headerHeight + cellHeight/2;
         
         exportCtx.fillText(runId, margin + col1Width/2, dataY);
         exportCtx.fillText(band, margin + col1Width + col2Width/2, dataY);
         exportCtx.fillText(location, margin + col1Width + col2Width + col3Width/2, dataY);
         
-        // Draw comments section on the right side
-        const commentsX = this.image.width + margin * 2;
+        // Draw comments section on the right side (closer to image)
+        const commentsX = this.image.width + margin + 10; // Reduced gap to image
         const commentsY = tableY;
         const commentsBoxWidth = commentsWidth - margin;
-        const commentsBoxHeight = this.image.height + tableHeight - 5; // Adjusted for new spacing
+        const commentsBoxHeight = this.image.height + tableHeight - 5; // Adjusted for spacing
         
         // Comments section background
         exportCtx.fillStyle = '#f8f9fa';
@@ -368,7 +368,7 @@ class FigureAnnotationTool {
         
         // Comments header
         exportCtx.fillStyle = '#1a472a';
-        exportCtx.font = 'bold 16px Arial'; // Slightly smaller to match table proportions
+        exportCtx.font = 'bold 18px Arial'; // Larger header to match increased content font
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
         exportCtx.fillText('Comments', commentsX + commentsBoxWidth/2, commentsY + 12); // Adjusted position
@@ -376,7 +376,7 @@ class FigureAnnotationTool {
         // Comments text
         if (comments && comments !== '-') {
             exportCtx.fillStyle = '#333';
-            exportCtx.font = '14px Times New Roman';
+            exportCtx.font = '16px Times New Roman'; // Increased font size for better readability
             exportCtx.textAlign = 'left';
             exportCtx.textBaseline = 'top';
             
@@ -421,7 +421,7 @@ class FigureAnnotationTool {
              if (currentLine) lines.push(currentLine);
             
                          // Draw wrapped lines
-             const lineHeight = 18; // Slightly smaller line height for better fit
+             const lineHeight = 22; // Increased line height for larger font
              const startY = commentsY + 40; // Adjusted for smaller header
             
                          for (let i = 0; i < lines.length; i++) {
