@@ -285,7 +285,7 @@ class FigureAnnotationTool {
         const exportCtx = exportCanvas.getContext('2d');
         
         // Calculate dimensions
-        const tableHeight = 100; // Space for compact table header
+        const tableHeight = 70; // Reduced space for compact table header
         const commentsWidth = 400; // Width for comments section
         const margin = 20;
         
@@ -304,8 +304,8 @@ class FigureAnnotationTool {
         // Draw compact table header (only over image area, excluding comments section)
         const tableY = margin;
         const tableWidth = this.image.width;
-        const cellHeight = 35;
-        const headerHeight = 25;
+        const cellHeight = 25; // Reduced for more compact table
+        const headerHeight = 20; // Reduced for more compact table
         
         // Table styling
         exportCtx.strokeStyle = '#333';
@@ -337,7 +337,7 @@ class FigureAnnotationTool {
         
         // Draw header text
         exportCtx.fillStyle = '#333';
-        exportCtx.font = 'bold 16px Arial';
+        exportCtx.font = 'bold 14px Arial'; // Reduced font size for compact header
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
         
@@ -346,7 +346,7 @@ class FigureAnnotationTool {
         exportCtx.fillText('Location', margin + col1Width + col2Width + col3Width/2, tableY + headerHeight/2);
         
         // Draw data text
-        exportCtx.font = '14px Times New Roman';
+        exportCtx.font = '12px Times New Roman'; // Reduced font size for compact data
         const dataY = tableY + headerHeight + cellHeight/2;
         
         exportCtx.fillText(runId, margin + col1Width/2, dataY);
@@ -357,7 +357,7 @@ class FigureAnnotationTool {
         const commentsX = this.image.width + margin * 2;
         const commentsY = tableY;
         const commentsBoxWidth = commentsWidth - margin;
-        const commentsBoxHeight = this.image.height + tableHeight - margin;
+        const commentsBoxHeight = this.image.height + tableHeight - 5; // Adjusted for new spacing
         
         // Comments section background
         exportCtx.fillStyle = '#f8f9fa';
@@ -368,10 +368,10 @@ class FigureAnnotationTool {
         
         // Comments header
         exportCtx.fillStyle = '#1a472a';
-        exportCtx.font = 'bold 18px Arial';
+        exportCtx.font = 'bold 16px Arial'; // Slightly smaller to match table proportions
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
-        exportCtx.fillText('Comments', commentsX + commentsBoxWidth/2, commentsY + 15);
+        exportCtx.fillText('Comments', commentsX + commentsBoxWidth/2, commentsY + 12); // Adjusted position
         
         // Comments text
         if (comments && comments !== '-') {
@@ -380,37 +380,60 @@ class FigureAnnotationTool {
             exportCtx.textAlign = 'left';
             exportCtx.textBaseline = 'top';
             
-            // Word wrap comments text
-            const words = comments.split(' ');
-            const lines = [];
-            let currentLine = '';
-            const maxWidth = commentsBoxWidth - 30;
+                         // Word wrap comments text with character-level breaking for long words
+             const words = comments.split(' ');
+             const lines = [];
+             let currentLine = '';
+             const maxWidth = commentsBoxWidth - 30;
+             
+             for (const word of words) {
+                 // Check if the word itself is too long for the line
+                 if (exportCtx.measureText(word).width > maxWidth) {
+                     // If current line has content, push it first
+                     if (currentLine) {
+                         lines.push(currentLine);
+                         currentLine = '';
+                     }
+                     
+                     // Break the long word character by character
+                     let wordPart = '';
+                     for (const char of word) {
+                         const testPart = wordPart + char;
+                         if (exportCtx.measureText(testPart).width <= maxWidth) {
+                             wordPart = testPart;
+                         } else {
+                             if (wordPart) lines.push(wordPart);
+                             wordPart = char;
+                         }
+                     }
+                     if (wordPart) currentLine = wordPart;
+                 } else {
+                     // Normal word wrapping
+                     const testLine = currentLine ? currentLine + ' ' + word : word;
+                     if (exportCtx.measureText(testLine).width <= maxWidth) {
+                         currentLine = testLine;
+                     } else {
+                         if (currentLine) lines.push(currentLine);
+                         currentLine = word;
+                     }
+                 }
+             }
+             if (currentLine) lines.push(currentLine);
             
-            for (const word of words) {
-                const testLine = currentLine ? currentLine + ' ' + word : word;
-                if (exportCtx.measureText(testLine).width <= maxWidth) {
-                    currentLine = testLine;
-                } else {
-                    if (currentLine) lines.push(currentLine);
-                    currentLine = word;
-                }
-            }
-            if (currentLine) lines.push(currentLine);
+                         // Draw wrapped lines
+             const lineHeight = 18; // Slightly smaller line height for better fit
+             const startY = commentsY + 40; // Adjusted for smaller header
             
-            // Draw wrapped lines
-            const lineHeight = 20;
-            const startY = commentsY + 50;
-            
-            for (let i = 0; i < lines.length; i++) {
-                const y = startY + i * lineHeight;
-                if (y < commentsY + commentsBoxHeight - 20) { // Stay within bounds
-                    exportCtx.fillText(lines[i], commentsX + 15, y);
-                }
-            }
+                         for (let i = 0; i < lines.length; i++) {
+                 const y = startY + i * lineHeight;
+                 if (y < commentsY + commentsBoxHeight - 15) { // Stay within bounds with adjusted margin
+                     exportCtx.fillText(lines[i], commentsX + 15, y);
+                 }
+             }
         }
         
         // Draw original image below table (on the left side)
-        const imageY = tableHeight + margin;
+        const imageY = tableHeight + 5; // Reduced gap between table and image
         const imageX = margin;
         exportCtx.drawImage(this.image, imageX, imageY);
         
