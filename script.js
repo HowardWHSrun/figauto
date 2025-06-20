@@ -280,16 +280,17 @@ class FigureAnnotationTool {
         const location = document.getElementById('location').value || '-';
         const comments = document.getElementById('comments').value || '-';
         
-        // Create export canvas with space for table header
+        // Create export canvas with space for table header and comments section
         const exportCanvas = document.createElement('canvas');
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Calculate table height
-        const tableHeight = 120; // Space for table header
+        // Calculate dimensions
+        const tableHeight = 100; // Space for compact table header
+        const commentsWidth = 400; // Width for comments section
         const margin = 20;
         
-        // Set export size: original image + table space
-        exportCanvas.width = this.image.width;
+        // Set export size: original image width + comments width, image height + table space
+        exportCanvas.width = this.image.width + commentsWidth + margin;
         exportCanvas.height = this.image.height + tableHeight;
         
         console.log(`Export canvas size: ${exportCanvas.width} x ${exportCanvas.height}`);
@@ -300,11 +301,11 @@ class FigureAnnotationTool {
         exportCtx.fillStyle = 'white';
         exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
         
-        // Draw table header
+        // Draw compact table header (only over image area, excluding comments section)
         const tableY = margin;
-        const tableWidth = exportCanvas.width - (margin * 2);
-        const cellHeight = 40;
-        const headerHeight = 30;
+        const tableWidth = this.image.width;
+        const cellHeight = 35;
+        const headerHeight = 25;
         
         // Table styling
         exportCtx.strokeStyle = '#333';
@@ -315,11 +316,10 @@ class FigureAnnotationTool {
         exportCtx.fillRect(margin, tableY, tableWidth, headerHeight + cellHeight);
         exportCtx.strokeRect(margin, tableY, tableWidth, headerHeight + cellHeight);
         
-        // Calculate column widths
-        const col1Width = tableWidth * 0.2; // Run
-        const col2Width = tableWidth * 0.15; // Band  
-        const col3Width = tableWidth * 0.25; // Location
-        const col4Width = tableWidth * 0.4;  // Comment
+        // Calculate column widths (without comment column since it's moving to the right)
+        const col1Width = tableWidth * 0.3; // Run
+        const col2Width = tableWidth * 0.3; // Band  
+        const col3Width = tableWidth * 0.4; // Location
         
         // Draw vertical lines
         exportCtx.beginPath();
@@ -327,8 +327,6 @@ class FigureAnnotationTool {
         exportCtx.lineTo(margin + col1Width, tableY + headerHeight + cellHeight);
         exportCtx.moveTo(margin + col1Width + col2Width, tableY);
         exportCtx.lineTo(margin + col1Width + col2Width, tableY + headerHeight + cellHeight);
-        exportCtx.moveTo(margin + col1Width + col2Width + col3Width, tableY);
-        exportCtx.lineTo(margin + col1Width + col2Width + col3Width, tableY + headerHeight + cellHeight);
         exportCtx.stroke();
         
         // Draw horizontal line between header and data
@@ -339,40 +337,58 @@ class FigureAnnotationTool {
         
         // Draw header text
         exportCtx.fillStyle = '#333';
-        exportCtx.font = 'bold 18px Arial';
+        exportCtx.font = 'bold 16px Arial';
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
         
         exportCtx.fillText('Run', margin + col1Width/2, tableY + headerHeight/2);
         exportCtx.fillText('Band', margin + col1Width + col2Width/2, tableY + headerHeight/2);
         exportCtx.fillText('Location', margin + col1Width + col2Width + col3Width/2, tableY + headerHeight/2);
-        exportCtx.fillText('Comment', margin + col1Width + col2Width + col3Width + col4Width/2, tableY + headerHeight/2);
         
         // Draw data text
-        exportCtx.font = '16px Times New Roman';
+        exportCtx.font = '14px Times New Roman';
         const dataY = tableY + headerHeight + cellHeight/2;
         
         exportCtx.fillText(runId, margin + col1Width/2, dataY);
         exportCtx.fillText(band, margin + col1Width + col2Width/2, dataY);
         exportCtx.fillText(location, margin + col1Width + col2Width + col3Width/2, dataY);
         
-        // Handle long comments with text wrapping
-        exportCtx.textAlign = 'left';
-        const maxCommentWidth = col4Width - 10;
-        const commentX = margin + col1Width + col2Width + col3Width + 5;
+        // Draw comments section on the right side
+        const commentsX = this.image.width + margin * 2;
+        const commentsY = tableY;
+        const commentsBoxWidth = commentsWidth - margin;
+        const commentsBoxHeight = this.image.height + tableHeight - margin;
         
-        if (exportCtx.measureText(comments).width <= maxCommentWidth) {
-            exportCtx.textAlign = 'center';
-            exportCtx.fillText(comments, margin + col1Width + col2Width + col3Width + col4Width/2, dataY);
-        } else {
-            // Wrap comment text
+        // Comments section background
+        exportCtx.fillStyle = '#f8f9fa';
+        exportCtx.strokeStyle = '#333';
+        exportCtx.lineWidth = 2;
+        exportCtx.fillRect(commentsX, commentsY, commentsBoxWidth, commentsBoxHeight);
+        exportCtx.strokeRect(commentsX, commentsY, commentsBoxWidth, commentsBoxHeight);
+        
+        // Comments header
+        exportCtx.fillStyle = '#1a472a';
+        exportCtx.font = 'bold 18px Arial';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'top';
+        exportCtx.fillText('Comments', commentsX + commentsBoxWidth/2, commentsY + 15);
+        
+        // Comments text
+        if (comments && comments !== '-') {
+            exportCtx.fillStyle = '#333';
+            exportCtx.font = '14px Times New Roman';
+            exportCtx.textAlign = 'left';
+            exportCtx.textBaseline = 'top';
+            
+            // Word wrap comments text
             const words = comments.split(' ');
             const lines = [];
             let currentLine = '';
+            const maxWidth = commentsBoxWidth - 30;
             
             for (const word of words) {
                 const testLine = currentLine ? currentLine + ' ' + word : word;
-                if (exportCtx.measureText(testLine).width <= maxCommentWidth) {
+                if (exportCtx.measureText(testLine).width <= maxWidth) {
                     currentLine = testLine;
                 } else {
                     if (currentLine) lines.push(currentLine);
@@ -381,18 +397,22 @@ class FigureAnnotationTool {
             }
             if (currentLine) lines.push(currentLine);
             
-            // Draw wrapped text (max 2 lines)
-            const lineHeight = 18;
-            const startY = dataY - (Math.min(lines.length, 2) - 1) * lineHeight / 2;
+            // Draw wrapped lines
+            const lineHeight = 20;
+            const startY = commentsY + 50;
             
-            for (let i = 0; i < Math.min(lines.length, 2); i++) {
-                exportCtx.fillText(lines[i], commentX, startY + i * lineHeight);
+            for (let i = 0; i < lines.length; i++) {
+                const y = startY + i * lineHeight;
+                if (y < commentsY + commentsBoxHeight - 20) { // Stay within bounds
+                    exportCtx.fillText(lines[i], commentsX + 15, y);
+                }
             }
         }
         
-        // Draw original image below table
+        // Draw original image below table (on the left side)
         const imageY = tableHeight + margin;
-        exportCtx.drawImage(this.image, 0, imageY);
+        const imageX = margin;
+        exportCtx.drawImage(this.image, imageX, imageY);
         
         // Calculate scale factor for annotations (same as display canvas)
         const scaleX = this.image.width / this.canvas.width;
@@ -401,10 +421,10 @@ class FigureAnnotationTool {
         console.log(`Scale factors: X=${scaleX}, Y=${scaleY}`);
         console.log(`Number of annotations: ${this.annotations.length}`);
         
-        // Draw annotations at full resolution (offset by table height)
+        // Draw annotations at full resolution (offset by image position)
         this.annotations.forEach((annotation, index) => {
-            const scaledX = annotation.x * scaleX;
-            const scaledY = (annotation.y * scaleY) + imageY; // Offset by table height
+            const scaledX = (annotation.x * scaleX) + imageX; // Offset by image X position
+            const scaledY = (annotation.y * scaleY) + imageY; // Offset by image Y position
             
             console.log(`Annotation ${index + 1}: Original (${annotation.x}, ${annotation.y}) -> Scaled (${scaledX}, ${scaledY})`);
             
@@ -432,8 +452,9 @@ class FigureAnnotationTool {
             const boxX = scaledX + 40;
             const boxY = scaledY - 30;
             
-            // Ensure box stays within canvas bounds
-            const adjustedBoxX = Math.min(boxX, exportCanvas.width - boxWidth - 10);
+            // Ensure box stays within image bounds (not overlapping comments section)
+            const maxBoxX = imageX + this.image.width - boxWidth - 10;
+            const adjustedBoxX = Math.min(Math.max(boxX, imageX + 10), maxBoxX);
             const adjustedBoxY = Math.max(imageY + 10, Math.min(boxY, exportCanvas.height - boxHeight - 10));
             
             // Callout box background
