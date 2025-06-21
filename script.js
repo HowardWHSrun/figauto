@@ -1,332 +1,939 @@
-// Figure Annotation Tool - Simplified EMC Testing Interface
-class FigureAnnotationTool {
+// Figure Export Tool - Enhanced EMC Testing Interface with Multi-Page Support
+class FigureExportTool {
     constructor() {
-        this.canvas = document.getElementById('annotationCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.image = null;
-        this.annotations = [];
-        this.annotationCounter = 0;
-        this.originalFilename = null; // Store original filename for export
+        // Page management
+        this.currentPageId = 1;
+        this.nextPageId = 2;
+        this.pages = new Map();
+        this.currentLayout = 'horizontal';
         
+        // Band definitions for EMC testing
+        this.bandDefinitions = {
+            'B0': { range: '10 kHz – 160 kHz', startMHz: 0.01, endMHz: 0.16 },
+            'B1': { range: '150 kHz – 650 kHz', startMHz: 0.15, endMHz: 0.65 },
+            'B2': { range: '500 kHz – 3 MHz', startMHz: 0.5, endMHz: 3 },
+            'B3': { range: '2.5 MHz – 7.5 MHz', startMHz: 2.5, endMHz: 7.5 },
+            'B4': { range: '5 MHz – 30 MHz', startMHz: 5, endMHz: 30 },
+            'B5': { range: '25 MHz – 325 MHz', startMHz: 25, endMHz: 325 },
+            'B6': { range: '300 MHz – 1.3 GHz', startMHz: 300, endMHz: 1300 },
+            'B7': { range: '1 GHz – 6 GHz', startMHz: 1000, endMHz: 6000 }
+        };
+        
+        // Initialize first page
+        this.initializePage(1);
         this.initializeEventListeners();
-        this.updateTable();
+        this.updateTables();
+        
+        // Make tool globally accessible
+        window.figureExportTool = this;
+        window.peakHelper = this;
+    }
+    
+    initializePage(pageId) {
+        const pageData = {
+            pageId: pageId,
+            imageState1: {
+                image: null,
+                originalFilename: null,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0,
+                offsetX: 0,
+                offsetY: 0,
+                scale: 1,
+                baseWidth: 0,
+                baseHeight: 0
+            },
+            imageState2: {
+                image: null,
+                originalFilename: null,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0,
+                offsetX: 0,
+                offsetY: 0,
+                scale: 1,
+                baseWidth: 0,
+                baseHeight: 0
+            },
+            formData1: { runId: '', band: '', location: '' },
+            formData2: { runId: '', band: '', location: '' },
+            comments: ''
+        };
+        
+        this.pages.set(pageId, pageData);
+        return pageData;
+    }
+    
+    getCurrentPage() {
+        return this.pages.get(this.currentPageId);
     }
     
     initializeEventListeners() {
-        // File upload
-        const uploadArea = document.getElementById('uploadArea');
-        const imageInput = document.getElementById('imageInput');
-        
-        uploadArea.addEventListener('click', () => imageInput.click());
-        uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
-        uploadArea.addEventListener('drop', this.handleDrop.bind(this));
-        uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
-        
-        imageInput.addEventListener('change', this.handleFileSelect.bind(this));
-        
-        // Form inputs - update table when values change
-        ['runId', 'band', 'location', 'comments'].forEach(id => {
-            const element = document.getElementById(id);
-            element.addEventListener('input', this.updateTable.bind(this));
+        // Layout toggle
+        document.querySelectorAll('input[name="layout"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.setLayout(e.target.value);
+                }
+            });
         });
         
-        // Canvas click for annotations
-        this.canvas.addEventListener('click', this.handleCanvasClick.bind(this));
+        // File upload for both images
+        this.setupUploadListeners(1);
+        this.setupUploadListeners(2);
         
-        // Action buttons
-        document.getElementById('clearAnnotations').addEventListener('click', this.clearAnnotations.bind(this));
-        document.getElementById('exportImage').addEventListener('click', this.exportImage.bind(this));
+        // Form inputs - update tables when values change
+        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2', 'comments'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', () => {
+                    this.saveCurrentPageData();
+                    this.updateTables();
+                });
+            }
+        });
+        
+        // Canvas interactions for both images
+        this.setupCanvasListeners(1);
+        this.setupCanvasListeners(2);
+        
+        // Band selection buttons
+        document.querySelectorAll('.band-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.handleBandSelection(e.target.dataset.band);
+            });
+        });
+        
+        // Export buttons
+        document.getElementById('exportImage1').addEventListener('click', () => this.exportSingleImage(1));
+        document.getElementById('exportImage2').addEventListener('click', () => this.exportSingleImage(2));
+        document.getElementById('exportBoth').addEventListener('click', () => this.exportBothImages());
+        document.getElementById('exportAllPages').addEventListener('click', () => this.exportAllPages());
+        
+        // Clear buttons
+        document.getElementById('clearStats').addEventListener('click', () => this.clearCurrentPage());
+        document.getElementById('clearAllPages').addEventListener('click', () => this.clearAllPages());
+        
+        // Page tab clicks
+        this.setupPageTabListeners();
     }
     
-    handleDragOver(e) {
-        e.preventDefault();
-        document.getElementById('uploadArea').classList.add('dragover');
+    setupPageTabListeners() {
+        document.querySelectorAll('.page-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('close-tab')) {
+                    const pageId = parseInt(tab.dataset.page);
+                    this.switchToPage(pageId);
+                }
+            });
+        });
     }
     
-    handleDragLeave(e) {
-        e.preventDefault();
-        document.getElementById('uploadArea').classList.remove('dragover');
+    setLayout(layout) {
+        this.currentLayout = layout;
+        
+        const dualUpload = document.getElementById('dualUpload');
+        const dualFormSection = document.getElementById('dualFormSection');
+        const dualInfoTables = document.getElementById('dualInfoTables');
+        const dualImageContainer = document.getElementById('dualImageContainer');
+        
+        if (layout === 'vertical') {
+            dualUpload.classList.add('vertical');
+            dualFormSection.classList.add('vertical');
+            dualInfoTables.classList.add('vertical');
+            dualImageContainer.classList.add('vertical');
+        } else {
+            dualUpload.classList.remove('vertical');
+            dualFormSection.classList.remove('vertical');
+            dualInfoTables.classList.remove('vertical');
+            dualImageContainer.classList.remove('vertical');
+        }
+        
+        // Redraw images with new layout
+        setTimeout(() => {
+            this.setupCanvas(1);
+            this.setupCanvas(2);
+        }, 300);
     }
     
-    handleDrop(e) {
+    addNewPage() {
+        const newPageId = this.nextPageId++;
+        this.initializePage(newPageId);
+        this.addPageTab(newPageId);
+        this.switchToPage(newPageId);
+    }
+    
+    addPageTab(pageId) {
+        const pageTabs = document.getElementById('pageTabs');
+        const newTab = document.createElement('div');
+        newTab.className = 'page-tab';
+        newTab.dataset.page = pageId;
+        newTab.innerHTML = `
+            <span>Page ${pageId}</span>
+            <button class="close-tab" onclick="figureExportTool.removePage(${pageId})" title="Close Page">×</button>
+        `;
+        
+        newTab.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('close-tab')) {
+                this.switchToPage(pageId);
+            }
+        });
+        
+        pageTabs.appendChild(newTab);
+    }
+    
+    removePage(pageId) {
+        if (this.pages.size <= 1) {
+            alert('Cannot remove the last page.');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to remove Page ${pageId}?`)) {
+            this.pages.delete(pageId);
+            
+            // Remove tab
+            const tab = document.querySelector(`[data-page="${pageId}"]`);
+            if (tab) {
+                tab.remove();
+            }
+            
+            // Switch to another page if current page was removed
+            if (this.currentPageId === pageId) {
+                const remainingPages = Array.from(this.pages.keys());
+                this.switchToPage(remainingPages[0]);
+            }
+        }
+    }
+    
+    switchToPage(pageId) {
+        // Save current page data before switching
+        this.saveCurrentPageData();
+        
+        // Update current page
+        this.currentPageId = pageId;
+        
+        // Update tab appearance
+        document.querySelectorAll('.page-tab').forEach(tab => {
+            tab.classList.toggle('active', parseInt(tab.dataset.page) === pageId);
+        });
+        
+        // Load page data
+        this.loadPageData(pageId);
+        
+        // Refresh UI
+        this.setupCanvas(1);
+        this.setupCanvas(2);
+        this.updateTables();
+    }
+    
+    saveCurrentPageData() {
+        const currentPage = this.getCurrentPage();
+        if (!currentPage) return;
+        
+        // Save form data
+        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                const imageNum = id.includes('1') ? '1' : '2';
+                const field = id.replace(/[12]$/, '');
+                currentPage[`formData${imageNum}`][field] = element.value;
+            }
+        });
+        
+        // Save comments
+        const commentsElement = document.getElementById('comments');
+        if (commentsElement) {
+            currentPage.comments = commentsElement.value;
+        }
+    }
+    
+    loadPageData(pageId) {
+        const page = this.pages.get(pageId);
+        if (!page) return;
+        
+        // Load form data
+        document.getElementById('runId1').value = page.formData1.runId || '';
+        document.getElementById('band1').value = page.formData1.band || '';
+        document.getElementById('location1').value = page.formData1.location || '';
+        document.getElementById('runId2').value = page.formData2.runId || '';
+        document.getElementById('band2').value = page.formData2.band || '';
+        document.getElementById('location2').value = page.formData2.location || '';
+        document.getElementById('comments').value = page.comments || '';
+        
+        // Update instruction overlays
+        document.getElementById('instructionOverlay1').style.display = page.imageState1.image ? 'none' : 'block';
+        document.getElementById('instructionOverlay2').style.display = page.imageState2.image ? 'none' : 'block';
+    }
+    
+    setupUploadListeners(imageNumber) {
+        const uploadArea = document.getElementById(`uploadArea${imageNumber}`);
+        const imageInput = document.getElementById(`imageInput${imageNumber}`);
+        
+        uploadArea.addEventListener('click', () => imageInput.click());
+        uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e, imageNumber));
+        uploadArea.addEventListener('drop', (e) => this.handleDrop(e, imageNumber));
+        uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e, imageNumber));
+        
+        imageInput.addEventListener('change', (e) => this.handleFileSelect(e, imageNumber));
+    }
+    
+    setupCanvasListeners(imageNumber) {
+        const canvas = document.getElementById(`annotationCanvas${imageNumber}`);
+        
+        canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e, imageNumber));
+        canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e, imageNumber));
+        canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e, imageNumber));
+        canvas.addEventListener('wheel', (e) => this.handleWheel(e, imageNumber));
+    }
+    
+    getImageState(imageNumber) {
+        const currentPage = this.getCurrentPage();
+        return imageNumber === 1 ? currentPage.imageState1 : currentPage.imageState2;
+    }
+    
+    getCanvas(imageNumber) {
+        return document.getElementById(`annotationCanvas${imageNumber}`);
+    }
+    
+    getContext(imageNumber) {
+        return this.getCanvas(imageNumber).getContext('2d');
+    }
+    
+    getFormData(imageNumber) {
+        return {
+            runId: document.getElementById(`runId${imageNumber}`)?.value || '-',
+            band: document.getElementById(`band${imageNumber}`)?.value || '-',
+            location: document.getElementById(`location${imageNumber}`)?.value || '-'
+        };
+    }
+    
+    handleBandSelection(band) {
+        // Update frequency range display
+        const bandInfo = this.bandDefinitions[band];
+        if (bandInfo) {
+            document.getElementById('frequencyRange').value = bandInfo.range;
+        }
+        
+        // Visual feedback - highlight selected band
+        document.querySelectorAll('.band-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-band="${band}"]`).classList.add('active');
+        
+        // Update peak identification helper for selected band
+        this.identifyPeakForBand(band, bandInfo);
+    }
+    
+    autoSelectBandButton(detectedBand) {
+        if (this.bandDefinitions[detectedBand]) {
+            this.handleBandSelection(detectedBand);
+        }
+    }
+    
+    clearPeakIdentification() {
+        const resultsContainer = document.getElementById('peakResults');
+        const bandInfoDisplay = document.querySelector('.band-info-display');
+        
+        bandInfoDisplay.classList.remove('active');
+        bandInfoDisplay.innerHTML = '<p class="helper-hint">Select an EMC band above to see frequency allocations for that range.</p>';
+        resultsContainer.innerHTML = '<p class="helper-hint">Choose a band (B0-B7) to view all services allocated in that frequency range.</p>';
+    }
+    
+    handleDragOver(e, imageNumber) {
         e.preventDefault();
-        document.getElementById('uploadArea').classList.remove('dragover');
+        document.getElementById(`uploadArea${imageNumber}`).classList.add('dragover');
+    }
+    
+    handleDragLeave(e, imageNumber) {
+        e.preventDefault();
+        document.getElementById(`uploadArea${imageNumber}`).classList.remove('dragover');
+    }
+    
+    handleDrop(e, imageNumber) {
+        e.preventDefault();
+        document.getElementById(`uploadArea${imageNumber}`).classList.remove('dragover');
         
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].type.startsWith('image/')) {
-            this.loadImage(files[0]);
+            this.loadImage(files[0], imageNumber);
         }
     }
     
-    handleFileSelect(e) {
+    handleFileSelect(e, imageNumber) {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
-            this.loadImage(file);
+            this.loadImage(file, imageNumber);
         }
     }
     
-    loadImage(file) {
-        // Store original filename for export
-        this.originalFilename = file.name;
+    loadImage(file, imageNumber) {
+        const state = this.getImageState(imageNumber);
+        state.originalFilename = file.name;
         
-        // Auto-parse filename for Run ID and Band
-        this.parseFilename(file.name);
+        // Parse filename and auto-fill the corresponding form fields
+        this.parseFilename(file.name, imageNumber);
         
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                this.image = img;
-                this.setupCanvas();
-                this.clearAnnotations();
-                document.getElementById('instructionOverlay').style.display = 'none';
+                state.image = img;
+                this.setupCanvas(imageNumber);
+                document.getElementById(`instructionOverlay${imageNumber}`).style.display = 'none';
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
     
-    parseFilename(filename) {
-        // Remove file extension for parsing
+    parseFilename(filename, imageNumber) {
         const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+        let runId = '';
+        let band = '';
+        let location = '';
         
-        // Pattern 1: "Run 127-71, B6 Ambient.png" or "Figure 3-1 Run 127-71, B6v Ambient.png"
-        let match = nameWithoutExt.match(/(?:Figure \d+-\d+ )?Run (\d+-\d+),?\s*([B]\d+[a-zA-Z]*)\s+(.+)/i);
+        console.log(`Parsing filename for Image ${imageNumber}:`, nameWithoutExt);
         
-        if (!match) {
-            // Pattern 2: "127-71_B6_Ambient.jpg"
-            match = nameWithoutExt.match(/(\d+-\d+)_([B]\d+[a-zA-Z]*)_(.+)/i);
+        // Improved pattern matching with proper regex
+        // First, try to find run ID pattern (digits-digits)
+        const runMatch = nameWithoutExt.match(/(\d+-\d+)/);
+        if (runMatch) {
+            runId = runMatch[1];
         }
         
-        if (!match) {
-            // Pattern 3: "127-71 B6 Ambient"
-            match = nameWithoutExt.match(/(\d+-\d+)\s+([B]\d+[a-zA-Z]*)\s+(.+)/i);
+        // Then find band pattern (B followed by digit(s), optional letters)
+        const bandMatch = nameWithoutExt.match(/([Bb]\d+[a-zA-Z]*)/);
+        if (bandMatch) {
+            band = bandMatch[1].toUpperCase(); // Ensure uppercase
         }
         
-        if (!match) {
-            // Pattern 4: Try to find any run ID and band separately
-            const runMatch = nameWithoutExt.match(/(\d+-\d+)/);
-            const bandMatch = nameWithoutExt.match(/([B]\d+[a-zA-Z]*)/i);
+        // Find location by removing run ID and band from filename
+        if (runId || band) {
+            let tempLocation = nameWithoutExt;
             
-            if (runMatch && bandMatch) {
-                match = [null, runMatch[1], bandMatch[1], ''];
+            // Remove common prefixes
+            tempLocation = tempLocation.replace(/^(Figure\s+\d+-\d+\s+)?Run\s+/i, '');
+            
+            // Remove run ID
+            if (runId) {
+                tempLocation = tempLocation.replace(new RegExp(runId.replace('-', '\\-'), 'g'), '');
+            }
+            
+            // Remove band
+            if (band) {
+                tempLocation = tempLocation.replace(new RegExp(band, 'gi'), '');
+            }
+            
+            // Clean up location string
+            location = tempLocation
+                .replace(/[_,-]+/g, ' ')  // Replace underscores, commas, dashes with spaces
+                .replace(/\s+/g, ' ')     // Replace multiple spaces with single space
+                .trim();
+                
+            // Remove empty or very short locations
+            if (location.length < 2) {
+                location = '';
             }
         }
         
-        if (match) {
-            const [, runId, band, location] = match;
-            
-            // Auto-fill Run ID and Band
-            document.getElementById('runId').value = runId || '';
-            document.getElementById('band').value = band || '';
-            
-            // Suggest location if found and field is empty
-            if (location && location.trim() && !document.getElementById('location').value) {
-                document.getElementById('location').value = location.replace(/_/g, ' ').trim();
+        // Auto-fill detected values for this specific image
+        if (runId) {
+            document.getElementById(`runId${imageNumber}`).value = runId;
+            console.log(`Detected Run ID for Image ${imageNumber}:`, runId);
+        }
+        
+        if (band) {
+            document.getElementById(`band${imageNumber}`).value = band;
+            // Only auto-select band button for first image to avoid conflicts
+            if (imageNumber === 1) {
+                this.autoSelectBandButton(band);
             }
-            
-            this.updateTable();
-            
-            console.log(`Auto-detected: Run ${runId}, Band ${band}${location ? ', Location ' + location : ''}`);
+            console.log(`Detected Band for Image ${imageNumber}:`, band);
+        }
+        
+        if (location) {
+            if (!document.getElementById(`location${imageNumber}`).value) {
+                document.getElementById(`location${imageNumber}`).value = location;
+                console.log(`Detected Location for Image ${imageNumber}:`, location);
+            }
+        }
+        
+        this.saveCurrentPageData();
+        this.updateTables();
+        
+        const detected = [];
+        if (runId) detected.push('Run ' + runId);
+        if (band) detected.push('Band ' + band);
+        if (location) detected.push('Location ' + location);
+        
+        if (detected.length > 0) {
+            console.log(`Auto-detected for Image ${imageNumber}:`, detected.join(', '));
         } else {
-            console.log('Could not auto-detect Run ID and Band from filename');
+            console.log(`No run ID, band, or location detected in filename for Image ${imageNumber}`);
         }
     }
     
-    setupCanvas() {
-        if (!this.image) return;
+    setupCanvas(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
         
-        const container = this.canvas.parentElement;
-        const containerWidth = container.clientWidth - 40; // Account for padding
+        if (!state || !state.image) return;
+        
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth - 40;
         const containerHeight = container.clientHeight - 40;
         
-        // Calculate display size maintaining aspect ratio
-        const imageAspect = this.image.width / this.image.height;
-        const containerAspect = containerWidth / containerHeight;
+        // Prefer larger display size but limit to reasonable maximum
+        const maxDisplayWidth = Math.min(state.image.width * 1.0, containerWidth, 600);
+        const maxDisplayHeight = Math.min(state.image.height * 1.0, containerHeight, 500);
+        
+        const imageAspect = state.image.width / state.image.height;
+        const containerAspect = maxDisplayWidth / maxDisplayHeight;
         
         let displayWidth, displayHeight;
         
         if (imageAspect > containerAspect) {
-            displayWidth = containerWidth;
-            displayHeight = containerWidth / imageAspect;
+            displayWidth = maxDisplayWidth;
+            displayHeight = maxDisplayWidth / imageAspect;
         } else {
-            displayHeight = containerHeight;
-            displayWidth = containerHeight * imageAspect;
+            displayHeight = maxDisplayHeight;
+            displayWidth = maxDisplayHeight * imageAspect;
         }
         
-        this.canvas.width = displayWidth;
-        this.canvas.height = displayHeight;
+        // Ensure minimum readable size
+        const minSize = 300;
+        if (displayWidth < minSize || displayHeight < minSize) {
+            if (displayWidth < displayHeight) {
+                displayWidth = minSize;
+                displayHeight = minSize / imageAspect;
+            } else {
+                displayHeight = minSize;
+                displayWidth = minSize * imageAspect;
+            }
+        }
         
-        this.drawImage();
+        canvas.width = displayWidth;
+        canvas.height = displayHeight;
+        
+        // Center the canvas in the container
+        canvas.style.display = 'block';
+        canvas.style.margin = '0 auto';
+        
+        // Reset transform for crisp display
+        state.offsetX = 0;
+        state.offsetY = 0;
+        state.scale = 1;
+        
+        // Store base size for zoom calculations
+        state.baseWidth = displayWidth;
+        state.baseHeight = displayHeight;
+        
+        this.drawImage(imageNumber);
+        this.addImageControls(imageNumber);
     }
     
-    drawImage() {
-        if (!this.image) return;
+    drawImage(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const ctx = this.getContext(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
         
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.drawImage(this.image, 0, 0, this.canvas.width, this.canvas.height);
+        if (!state || !state.image) return;
         
-        // Redraw annotations
-        this.annotations.forEach(annotation => {
-            this.drawAnnotation(annotation);
-        });
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Enable image smoothing for better quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        ctx.save();
+        ctx.translate(state.offsetX, state.offsetY);
+        ctx.scale(state.scale, state.scale);
+        
+        // Draw image at base size for crisp display
+        ctx.drawImage(state.image, 0, 0, state.baseWidth, state.baseHeight);
+        
+        ctx.restore();
     }
     
-    handleCanvasClick(e) {
-        if (!this.image) return;
+    addImageControls(imageNumber) {
+        // Remove existing controls if any
+        const existingControls = document.querySelector(`#imageControls${imageNumber}`);
+        if (existingControls) {
+            existingControls.remove();
+        }
         
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const canvas = this.getCanvas(imageNumber);
+        const state = this.getImageState(imageNumber);
         
-        // Prompt for annotation text
-        const text = prompt('Enter annotation text:');
-        if (text && text.trim()) {
-            this.addAnnotation(x, y, text.trim());
+        if (!state || !state.image) return;
+        
+        // Create image controls
+        const controls = document.createElement('div');
+        controls.className = 'image-controls';
+        controls.id = `imageControls${imageNumber}`;
+        controls.innerHTML = `
+            <div class="zoom-controls">
+                <button class="control-btn" id="zoomOut${imageNumber}">−</button>
+                <span class="zoom-level" id="zoomLevel${imageNumber}">${Math.round(state.scale * 100)}%</span>
+                <button class="control-btn" id="zoomIn${imageNumber}">+</button>
+                <button class="control-btn" id="resetZoom${imageNumber}">Reset</button>
+                <button class="control-btn" id="fitToScreen${imageNumber}">Fit</button>
+            </div>
+        `;
+        
+        canvas.parentElement.appendChild(controls);
+        
+        // Add event listeners
+        document.getElementById(`zoomIn${imageNumber}`).addEventListener('click', () => this.zoomIn(imageNumber));
+        document.getElementById(`zoomOut${imageNumber}`).addEventListener('click', () => this.zoomOut(imageNumber));
+        document.getElementById(`resetZoom${imageNumber}`).addEventListener('click', () => this.resetZoom(imageNumber));
+        document.getElementById(`fitToScreen${imageNumber}`).addEventListener('click', () => this.fitToScreen(imageNumber));
+    }
+    
+    zoomIn(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        if (!state) return;
+        state.scale = Math.min(state.scale * 1.2, 5);
+        this.drawImage(imageNumber);
+        this.updateZoomDisplay(imageNumber);
+    }
+    
+    zoomOut(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        if (!state) return;
+        state.scale = Math.max(state.scale / 1.2, 0.1);
+        this.drawImage(imageNumber);
+        this.updateZoomDisplay(imageNumber);
+    }
+    
+    resetZoom(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        if (!state) return;
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        this.drawImage(imageNumber);
+        this.updateZoomDisplay(imageNumber);
+    }
+    
+    fitToScreen(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
+        if (!state) return;
+        
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth - 40;
+        const containerHeight = container.clientHeight - 40;
+        
+        const scaleX = containerWidth / state.baseWidth;
+        const scaleY = containerHeight / state.baseHeight;
+        state.scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+        
+        state.offsetX = 0;
+        state.offsetY = 0;
+        this.drawImage(imageNumber);
+        this.updateZoomDisplay(imageNumber);
+    }
+    
+    updateZoomDisplay(imageNumber) {
+        const zoomDisplay = document.getElementById(`zoomLevel${imageNumber}`);
+        const state = this.getImageState(imageNumber);
+        if (zoomDisplay && state) {
+            zoomDisplay.textContent = `${Math.round(state.scale * 100)}%`;
         }
     }
     
-    addAnnotation(x, y, text) {
-        this.annotationCounter++;
-        const annotation = {
-            id: this.annotationCounter,
-            x: x,
-            y: y,
-            text: text,
-            number: this.annotationCounter
-        };
+    handleMouseDown(e, imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
         
-        this.annotations.push(annotation);
-        this.drawAnnotation(annotation);
+        if (!state || !state.image) return;
+        
+        state.isDragging = true;
+        const rect = canvas.getBoundingClientRect();
+        state.lastX = e.clientX - rect.left;
+        state.lastY = e.clientY - rect.top;
     }
     
-    drawAnnotation(annotation) {
-        // Draw marker circle
-        this.ctx.save();
-        this.ctx.fillStyle = '#1a472a';
-        this.ctx.strokeStyle = 'white';
-        this.ctx.lineWidth = 2;
+    handleMouseMove(e, imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
         
-        this.ctx.beginPath();
-        this.ctx.arc(annotation.x, annotation.y, 12, 0, 2 * Math.PI);
-        this.ctx.fill();
-        this.ctx.stroke();
+        if (!state || !state.isDragging || !state.image) return;
         
-        // Draw number
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = 'bold 12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(annotation.number, annotation.x, annotation.y);
+        const rect = canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
         
-        // Draw callout box
-        const boxWidth = Math.max(120, annotation.text.length * 8);
-        const boxHeight = 30;
-        const boxX = annotation.x + 20;
-        const boxY = annotation.y - 15;
+        state.offsetX += currentX - state.lastX;
+        state.offsetY += currentY - state.lastY;
         
-        // Callout box background
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        this.ctx.strokeStyle = '#1a472a';
-        this.ctx.lineWidth = 2;
-        this.ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-        this.ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        state.lastX = currentX;
+        state.lastY = currentY;
         
-        // Callout line
-        this.ctx.beginPath();
-        this.ctx.moveTo(annotation.x + 12, annotation.y);
-        this.ctx.lineTo(boxX, boxY + boxHeight / 2);
-        this.ctx.stroke();
-        
-        // Annotation text
-        this.ctx.fillStyle = '#333';
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'left';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(annotation.text, boxX + 5, boxY + boxHeight / 2);
-        
-        this.ctx.restore();
+        this.drawImage(imageNumber);
     }
     
-    clearAnnotations() {
-        this.annotations = [];
-        this.annotationCounter = 0;
-        if (this.image) {
-            this.drawImage();
+    handleMouseUp(e, imageNumber) {
+        const state = this.getImageState(imageNumber);
+        if (state) {
+            state.isDragging = false;
         }
     }
     
-    updateTable() {
-        const runId = document.getElementById('runId').value || '-';
-        const band = document.getElementById('band').value || '-';
-        const location = document.getElementById('location').value || '-';
-        const comments = document.getElementById('comments').value || '-';
+    handleWheel(e, imageNumber) {
+        const state = this.getImageState(imageNumber);
+        const canvas = this.getCanvas(imageNumber);
         
-        document.getElementById('tableRun').textContent = runId;
-        document.getElementById('tableBand').textContent = band;
-        document.getElementById('tableLocation').textContent = location;
-        document.getElementById('tableComment').textContent = comments;
+        if (!state || !state.image) return;
+        
+        e.preventDefault();
+        
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const wheel = e.deltaY < 0 ? 1 : -1;
+        const zoom = Math.exp(wheel * 0.1);
+        
+        state.scale *= zoom;
+        state.scale = Math.max(0.1, Math.min(5, state.scale));
+        
+        state.offsetX = mouseX - (mouseX - state.offsetX) * zoom;
+        state.offsetY = mouseY - (mouseY - state.offsetY) * zoom;
+        
+        this.drawImage(imageNumber);
+        this.updateZoomDisplay(imageNumber);
     }
     
-    exportImage() {
-        if (!this.image) {
-            alert('Please load an image first.');
+    updateTables() {
+        // Update both tables for current page
+        for (let i = 1; i <= 2; i++) {
+            const formData = this.getFormData(i);
+            
+            const tableRunElement = document.getElementById(`tableRun${i}`);
+            const tableBandElement = document.getElementById(`tableBand${i}`);
+            const tableLocationElement = document.getElementById(`tableLocation${i}`);
+            
+            if (tableRunElement) tableRunElement.textContent = formData.runId;
+            if (tableBandElement) tableBandElement.textContent = formData.band;
+            if (tableLocationElement) tableLocationElement.textContent = formData.location;
+        }
+    }
+    
+    clearCurrentPage() {
+        if (confirm('Are you sure you want to clear all data for the current page?')) {
+            // Clear all input fields for current page
+            ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2', 'comments'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.value = '';
+                }
+            });
+            
+            document.getElementById('frequencyRange').value = '';
+            
+            // Clear band selection
+            document.querySelectorAll('.band-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Clear peak identification helper
+            this.clearPeakIdentification();
+            
+            // Clear current page images
+            const currentPage = this.getCurrentPage();
+            if (currentPage) {
+                currentPage.imageState1.image = null;
+                currentPage.imageState2.image = null;
+                currentPage.formData1 = { runId: '', band: '', location: '' };
+                currentPage.formData2 = { runId: '', band: '', location: '' };
+                currentPage.comments = '';
+                
+                // Show instruction overlays
+                document.getElementById('instructionOverlay1').style.display = 'block';
+                document.getElementById('instructionOverlay2').style.display = 'block';
+                
+                // Clear canvases
+                const ctx1 = this.getContext(1);
+                const ctx2 = this.getContext(2);
+                const canvas1 = this.getCanvas(1);
+                const canvas2 = this.getCanvas(2);
+                
+                ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+                ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+                
+                // Remove image controls
+                document.querySelector('#imageControls1')?.remove();
+                document.querySelector('#imageControls2')?.remove();
+            }
+            
+            // Update tables
+            this.updateTables();
+            
+            console.log('Current page cleared');
+        }
+    }
+    
+    clearAllPages() {
+        if (confirm('Are you sure you want to clear ALL pages? This cannot be undone.')) {
+            // Clear all pages except first one
+            const pageIds = Array.from(this.pages.keys());
+            pageIds.forEach(pageId => {
+                if (pageId !== 1) {
+                    this.removePage(pageId);
+                }
+            });
+            
+            // Clear first page
+            this.switchToPage(1);
+            this.clearCurrentPage();
+            
+            console.log('All pages cleared');
+        }
+    }
+    
+    exportSingleImage(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        
+        if (!state || !state.image) {
+            alert(`Please load Image ${imageNumber} first.`);
             return;
         }
         
-        // Get table data
-        const runId = document.getElementById('runId').value || '-';
-        const band = document.getElementById('band').value || '-';
-        const location = document.getElementById('location').value || '-';
+        const formData = this.getFormData(imageNumber);
         const comments = document.getElementById('comments').value || '-';
         
-        // Create export canvas with space for table header and comments section
+        this.createExport([state.image], [formData], comments, `Page ${this.currentPageId} - Image ${imageNumber}`);
+    }
+    
+    exportBothImages() {
+        const currentPage = this.getCurrentPage();
+        if (!currentPage) return;
+        
+        const hasImage1 = currentPage.imageState1.image !== null;
+        const hasImage2 = currentPage.imageState2.image !== null;
+        
+        if (!hasImage1 && !hasImage2) {
+            alert('Please load at least one image first.');
+            return;
+        }
+        
+        const images = [];
+        const formDataArray = [];
+        
+        if (hasImage1) {
+            images.push(currentPage.imageState1.image);
+            formDataArray.push(this.getFormData(1));
+        }
+        
+        if (hasImage2) {
+            images.push(currentPage.imageState2.image);
+            formDataArray.push(this.getFormData(2));
+        }
+        
+        const comments = document.getElementById('comments').value || '-';
+        this.createExport(images, formDataArray, comments, `Page ${this.currentPageId} - Both Images`);
+    }
+    
+    exportAllPages() {
+        const pageIds = Array.from(this.pages.keys()).sort((a, b) => a - b);
+        const allImages = [];
+        const allFormData = [];
+        let combinedComments = '';
+        
+        pageIds.forEach(pageId => {
+            const page = this.pages.get(pageId);
+            if (page) {
+                if (page.imageState1.image) {
+                    allImages.push(page.imageState1.image);
+                    allFormData.push({
+                        runId: page.formData1.runId || '-',
+                        band: page.formData1.band || '-',
+                        location: page.formData1.location || '-'
+                    });
+                }
+                if (page.imageState2.image) {
+                    allImages.push(page.imageState2.image);
+                    allFormData.push({
+                        runId: page.formData2.runId || '-',
+                        band: page.formData2.band || '-',
+                        location: page.formData2.location || '-'
+                    });
+                }
+                if (page.comments) {
+                    combinedComments += `Page ${pageId}: ${page.comments}\n\n`;
+                }
+            }
+        });
+        
+        if (allImages.length === 0) {
+            alert('No images found across all pages.');
+            return;
+        }
+        
+        this.createExport(allImages, allFormData, combinedComments || '-', 'All Pages');
+    }
+    
+    createExport(images, formDataArray, comments, exportType) {
         const exportCanvas = document.createElement('canvas');
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Calculate dimensions
-        const tableHeight = 80; // Adjusted for larger fonts
-        const commentsWidth = 400; // Width for comments section
+        const tableHeight = 80;
+        const commentsWidth = 400;
         const margin = 20;
+        const imagePadding = 20;
         
-        // Set export size: original image width + comments width, image height + table space
-        exportCanvas.width = this.image.width + commentsWidth + 10; // Reduced width due to smaller gap
-        exportCanvas.height = this.image.height + tableHeight;
+        // Calculate dimensions based on available images
+        let totalImageWidth = 0;
+        let maxImageHeight = 0;
         
-        console.log(`Export canvas size: ${exportCanvas.width} x ${exportCanvas.height}`);
-        console.log(`Image size: ${this.image.width} x ${this.image.height}`);
-        console.log(`Table data: Run=${runId}, Band=${band}, Location=${location}, Comments=${comments}`);
+        images.forEach(image => {
+            totalImageWidth += image.width;
+            maxImageHeight = Math.max(maxImageHeight, image.height);
+        });
+        
+        if (images.length > 1) {
+            totalImageWidth += imagePadding * (images.length - 1);
+        }
+        
+        exportCanvas.width = Math.max(totalImageWidth, 800) + commentsWidth + 10;
+        exportCanvas.height = maxImageHeight + tableHeight;
         
         // Fill background
         exportCtx.fillStyle = 'white';
         exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
         
-        // Draw compact table header (only over image area, excluding comments section)
+        // Draw table header
         const tableY = margin;
-        const tableWidth = this.image.width;
-        const cellHeight = 30; // Increased slightly for larger fonts
-        const headerHeight = 25; // Increased slightly for larger fonts
+        const tableWidth = Math.max(totalImageWidth, 600);
+        const cellHeight = 30;
+        const headerHeight = 25;
         
-        // Table styling
         exportCtx.strokeStyle = '#333';
         exportCtx.lineWidth = 2;
         exportCtx.fillStyle = '#f8f9fa';
         
-        // Draw table background
         exportCtx.fillRect(margin, tableY, tableWidth, headerHeight + cellHeight);
         exportCtx.strokeRect(margin, tableY, tableWidth, headerHeight + cellHeight);
         
-        // Calculate column widths (without comment column since it's moving to the right)
-        const col1Width = tableWidth * 0.3; // Run
-        const col2Width = tableWidth * 0.3; // Band  
-        const col3Width = tableWidth * 0.4; // Location
+        // Draw table content
+        exportCtx.fillStyle = '#1a472a';
+        exportCtx.font = 'bold 14px Arial';
+        exportCtx.textAlign = 'center';
+        
+        const cellWidth = tableWidth / 3;
+        exportCtx.fillText('Run', margin + cellWidth/2, tableY + headerHeight/2 + 5);
+        exportCtx.fillText('Band', margin + cellWidth + cellWidth/2, tableY + headerHeight/2 + 5);
+        exportCtx.fillText('Location', margin + 2*cellWidth + cellWidth/2, tableY + headerHeight/2 + 5);
         
         // Draw vertical lines
         exportCtx.beginPath();
-        exportCtx.moveTo(margin + col1Width, tableY);
-        exportCtx.lineTo(margin + col1Width, tableY + headerHeight + cellHeight);
-        exportCtx.moveTo(margin + col1Width + col2Width, tableY);
-        exportCtx.lineTo(margin + col1Width + col2Width, tableY + headerHeight + cellHeight);
+        exportCtx.moveTo(margin + cellWidth, tableY);
+        exportCtx.lineTo(margin + cellWidth, tableY + headerHeight + cellHeight);
+        exportCtx.moveTo(margin + 2*cellWidth, tableY);
+        exportCtx.lineTo(margin + 2*cellWidth, tableY + headerHeight + cellHeight);
         exportCtx.stroke();
         
         // Draw horizontal line between header and data
@@ -335,222 +942,207 @@ class FigureAnnotationTool {
         exportCtx.lineTo(margin + tableWidth, tableY + headerHeight);
         exportCtx.stroke();
         
-        // Draw header text
+        // Fill data cells
+        exportCtx.fillStyle = 'white';
+        exportCtx.fillRect(margin + 1, tableY + headerHeight + 1, tableWidth - 2, cellHeight - 2);
+        
         exportCtx.fillStyle = '#333';
-        exportCtx.font = 'bold 16px Arial'; // Increased font size for better readability
-        exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'middle';
+        exportCtx.font = '16px "Times New Roman"';
         
-        exportCtx.fillText('Run', margin + col1Width/2, tableY + headerHeight/2);
-        exportCtx.fillText('Band', margin + col1Width + col2Width/2, tableY + headerHeight/2);
-        exportCtx.fillText('Location', margin + col1Width + col2Width + col3Width/2, tableY + headerHeight/2);
+        // Use first image's data for the table, or combine if needed
+        const primaryFormData = formDataArray[0];
+        exportCtx.fillText(primaryFormData.runId, margin + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
+        exportCtx.fillText(primaryFormData.band, margin + cellWidth + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
+        exportCtx.fillText(primaryFormData.location, margin + 2*cellWidth + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
         
-        // Draw data text
-        exportCtx.font = '14px Times New Roman'; // Increased font size for better readability
-        const dataY = tableY + headerHeight + cellHeight/2;
+        // Draw images
+        let imageX = margin;
+        const imageY = tableY + headerHeight + cellHeight + margin;
         
-        exportCtx.fillText(runId, margin + col1Width/2, dataY);
-        exportCtx.fillText(band, margin + col1Width + col2Width/2, dataY);
-        exportCtx.fillText(location, margin + col1Width + col2Width + col3Width/2, dataY);
-        
-        // Draw comments section on the right side (closer to image)
-        const commentsX = this.image.width + margin + 10; // Reduced gap to image
-        const commentsY = tableY;
-        const commentsBoxWidth = commentsWidth - margin;
-        const commentsBoxHeight = this.image.height + tableHeight - 5; // Adjusted for spacing
-        
-        // Comments section background
-        exportCtx.fillStyle = '#f8f9fa';
-        exportCtx.strokeStyle = '#333';
-        exportCtx.lineWidth = 2;
-        exportCtx.fillRect(commentsX, commentsY, commentsBoxWidth, commentsBoxHeight);
-        exportCtx.strokeRect(commentsX, commentsY, commentsBoxWidth, commentsBoxHeight);
-        
-        // Comments header
-        exportCtx.fillStyle = '#1a472a';
-        exportCtx.font = 'bold 18px Arial'; // Larger header to match increased content font
-        exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'top';
-        exportCtx.fillText('Comments', commentsX + commentsBoxWidth/2, commentsY + 12); // Adjusted position
-        
-        // Comments text
-        if (comments && comments !== '-') {
-            exportCtx.fillStyle = '#333';
-            exportCtx.font = '16px Times New Roman'; // Increased font size for better readability
-            exportCtx.textAlign = 'left';
-            exportCtx.textBaseline = 'top';
-            
-                         // Word wrap comments text with character-level breaking for long words
-             const words = comments.split(' ');
-             const lines = [];
-             let currentLine = '';
-             const maxWidth = commentsBoxWidth - 30;
-             
-             for (const word of words) {
-                 // Check if the word itself is too long for the line
-                 if (exportCtx.measureText(word).width > maxWidth) {
-                     // If current line has content, push it first
-                     if (currentLine) {
-                         lines.push(currentLine);
-                         currentLine = '';
-                     }
-                     
-                     // Break the long word character by character
-                     let wordPart = '';
-                     for (const char of word) {
-                         const testPart = wordPart + char;
-                         if (exportCtx.measureText(testPart).width <= maxWidth) {
-                             wordPart = testPart;
-                         } else {
-                             if (wordPart) lines.push(wordPart);
-                             wordPart = char;
-                         }
-                     }
-                     if (wordPart) currentLine = wordPart;
-                 } else {
-                     // Normal word wrapping
-                     const testLine = currentLine ? currentLine + ' ' + word : word;
-                     if (exportCtx.measureText(testLine).width <= maxWidth) {
-                         currentLine = testLine;
-                     } else {
-                         if (currentLine) lines.push(currentLine);
-                         currentLine = word;
-                     }
-                 }
-             }
-             if (currentLine) lines.push(currentLine);
-            
-                         // Draw wrapped lines
-             const lineHeight = 22; // Increased line height for larger font
-             const startY = commentsY + 40; // Adjusted for smaller header
-            
-                         for (let i = 0; i < lines.length; i++) {
-                 const y = startY + i * lineHeight;
-                 if (y < commentsY + commentsBoxHeight - 15) { // Stay within bounds with adjusted margin
-                     exportCtx.fillText(lines[i], commentsX + 15, y);
-                 }
-             }
-        }
-        
-        // Draw original image below table (on the left side)
-        const imageY = tableHeight + 5; // Reduced gap between table and image
-        const imageX = margin;
-        exportCtx.drawImage(this.image, imageX, imageY);
-        
-        // Calculate scale factor for annotations (same as display canvas)
-        const scaleX = this.image.width / this.canvas.width;
-        const scaleY = this.image.height / this.canvas.height;
-        
-        console.log(`Scale factors: X=${scaleX}, Y=${scaleY}`);
-        console.log(`Number of annotations: ${this.annotations.length}`);
-        
-        // Draw annotations at full resolution (offset by image position)
-        this.annotations.forEach((annotation, index) => {
-            const scaledX = (annotation.x * scaleX) + imageX; // Offset by image X position
-            const scaledY = (annotation.y * scaleY) + imageY; // Offset by image Y position
-            
-            console.log(`Annotation ${index + 1}: Original (${annotation.x}, ${annotation.y}) -> Scaled (${scaledX}, ${scaledY})`);
-            
-            // Draw marker circle
-            exportCtx.save();
-            exportCtx.fillStyle = '#1a472a';
-            exportCtx.strokeStyle = 'white';
-            exportCtx.lineWidth = 6;
-            
-            exportCtx.beginPath();
-            exportCtx.arc(scaledX, scaledY, 24, 0, 2 * Math.PI);
-            exportCtx.fill();
-            exportCtx.stroke();
-            
-            // Draw number
-            exportCtx.fillStyle = 'white';
-            exportCtx.font = 'bold 20px Arial';
-            exportCtx.textAlign = 'center';
-            exportCtx.textBaseline = 'middle';
-            exportCtx.fillText(annotation.number, scaledX, scaledY);
-            
-            // Draw callout box
-            const boxWidth = Math.max(250, annotation.text.length * 16);
-            const boxHeight = 60;
-            const boxX = scaledX + 40;
-            const boxY = scaledY - 30;
-            
-            // Ensure box stays within image bounds (not overlapping comments section)
-            const maxBoxX = imageX + this.image.width - boxWidth - 10;
-            const adjustedBoxX = Math.min(Math.max(boxX, imageX + 10), maxBoxX);
-            const adjustedBoxY = Math.max(imageY + 10, Math.min(boxY, exportCanvas.height - boxHeight - 10));
-            
-            // Callout box background
-            exportCtx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-            exportCtx.strokeStyle = '#1a472a';
-            exportCtx.lineWidth = 4;
-            exportCtx.fillRect(adjustedBoxX, adjustedBoxY, boxWidth, boxHeight);
-            exportCtx.strokeRect(adjustedBoxX, adjustedBoxY, boxWidth, boxHeight);
-            
-            // Callout line
-            exportCtx.strokeStyle = '#1a472a';
-            exportCtx.lineWidth = 3;
-            exportCtx.beginPath();
-            exportCtx.moveTo(scaledX + 24, scaledY);
-            exportCtx.lineTo(adjustedBoxX, adjustedBoxY + boxHeight / 2);
-            exportCtx.stroke();
-            
-            // Annotation text
-            exportCtx.fillStyle = '#333';
-            exportCtx.font = '18px Arial';
-            exportCtx.textAlign = 'left';
-            exportCtx.textBaseline = 'middle';
-            
-            // Word wrap for long text
-            const words = annotation.text.split(' ');
-            const maxWidth = boxWidth - 20;
-            let y = adjustedBoxY + boxHeight / 2;
-            
-            if (exportCtx.measureText(annotation.text).width <= maxWidth) {
-                exportCtx.fillText(annotation.text, adjustedBoxX + 10, y);
-            } else {
-                // Split into two lines if too long
-                const midPoint = Math.ceil(words.length / 2);
-                const firstLine = words.slice(0, midPoint).join(' ');
-                const secondLine = words.slice(midPoint).join(' ');
-                
-                exportCtx.fillText(firstLine, adjustedBoxX + 10, y - 10);
-                exportCtx.fillText(secondLine, adjustedBoxX + 10, y + 10);
-            }
-            
-            exportCtx.restore();
+        images.forEach((image, index) => {
+            exportCtx.drawImage(image, imageX, imageY);
+            imageX += image.width + imagePadding;
         });
         
-        // Generate filename: "annotated_" + original filename
-        let filename = 'annotated_image.png';
-        if (this.originalFilename) {
-            const nameWithoutExt = this.originalFilename.replace(/\.[^/.]+$/, "");
-            filename = `annotated_${nameWithoutExt}.png`;
+        // Draw comments section
+        const commentsX = Math.max(totalImageWidth, 600) + margin + 10;
+        const commentsY = tableY;
+        
+        exportCtx.fillStyle = '#f8f9fa';
+        exportCtx.fillRect(commentsX, commentsY, commentsWidth - 10, exportCanvas.height - commentsY - margin);
+        exportCtx.strokeRect(commentsX, commentsY, commentsWidth - 10, exportCanvas.height - commentsY - margin);
+        
+        exportCtx.fillStyle = '#1a472a';
+        exportCtx.font = 'bold 16px Arial';
+        exportCtx.textAlign = 'left';
+        exportCtx.fillText('Comments:', commentsX + 10, commentsY + 25);
+        
+        // Word wrap comments
+        exportCtx.fillStyle = '#333';
+        exportCtx.font = '14px "Times New Roman"';
+        this.wrapText(exportCtx, comments, commentsX + 10, commentsY + 50, commentsWidth - 30, 18);
+        
+        // Convert to blob and download
+        exportCanvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate filename
+            let filename = 'Figure';
+            if (primaryFormData.runId !== '-') filename += `_${primaryFormData.runId}`;
+            if (primaryFormData.band !== '-') filename += `_${primaryFormData.band}`;
+            if (primaryFormData.location !== '-') filename += `_${primaryFormData.location}`;
+            if (images.length > 1) filename += '_Multi';
+            filename += '.png';
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log(`Exported ${exportType}: ${filename}`);
+        });
+    }
+    
+    wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y;
+        
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            
+            if (testWidth > maxWidth && n > 0) {
+                ctx.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        ctx.fillText(line, x, currentY);
+    }
+    
+    identifyPeakForBand(band, bandInfo) {
+        const resultsContainer = document.getElementById('peakResults');
+        const bandInfoDisplay = document.querySelector('.band-info-display');
+        
+        if (!bandInfo) {
+            resultsContainer.innerHTML = '<p class="helper-hint">Choose a band (B0-B7) to view all services allocated in that frequency range.</p>';
+            bandInfoDisplay.classList.remove('active');
+            bandInfoDisplay.innerHTML = '<p class="helper-hint">Select an EMC band above to see frequency allocations for that range.</p>';
+            return;
         }
         
-        // Download
-        exportCanvas.toBlob(blob => {
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                console.log(`Successfully exported as: ${filename}`);
-                console.log(`Export completed with table data and ${this.annotations.length} annotations`);
-            } else {
-                console.error('Failed to create blob for export');
-                alert('Failed to export image. Please try again.');
-            }
-        }, 'image/png', 1.0);
+        // Update band info display
+        bandInfoDisplay.classList.add('active');
+        bandInfoDisplay.innerHTML = `<p class="band-info-text">Band ${band}: ${bandInfo.range}</p>`;
+        
+        // Search for allocations that overlap with this band's frequency range
+        const allocations = this.findAllocationsForBandRange(bandInfo.startMHz, bandInfo.endMHz);
+        
+        if (allocations.length === 0) {
+            resultsContainer.innerHTML = `<p class="no-results">No frequency allocations found for Band ${band} (${bandInfo.range}).</p>`;
+            return;
+        }
+        
+        this.displayBandResults(allocations, band, bandInfo);
+    }
+    
+    findAllocationsForBandRange(startMHz, endMHz) {
+        if (!window.PEAK_IDENTIFICATION_DATABASE) {
+            console.warn('Peak identification database not loaded');
+            return [];
+        }
+        
+        // Find all allocations that overlap with the band range
+        // An allocation overlaps if: allocation_start <= band_end AND allocation_end >= band_start
+        return window.PEAK_IDENTIFICATION_DATABASE.filter(allocation => {
+            return allocation.start_freq <= endMHz && allocation.end_freq >= startMHz;
+        }).sort((a, b) => a.start_freq - b.start_freq); // Sort by frequency for better display
+    }
+    
+    displayBandResults(allocations, band, bandInfo) {
+        const resultsContainer = document.getElementById('peakResults');
+        
+        let html = `<div class="allocation-header">Band ${band} Allocations: ${bandInfo.range} (${allocations.length} allocation${allocations.length > 1 ? 's' : ''} found)</div>`;
+        
+        allocations.forEach((allocation, index) => {
+            html += `<div class="allocation-result">`;
+            html += `<div class="allocation-header">${allocation.frequency_range}</div>`;
+            
+            // Add services that have content, prioritizing most relevant ones
+            const services = [
+                { label: 'US Non-Federal', content: allocation.us_non_federal },
+                { label: 'FCC Rule Parts', content: allocation.fcc_rule_parts },
+                { label: 'US Federal', content: allocation.us_federal },
+                { label: 'International Region 2', content: allocation.international_region_2 }
+            ];
+            
+            services.forEach(service => {
+                if (service.content && service.content.trim()) {
+                    // Clean up the content for onclick - escape quotes and newlines
+                    const cleanContent = service.content.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ');
+                    const displayText = `${service.label}: ${service.content}`;
+                    
+                    html += `<div class="allocation-service" onclick="window.figureExportTool.addToComments('${allocation.frequency_range} - ${cleanContent}')">`;
+                    html += `<div class="service-label">${service.label}:</div>`;
+                    html += `<div class="service-content">${service.content}</div>`;
+                    html += `</div>`;
+                }
+            });
+            
+            html += `</div>`;
+        });
+        
+        html += '<div class="click-hint">Click on any allocation above to add it to your comments</div>';
+        
+        resultsContainer.innerHTML = html;
+    }
+    
+    formatFrequency(frequencyMHz) {
+        if (frequencyMHz < 1) {
+            return `${(frequencyMHz * 1000).toFixed(3)} kHz`;
+        } else if (frequencyMHz < 1000) {
+            return `${frequencyMHz.toFixed(3)} MHz`;
+        } else if (frequencyMHz < 1000000) {
+            return `${(frequencyMHz / 1000).toFixed(3)} GHz`;
+        } else {
+            return `${(frequencyMHz / 1000000).toFixed(3)} THz`;
+        }
+    }
+    
+    addToComments(text) {
+        const commentsTextarea = document.getElementById('comments');
+        const currentText = commentsTextarea.value.trim();
+        
+        if (currentText) {
+            commentsTextarea.value = currentText + '\n\n' + text;
+        } else {
+            commentsTextarea.value = text;
+        }
+        
+        // Scroll to the bottom of the textarea
+        commentsTextarea.scrollTop = commentsTextarea.scrollHeight;
+        
+        // Brief visual feedback
+        commentsTextarea.style.backgroundColor = '#e7f3ff';
+        setTimeout(() => {
+            commentsTextarea.style.backgroundColor = '';
+        }, 300);
+        
+        // Save to current page
+        this.saveCurrentPageData();
+        
+        console.log('Added to comments:', text);
     }
 }
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    new FigureAnnotationTool();
+    window.figureExportTool = new FigureExportTool();
 }); 
