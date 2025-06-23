@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figure Export Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Figure Export Tool</h1>
+        </header>
+
+        <!-- Page Management -->
+        <div class="page-management">
+            <div class="page-tabs" id="pageTabs">
+                <div class="page-tab active" data-page="1">
+                    <span>Page 1</span>
+                    <button class="close-tab" onclick="figureExportTool.removePage(1)" title="Close Page">×</button>
+                </div>
+            </div>
+            <button class="add-page-btn" id="addPageBtn" onclick="figureExportTool.addNewPage()">+ Add Page</button>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Panel: Controls -->
+            <div class="left-panel">
+                <div class="layout-control">
+                    <h2>Layout Options</h2>
+                    <div class="layout-toggle">
+                        <label>
+                            <input type="radio" name="layout" value="horizontal" checked>
+                            <span>Side by Side</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="layout" value="vertical">
+                            <span>Stacked</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="upload-section">
+                    <h2>Upload Images</h2>
+                    <div class="dual-upload" id="dualUpload">
+                        <div class="upload-container">
+                            <h3>Image 1</h3>
+                            <div class="upload-area" id="uploadArea1">
+                                <input type="file" id="imageInput1" accept="image/*" style="display: none;">
+                                <div class="upload-placeholder">
+                                    <p>Click to select or drag & drop</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="upload-container">
+                            <h3>Image 2</h3>
+                            <div class="upload-area" id="uploadArea2">
+                                <input type="file" id="imageInput2" accept="image/*" style="display: none;">
+                                <div class="upload-placeholder">
+                                    <p>Click to select or drag & drop</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dual-form-section" id="dualFormSection">
+                    <div class="form-container">
+                        <h3>Image 1 Information</h3>
+                        <div class="form-group">
+                            <label for="runId1">Run ID:</label>
+                            <input type="text" id="runId1" placeholder="e.g., 127-71">
+                        </div>
+                        <div class="form-group">
+                            <label for="band1">Band:</label>
+                            <input type="text" id="band1" placeholder="e.g., B6">
+                        </div>
+                        <div class="form-group">
+                            <label for="location1">Location:</label>
+                            <input type="text" id="location1" placeholder="e.g., Ambient">
+                        </div>
+                    </div>
+                    
+                    <div class="form-container">
+                        <h3>Image 2 Information</h3>
+                        <div class="form-group">
+                            <label for="runId2">Run ID:</label>
+                            <input type="text" id="runId2" placeholder="e.g., 127-71">
+                        </div>
+                        <div class="form-group">
+                            <label for="band2">Band:</label>
+                            <input type="text" id="band2" placeholder="e.g., B6">
+                        </div>
+                        <div class="form-group">
+                            <label for="location2">Location:</label>
+                            <input type="text" id="location2" placeholder="e.g., Ambient">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-section">
+                    <h2>Actions</h2>
+                    <div class="export-buttons">
+                        <button id="exportImage1" class="btn btn-primary">Export Image 1</button>
+                        <button id="exportImage2" class="btn btn-primary">Export Image 2</button>
+                        <button id="exportBoth" class="btn btn-primary">Export Both Images</button>
+                        <button id="exportAllPages" class="btn btn-secondary">Export All Pages</button>
+                    </div>
+                    <button id="clearStats" class="btn btn-secondary">Clear Current Page</button>
+                    <button id="clearAllPages" class="btn btn-warning">Clear All Pages</button>
+                </div>
+            </div>
+
+            <!-- Center Panel: Dual Images -->
+            <div class="center-panel">
+                <!-- Information Tables Above Images -->
+                <div class="dual-info-tables" id="dualInfoTables">
+                    <div class="info-table">
+                        <h4>Image 1</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Run</th>
+                                    <th>Band</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td id="tableRun1">-</td>
+                                    <td id="tableBand1">-</td>
+                                    <td id="tableLocation1">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="info-table">
+                        <h4>Image 2</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Run</th>
+                                    <th>Band</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td id="tableRun2">-</td>
+                                    <td id="tableBand2">-</td>
+                                    <td id="tableLocation2">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dual-image-container" id="dualImageContainer">
+                    <div class="image-container">
+                        <canvas id="annotationCanvas1"></canvas>
+                        <div class="instruction-overlay" id="instructionOverlay1">
+                            <p>Upload Image 1</p>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <canvas id="annotationCanvas2"></canvas>
+                        <div class="instruction-overlay" id="instructionOverlay2">
+                            <p>Upload Image 2</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Comments and Band Selection -->
+            <div class="right-panel">
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h3>Comments</h3>
+                    <div class="form-group">
+                        <textarea id="comments" placeholder="Additional notes, observations, test conditions, anomalies, or other relevant information..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Peak Identification Helper -->
+                <div class="peak-helper-section">
+                    <h3>Peak Identification Helper</h3>
+                    <div class="band-info-display">
+                        <p class="helper-hint">Select an EMC band above to see frequency allocations for that range.</p>
+                    </div>
+                    <div class="peak-results" id="peakResults">
+                        <p class="helper-hint">Choose a band (B0-B7) to view all services allocated in that frequency range.</p>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Band Selection -->
+                <div class="band-section">
+                    <h2>EMC Band Selection</h2>
+                    <div class="band-buttons">
+                        <button class="band-btn" data-band="B0">B0</button>
+                        <button class="band-btn" data-band="B1">B1</button>
+                        <button class="band-btn" data-band="B2">B2</button>
+                        <button class="band-btn" data-band="B3">B3</button>
+                        <button class="band-btn" data-band="B4">B4</button>
+                        <button class="band-btn" data-band="B5">B5</button>
+                        <button class="band-btn" data-band="B6">B6</button>
+                        <button class="band-btn" data-band="B7">B7</button>
+                    </div>
+                    <div class="frequency-range">
+                        <label for="frequencyRange">Frequency Range:</label>
+                        <input type="text" id="frequencyRange" readonly placeholder="Select a band to see frequency range">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="fcc-database.js"></script>
+    <script src="peak-identification-database-band0.js"></script>
+    <script src="peak-identification-database-band1.js"></script>
+    <script src="peak-identification-database-band2.js"></script>
+    <script src="peak-identification-database-band3.js"></script>
+    <script src="peak-identification-database-band4.js"></script>
+    <script src="peak-identification-database-band5.js"></script>
+    <script src="peak-identification-database-band6.js"></script>
+    <script src="peak-identification-database-band7.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 
