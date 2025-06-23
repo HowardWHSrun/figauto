@@ -1,6 +1,51 @@
 // Peak Identification Database - Band 3 (VHF: 2.5 MHz- 7.5 MHz)
 // Turner Engineering Corporation - EMC Testing Support
-// Band 3: Very High Frequency (VHF)
+// 
+// ========================================================================
+// BAND 3: HIGH FREQUENCY (HF) - CORE BANDS
+// ========================================================================
+// 
+// Frequency Range: 2.495 - 8.1 MHz
+// Total Allocations: 47 frequency segments
+// Spectrum Coverage: Core HF bands including major amateur allocations
+// 
+// KEY SERVICES COVERED:
+// • Standard Time/Frequency Signals (2.5 MHz, 5 MHz - WWV)
+// • Amateur Radio Bands:
+//   - 80 meters (3.5-4.0 MHz)
+//   - 60 meters (5.3515-5.3665 MHz)  
+//   - 40 meters (7.0-7.2 MHz)
+// • International Broadcasting (5.9-6.2 MHz, 7.3-7.4 MHz)
+// • Maritime Mobile (4.063-4.438 MHz, 6.2-6.525 MHz)
+// • Aeronautical Mobile (Route and Off-Route)
+// • Fixed and Mobile Services
+// 
+// NOTABLE FREQUENCIES:
+// • 2.5 MHz - Standard frequency/time signal (WWV)
+// • 5.0 MHz - Standard frequency/time signal (WWV)
+// • 3.5-4.0 MHz - Amateur radio 80m band
+// • 7.0-7.2 MHz - Amateur radio 40m band
+// • 5.9-6.2 MHz - International broadcasting
+// 
+// FCC PART REFERENCES:
+// • Part 73F: International Broadcasting
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services
+// • Part 90: Private Land Mobile
+// • Part 97: Amateur Radio
+// 
+// ITU FOOTNOTES: Complex 5.xxx series including broadcasting
+// coordination, amateur band plans, and aeronautical requirements
+// 
+// TECHNICAL NOTES:
+// • Prime HF propagation characteristics
+// • Major amateur radio DX bands
+// • International broadcasting coordination
+// • Maritime HF communications
+// • Standard frequency/time distribution (NIST)
+// • Day/night propagation pattern changes
+// 
+// ========================================================================
 
 const peakIdentificationBand3 = [
     {

@@ -1,5 +1,63 @@
 // Peak Identification Database - Band 6 (300 MHz - 1.3 GHz)
 // Turner Engineering Corporation - EMC Testing Support
+// 
+// ========================================================================
+// BAND 6: ULTRA HIGH FREQUENCY (UHF) - LOWER PORTION
+// ========================================================================
+// 
+// Frequency Range: 273 MHz - 1.3 GHz
+// Total Allocations: ~66 frequency segments
+// Spectrum Coverage: UHF band including TV, cellular, and satellite services
+// 
+// KEY SERVICES COVERED:
+// • Television Broadcasting:
+//   - UHF TV Channels 14-69 (470-806 MHz)
+//   - Digital TV transition frequencies
+// • Cellular and PCS Systems:
+//   - Various cellular bands
+//   - Public safety allocations
+// • Amateur Radio:
+//   - 70 cm band (420-450 MHz)
+//   - 33 cm band (902-928 MHz)
+//   - 23 cm band (1240-1300 MHz)
+// • Satellite Services:
+//   - Mobile satellite communications
+//   - GPS and navigation satellites
+//   - Weather satellites
+// • Public Safety and Emergency Services
+// • ISM Applications (902-928 MHz)
+// • Unlicensed devices and spread spectrum
+// 
+// NOTABLE FREQUENCIES:
+// • 420-450 MHz - Amateur radio 70cm band
+// • 470-806 MHz - UHF television broadcasting
+// • 806-824/851-869 MHz - Cellular telephone
+// • 902-928 MHz - ISM band, amateur radio
+// • 1090 MHz - Aviation transponders (Mode S)
+// • 1227.6 MHz - GPS L2 frequency
+// 
+// FCC PART REFERENCES:
+// • Part 15: Unlicensed devices
+// • Part 22: Cellular services
+// • Part 25: Satellite communications
+// • Part 27: Wireless communications
+// • Part 73: Television broadcasting
+// • Part 87: Aviation services
+// • Part 90: Land mobile services
+// • Part 97: Amateur radio
+// 
+// ITU FOOTNOTES: Complex 5.xxx series covering broadcasting
+// coordination, satellite coordination, and mobile services
+// 
+// TECHNICAL NOTES:
+// • Line-of-sight propagation
+// • Significant building penetration limitations
+// • High data rate capabilities
+// • Satellite communication links
+// • Digital modulation techniques
+// • Interference coordination requirements
+// 
+// ========================================================================
 
 const peakIdentificationBand6 = [
     {

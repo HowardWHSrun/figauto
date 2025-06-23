@@ -1,6 +1,47 @@
 // Peak Identification Database - Band 2 (HF: 500kHz-3 MHz)
 // Turner Engineering Corporation - EMC Testing Support
-// Band 2: High Frequency (HF)
+// 
+// ========================================================================
+// BAND 2: HIGH FREQUENCY (HF) - LOWER PORTION
+// ========================================================================
+// 
+// Frequency Range: 535 kHz - 3.025 MHz (with overlap from Band 1)
+// Total Allocations: 27 frequency segments
+// Spectrum Coverage: Lower HF band transition and entry
+// 
+// KEY SERVICES COVERED:
+// • Extended AM Broadcasting (1605-1705 kHz)
+// • Amateur Radio 160m band (1800-2000 kHz)
+// • Fixed and Mobile Services
+// • Maritime Mobile Communications
+// • Aeronautical Mobile (Route and Off-Route)
+// • Standard Time/Frequency Signals (2.5 MHz)
+// • Radiolocation Services
+// 
+// NOTABLE FREQUENCIES:
+// • 1800-2000 kHz - Amateur radio 160 meter band
+// • 2500 kHz - Standard frequency and time signal
+// • 2173.5-2190.5 kHz - Distress and calling frequencies
+// • Various maritime mobile channels
+// 
+// FCC PART REFERENCES:
+// • Part 73: AM Broadcasting (extended band)
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services
+// • Part 90: Private Land Mobile
+// • Part 97: Amateur Radio
+// 
+// ITU FOOTNOTES: Extensive 5.xxx series covering international
+// broadcasting, maritime, and amateur coordination
+// 
+// TECHNICAL NOTES:
+// • Transition from ground wave to sky wave propagation
+// • Increased HF propagation characteristics
+// • Broadcasting band expansion considerations
+// • Long-range communication capabilities
+// • Amateur radio DX (long distance) operations
+// 
+// ========================================================================
 
 const peakIdentificationBand2 = [
     {

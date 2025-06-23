@@ -1,6 +1,47 @@
 // Peak Identification Database - Band 1 (MF: 160 kHz - 3 MHz)
 // Turner Engineering Corporation - EMC Testing Support
-// Band 1: Medium Frequency (MF)
+// 
+// ========================================================================
+// BAND 1: MEDIUM FREQUENCY (MF)
+// ========================================================================
+// 
+// Frequency Range: 148.5 kHz - 1.605 MHz (with overlap)
+// Total Allocations: 22 frequency segments
+// Spectrum Coverage: Medium Frequency (300 kHz - 3 MHz) band
+// 
+// KEY SERVICES COVERED:
+// • AM Broadcasting Band (535-1605 kHz)
+// • Extended AM Broadcasting (1605-1705 kHz)
+// • Aeronautical Radionavigation (NDB beacons)
+// • Maritime Mobile Communications
+// • Maritime Radionavigation (radiobeacons)
+// • Amateur Radio (472-479 kHz - 630 meter band)
+// • Distress and Safety Communications (500 kHz)
+// 
+// NOTABLE FREQUENCIES:
+// • 500 kHz - International maritime distress frequency
+// • 535-1605 kHz - Standard AM broadcast band
+// • 472-479 kHz - Amateur radio 630m band (Region 2)
+// • Various NDB (Non-Directional Beacon) frequencies
+// 
+// FCC PART REFERENCES:
+// • Part 73: AM Radio Broadcasting
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services (NDB)
+// • Part 90: Private Land Mobile
+// • Part 97: Amateur Radio
+// 
+// ITU FOOTNOTES: Comprehensive 5.xxx series references including
+// maritime coordination and broadcasting agreements
+// 
+// TECHNICAL NOTES:
+// • Ground wave and sky wave propagation
+// • AM broadcasting interference considerations
+// • Maritime safety and distress communications
+// • Aviation navigation infrastructure
+// • Night/day propagation variations
+// 
+// ========================================================================
 
 const peakIdentificationBand1 = [
     {

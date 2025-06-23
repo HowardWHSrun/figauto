@@ -1,5 +1,60 @@
 // Peak Identification Database - Band 5 (30-300 MHz)
 // Turner Engineering Corporation - EMC Testing Support
+// 
+// ========================================================================
+// BAND 5: VERY HIGH FREQUENCY (VHF)
+// ========================================================================
+// 
+// Frequency Range: 25 - 325 MHz
+// Total Allocations: ~65 frequency segments
+// Spectrum Coverage: VHF band including broadcasting and amateur allocations
+// 
+// KEY SERVICES COVERED:
+// • Amateur Radio Bands:
+//   - 10 meters (28-29.7 MHz) - Upper portion
+//   - 6 meters (50-54 MHz)
+//   - 2 meters (144-148 MHz)
+//   - 1.25 meters (220-225 MHz)
+// • FM Broadcasting (88-108 MHz)
+// • Television Broadcasting:
+//   - VHF-Lo: Channels 2-4 (54-72 MHz)
+//   - VHF-Hi: Channels 7-13 (174-216 MHz)
+// • Aviation:
+//   - VOR/ILS (108-118 MHz)
+//   - Air Traffic Control (118-137 MHz)
+// • Weather Satellites (137-138 MHz)
+// • Maritime VHF (156-162 MHz)
+// • Public Safety/Land Mobile (150.8-174 MHz)
+// • Radio Astronomy (73-74.6 MHz)
+// 
+// NOTABLE FREQUENCIES:
+// • 88-108 MHz - FM broadcasting band
+// • 108-118 MHz - Aviation navigation (VOR/ILS)
+// • 118-137 MHz - Aviation communications
+// • 144-148 MHz - Amateur radio 2m band
+// • 156-162 MHz - Maritime VHF
+// • 162.4-162.55 MHz - NOAA Weather Radio
+// 
+// FCC PART REFERENCES:
+// • Part 73: FM Radio and TV Broadcasting
+// • Part 74: Low Power TV and Translators
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services
+// • Part 90: Private Land Mobile
+// • Part 97: Amateur Radio
+// 
+// ITU FOOTNOTES: Extensive 5.xxx series covering broadcasting
+// coordination, aeronautical requirements, and amateur allocations
+// 
+// TECHNICAL NOTES:
+// • Line-of-sight propagation dominates
+// • Tropospheric propagation enhancements
+// • FM broadcasting and stereo multiplex
+// • Aviation safety-critical communications
+// • Emergency and public safety systems
+// • Satellite weather downlinks
+// 
+// ========================================================================
 
 
 const peakIdentificationBand5 = [

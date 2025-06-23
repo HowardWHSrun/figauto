@@ -1,3 +1,101 @@
+// ========================================================================
+// FIGURE EXPORT TOOL v3.1 - EMC TESTING ANNOTATION SYSTEM
+// ========================================================================
+// Turner Engineering Corporation - Professional EMC Testing Support
+// 
+// SYSTEM OVERVIEW:
+// Comprehensive EMC testing annotation tool with modular frequency database,
+// multi-page support, and professional Tenco-compliant documentation export.
+// 
+// ========================================================================
+// BAND DATABASE ARCHITECTURE
+// ========================================================================
+// 
+// TOTAL: 8 Band Database Files (Band 0 through Band 7)
+// COVERAGE: 9 kHz to 6+ GHz (Complete EMC testing spectrum)
+// ALLOCATIONS: 400+ individual frequency segments with full FCC/ITU data
+// 
+// Band 0 (VLF/LF): 9-160 kHz           | 22 allocations
+//   • Standard time signals (20, 60 kHz)
+//   • Maritime navigation and communications
+//   • Amateur radio 2200m band (135.7-137.8 kHz)
+//   • Radiolocation and fixed services
+// 
+// Band 1 (MF): 148.5 kHz-1.605 MHz     | 22 allocations  
+//   • AM broadcasting band (535-1605 kHz)
+//   • Maritime distress (500 kHz)
+//   • Amateur radio 630m band (472-479 kHz)
+//   • Aeronautical radionavigation (NDB)
+// 
+// Band 2 (HF Lower): 535 kHz-3.025 MHz | 27 allocations
+//   • Extended AM broadcasting
+//   • Amateur radio 160m band (1800-2000 kHz)
+//   • Standard frequency signals (2.5 MHz)
+//   • Maritime mobile communications
+// 
+// Band 3 (HF Core): 2.495-8.1 MHz      | 47 allocations
+//   • WWV time signals (2.5, 5 MHz)
+//   • Amateur radio 80m (3.5-4.0 MHz) and 40m (7.0-7.2 MHz)
+//   • International broadcasting (5.9-6.2 MHz)
+//   • Maritime mobile (4.063-4.438 MHz)
+// 
+// Band 4 (Upper HF): 5-30 MHz          | ~95 allocations
+//   • Amateur radio: 20m, 17m, 15m, 12m, 10m bands
+//   • Citizens Band (26.965-27.405 MHz)
+//   • ISM band (26.957-27.283 MHz)  
+//   • WWV/WWVH (10, 15, 20 MHz)
+//   • International broadcasting
+// 
+// Band 5 (VHF): 25-325 MHz             | ~65 allocations
+//   • FM broadcasting (88-108 MHz)
+//   • TV VHF channels 2-13
+//   • Aviation (108-137 MHz)
+//   • Amateur radio 6m (50-54 MHz), 2m (144-148 MHz)
+//   • Weather satellites (137-138 MHz)
+//   • Maritime VHF (156-162 MHz)
+// 
+// Band 6 (UHF): 273 MHz-1.3 GHz        | ~66 allocations
+//   • UHF TV channels 14-69 (470-806 MHz)
+//   • Cellular/PCS systems
+//   • Amateur radio 70cm (420-450 MHz)
+//   • GPS L2 (1227.6 MHz)
+//   • ISM band (902-928 MHz)
+// 
+// Band 7 (SHF): 960 MHz-6 GHz          | ~55 allocations
+//   • GPS L1 (1575.42 MHz)
+//   • Cellular/PCS/AWS (1710-1980 MHz)
+//   • WiFi 2.4 GHz (2400-2500 MHz)
+//   • WiFi 5 GHz (5150-5925 MHz)
+//   • Amateur radio 23cm, 13cm bands
+// 
+// ========================================================================
+// FEATURES SUMMARY
+// ========================================================================
+// 
+// CORE FUNCTIONALITY:
+// • Multi-page annotation workflow
+// • Dual-image side-by-side comparison
+// • Smart filename parsing and auto-extraction
+// • Professional Tenco-compliant export formatting
+// • Band-specific frequency identification
+// • Comprehensive FCC Part and ITU footnote references
+// 
+// EXPORT CAPABILITIES:
+// • Individual image export with annotations
+// • Dual-image professional reports
+// • Multi-page batch export with structured naming
+// • High-resolution PNG with transparency support
+// • Corporate branding and logo integration
+// 
+// TECHNICAL SPECIFICATIONS:
+// • HTML5 Canvas-based annotation system
+// • Modular JavaScript database architecture
+// • Client-side processing (no server required)
+// • Cross-browser compatibility (Chrome, Firefox, Safari, Edge)
+// • Professional typography (Arial Bold, Times New Roman)
+// 
+// ========================================================================
+
 // Figure Export Tool - Enhanced EMC Testing Interface with Multi-Page Support
 class FigureExportTool {
     constructor() {

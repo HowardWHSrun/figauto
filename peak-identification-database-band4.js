@@ -1,6 +1,56 @@
 // Peak Identification Database - Band 4 (HF: 5-30 MHz)
 // Turner Engineering Corporation - EMC Testing Support
-// Band 4: High Frequency (HF)
+// 
+// ========================================================================
+// BAND 4: HIGH FREQUENCY (HF) - UPPER BANDS
+// ========================================================================
+// 
+// Frequency Range: 5 - 30 MHz
+// Total Allocations: ~95 frequency segments
+// Spectrum Coverage: Upper HF including major amateur and ISM bands
+// 
+// KEY SERVICES COVERED:
+// • Amateur Radio Bands:
+//   - 20 meters (14.0-14.35 MHz) - Primary DX band
+//   - 17 meters (18.068-18.168 MHz)
+//   - 15 meters (21.0-21.45 MHz)
+//   - 12 meters (24.89-24.99 MHz)
+//   - 10 meters (28.0-29.7 MHz)
+// • Citizens Band Radio (26.965-27.405 MHz)
+// • ISM Band (26.957-27.283 MHz)
+// • International Broadcasting (Multiple bands)
+// • Maritime Mobile Communications
+// • Aeronautical Mobile (Route and Off-Route)
+// • Standard Time/Frequency Signals (10 MHz, 15 MHz, 20 MHz, 25 MHz)
+// 
+// NOTABLE FREQUENCIES:
+// • 10 MHz - WWV standard frequency
+// • 14.0-14.35 MHz - 20m amateur (primary DX band)
+// • 21.0-21.45 MHz - 15m amateur
+// • 26.965-27.405 MHz - Citizens Band (CB)
+// • 28.0-29.7 MHz - 10m amateur
+// • Various VOLMET aviation weather frequencies
+// 
+// FCC PART REFERENCES:
+// • Part 73F: International Broadcasting
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services
+// • Part 95: Citizens Band Radio
+// • Part 97: Amateur Radio
+// • Part 18: ISM Equipment
+// 
+// ITU FOOTNOTES: Extensive 5.xxx series covering amateur
+// frequency coordination, broadcasting, and ISM applications
+// 
+// TECHNICAL NOTES:
+// • Optimal HF propagation for long-distance communication
+// • Major amateur radio DX (long distance) bands
+// • Citizens Band and personal radio services
+// • ISM applications (industrial, scientific, medical)
+// • International broadcasting coordination
+// • Solar cycle dependent propagation
+// 
+// ========================================================================
 
 const peakIdentificationBand4 = [
     {

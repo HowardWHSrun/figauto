@@ -1,6 +1,45 @@
 // Peak Identification Database - Band 0 (VLF/LF: 9-160 kHz)
 // Turner Engineering Corporation - EMC Testing Support
-// Band 0: Very Low Frequency (VLF) and Low Frequency (LF)
+// 
+// ========================================================================
+// BAND 0: VERY LOW FREQUENCY (VLF) AND LOW FREQUENCY (LF)
+// ========================================================================
+// 
+// Frequency Range: 9 kHz - 160 kHz
+// Total Allocations: 22 frequency segments
+// Spectrum Coverage: VLF (3-30 kHz) and LF (30-300 kHz) portions
+// 
+// KEY SERVICES COVERED:
+// • Standard Time/Frequency Signals (20 kHz, 60 kHz)
+// • Radionavigation and Maritime Navigation
+// • Maritime Mobile Communications
+// • Amateur Radio (135.7-137.8 kHz - 2200 meter band)
+// • Fixed Services
+// • Radiolocation
+// • Broadcasting (upper edge)
+// 
+// NOTABLE FREQUENCIES:
+// • 20 kHz - WWVB Time Signal
+// • 60 kHz - Time Signal (Europe: MSF, DCF77, etc.)
+// • 135.7-137.8 kHz - Amateur Radio 2200m band
+// 
+// FCC PART REFERENCES:
+// • Part 80: Maritime Services
+// • Part 87: Aviation Services  
+// • Part 90: Private Land Mobile
+// • Part 97: Amateur Radio
+// 
+// ITU FOOTNOTES: Extensive 5.xxx series references for international
+// coordination and regional variations
+// 
+// TECHNICAL NOTES:
+// • Ground wave propagation dominates
+// • High atmospheric noise levels
+// • Limited bandwidth applications
+// • Global propagation characteristics
+// • Critical for navigation and time distribution
+// 
+// ========================================================================
 
 const peakIdentificationBand0 = [
     {

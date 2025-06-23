@@ -1,5 +1,65 @@
 // Peak Identification Database - Band 7 (1 GHz - 6 GHz)
 // Turner Engineering Corporation - EMC Testing Support
+// 
+// ========================================================================
+// BAND 7: SUPER HIGH FREQUENCY (SHF) - LOWER PORTION
+// ========================================================================
+// 
+// Frequency Range: 960 MHz - 6 GHz
+// Total Allocations: ~55 frequency segments
+// Spectrum Coverage: Lower SHF including cellular, PCS, WiFi, and satellite
+// 
+// KEY SERVICES COVERED:
+// • Cellular and PCS Systems:
+//   - GSM/CDMA cellular (1710-1980 MHz)
+//   - PCS bands (1850-1990 MHz)
+//   - AWS bands (1710-2180 MHz)
+// • WiFi and Unlicensed:
+//   - 2.4 GHz ISM band (2400-2500 MHz)
+//   - 5 GHz U-NII bands (5150-5925 MHz)
+// • Satellite Services:
+//   - GPS L1 (1575.42 MHz)
+//   - Iridium (1616-1626.5 MHz)
+// • Aviation:
+//   - DME (Distance Measuring Equipment)
+//   - TCAS (Traffic Collision Avoidance)
+//   - Secondary radar (1030/1090 MHz)
+// • Amateur Radio:
+//   - 23 cm band (1240-1300 MHz)
+//   - 13 cm band (2300-2450 MHz)
+// • Fixed Microwave Links
+// • Radio Astronomy (passive bands)
+// 
+// NOTABLE FREQUENCIES:
+// • 1030/1090 MHz - Aviation transponders
+// • 1575.42 MHz - GPS L1 frequency
+// • 1710-1755/2110-2155 MHz - AWS cellular
+// • 1850-1910/1930-1990 MHz - PCS
+// • 2400-2500 MHz - WiFi, Bluetooth, ISM
+// • 5150-5925 MHz - WiFi, U-NII bands
+// 
+// FCC PART REFERENCES:
+// • Part 15: Unlicensed devices (WiFi)
+// • Part 22: Cellular services
+// • Part 24: Personal communications
+// • Part 25: Satellite communications
+// • Part 27: Wireless communications
+// • Part 87: Aviation services
+// • Part 97: Amateur radio
+// • Part 101: Fixed microwave
+// 
+// ITU FOOTNOTES: Extensive 5.xxx series covering satellite
+// coordination, cellular harmonization, and passive service protection
+// 
+// TECHNICAL NOTES:
+// • Significant atmospheric attenuation
+// • High-capacity data transmission
+// • Advanced digital modulation
+// • Beam-forming and MIMO technologies
+// • Rain fade considerations
+// • Passive service protection requirements
+// 
+// ========================================================================
 
 const peakIdentificationBand7 = [
     {
