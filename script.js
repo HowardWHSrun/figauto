@@ -1,5 +1,5 @@
 // ========================================================================
-// FIGURE EXPORT TOOL v3.1 - EMC TESTING ANNOTATION SYSTEM
+// FIGURE EXPORT TOOL v3.3 - EMC TESTING ANNOTATION SYSTEM
 // ========================================================================
 // Turner Engineering Corporation - Professional EMC Testing Support
 // 
@@ -39,7 +39,7 @@
 //   • International broadcasting (5.9-6.2 MHz)
 //   • Maritime mobile (4.063-4.438 MHz)
 // 
-// Band 4 (Upper HF): 5-30 MHz          | ~95 allocations
+// Band 4 (Upper HF): 5-30 MHz          | 95 allocations
 //   • Amateur radio: 20m, 17m, 15m, 12m, 10m bands
 //   • Citizens Band (26.965-27.405 MHz)
 //   • ISM band (26.957-27.283 MHz)  
@@ -104,6 +104,20 @@ class FigureExportTool {
         this.nextPageId = 2;
         this.pages = new Map();
         this.currentLayout = 'horizontal';
+        this.currentInputType = 'images'; // 'images' or 'csv'
+        this.currentCsvMode = 'separate'; // 'separate' or 'overlay'
+        
+        // CSV overlay state
+        this.csvOverlayState = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            showLegend: true,
+            datasets: [] // Will store references to loaded datasets
+        };
         
         // Band definitions for EMC testing
         this.bandDefinitions = {
@@ -116,6 +130,18 @@ class FigureExportTool {
             'B6': { range: '300 MHz – 1.3 GHz', startMHz: 300, endMHz: 1300 },
             'B7': { range: '1 GHz – 6 GHz', startMHz: 1000, endMHz: 6000 }
         };
+        
+        // CSV dataset colors for overlay mode
+        this.csvColors = [
+            '#cc0000', // Red
+            '#0066cc', // Blue
+            '#00cc66', // Green
+            '#cc6600', // Orange
+            '#6600cc', // Purple
+            '#cc0066', // Pink
+            '#006666', // Teal
+            '#666600'  // Olive
+        ];
         
         // Initialize first page
         this.initializePage(1);
@@ -130,6 +156,7 @@ class FigureExportTool {
     initializePage(pageId) {
         const pageData = {
             pageId: pageId,
+            // Image states
             imageState1: {
                 image: null,
                 originalFilename: null,
@@ -154,12 +181,56 @@ class FigureExportTool {
                 baseWidth: 0,
                 baseHeight: 0
             },
+            // CSV data states
+            csvState1: {
+                data: null,
+                originalFilename: null,
+                frequencyData: [],
+                amplitudeData: [],
+                minFreq: 0,
+                maxFreq: 0,
+                minAmp: 0,
+                maxAmp: 0,
+                rowCount: 0,
+                scale: 1,
+                offsetX: 0,
+                offsetY: 0,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0
+            },
+            csvState2: {
+                data: null,
+                originalFilename: null,
+                frequencyData: [],
+                amplitudeData: [],
+                minFreq: 0,
+                maxFreq: 0,
+                minAmp: 0,
+                maxAmp: 0,
+                rowCount: 0,
+                scale: 1,
+                offsetX: 0,
+                offsetY: 0,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0
+            },
             formData1: { runId: '', band: '', location: '' },
             formData2: { runId: '', band: '', location: '' },
             comments: ''
         };
         
         this.pages.set(pageId, pageData);
+        
+        // Initialize basic controls for empty containers
+        if (this.currentInputType === 'images') {
+            setTimeout(() => {
+                this.addBasicImageControls(1);
+                this.addBasicImageControls(2);
+            }, 100);
+        }
+        
         return pageData;
     }
     
@@ -168,6 +239,24 @@ class FigureExportTool {
     }
     
     initializeEventListeners() {
+        // Input type toggle
+        document.querySelectorAll('input[name="inputType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.setInputType(e.target.value);
+                }
+            });
+        });
+        
+        // CSV mode toggle
+        document.querySelectorAll('input[name="csvMode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.setCsvMode(e.target.value);
+                }
+            });
+        });
+        
         // Layout toggle
         document.querySelectorAll('input[name="layout"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
@@ -180,6 +269,11 @@ class FigureExportTool {
         // File upload for both images
         this.setupUploadListeners(1);
         this.setupUploadListeners(2);
+        
+        // CSV file upload
+        this.setupCsvUploadListeners(1);
+        this.setupCsvUploadListeners(2);
+        this.setupOverlayUploadListeners();
         
         // Form inputs - update tables when values change
         ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2', 'comments'].forEach(id => {
@@ -195,6 +289,11 @@ class FigureExportTool {
         // Canvas interactions for both images
         this.setupCanvasListeners(1);
         this.setupCanvasListeners(2);
+        
+        // CSV canvas interactions
+        this.setupCsvCanvasListeners(1);
+        this.setupCsvCanvasListeners(2);
+        this.setupOverlayCanvasListeners();
         
         // Band selection buttons
         document.querySelectorAll('.band-btn').forEach(btn => {
@@ -235,138 +334,265 @@ class FigureExportTool {
         const dualFormSection = document.getElementById('dualFormSection');
         const dualInfoTables = document.getElementById('dualInfoTables');
         const dualImageContainer = document.getElementById('dualImageContainer');
+        const dualCsvUpload = document.getElementById('dualCsvUpload');
+        const csvSeparateMode = document.getElementById('csvSeparateMode');
         
         if (layout === 'vertical') {
             dualUpload.classList.add('vertical');
             dualFormSection.classList.add('vertical');
             dualInfoTables.classList.add('vertical');
             dualImageContainer.classList.add('vertical');
+            if (dualCsvUpload) dualCsvUpload.classList.add('vertical');
+            if (csvSeparateMode) csvSeparateMode.classList.add('vertical');
         } else {
             dualUpload.classList.remove('vertical');
             dualFormSection.classList.remove('vertical');
             dualInfoTables.classList.remove('vertical');
             dualImageContainer.classList.remove('vertical');
+            if (dualCsvUpload) dualCsvUpload.classList.remove('vertical');
+            if (csvSeparateMode) csvSeparateMode.classList.remove('vertical');
         }
         
-        // Redraw images with new layout
+        // Redraw with new layout
         setTimeout(() => {
-            this.setupCanvas(1);
-            this.setupCanvas(2);
+            if (this.currentInputType === 'images') {
+                this.setupCanvas(1);
+                this.setupCanvas(2);
+            } else {
+                // CSV mode
+                if (this.currentCsvMode === 'overlay') {
+                    this.setupOverlayCanvas();
+                    this.drawOverlayGraph();
+                } else {
+                    this.setupCsvCanvas(1);
+                    this.setupCsvCanvas(2);
+                    this.drawCsvGraph(1);
+                    this.drawCsvGraph(2);
+                }
+            }
         }, 300);
     }
     
-    addNewPage() {
-        const newPageId = this.nextPageId++;
-        this.initializePage(newPageId);
-        this.addPageTab(newPageId);
-        this.switchToPage(newPageId);
-    }
-    
-    addPageTab(pageId) {
-        const pageTabs = document.getElementById('pageTabs');
-        const newTab = document.createElement('div');
-        newTab.className = 'page-tab';
-        newTab.dataset.page = pageId;
-        newTab.innerHTML = `
-            <span>Page ${pageId}</span>
-            <button class="close-tab" onclick="figureExportTool.removePage(${pageId})" title="Close Page">×</button>
-        `;
+    setInputType(inputType) {
+        this.currentInputType = inputType;
         
-        newTab.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('close-tab')) {
-                this.switchToPage(pageId);
-            }
-        });
+        const imageUploadSection = document.getElementById('imageUploadSection');
+        const csvUploadSection = document.getElementById('csvUploadSection');
+        const dualImageContainer = document.getElementById('dualImageContainer');
+        const dualCsvContainer = document.getElementById('dualCsvContainer');
+        const dualInfoTables = document.getElementById('dualInfoTables');
         
-        pageTabs.appendChild(newTab);
-    }
-    
-    removePage(pageId) {
-        if (this.pages.size <= 1) {
-            alert('Cannot remove the last page.');
-            return;
+        // Update export button labels
+        this.updateExportButtonLabels();
+        
+        if (inputType === 'csv') {
+            // Show CSV mode
+            imageUploadSection.style.display = 'none';
+            csvUploadSection.style.display = 'block';
+            dualImageContainer.style.display = 'none';
+            dualCsvContainer.style.display = 'block';
+            
+            // Update table headers
+            document.getElementById('dataType1Header').textContent = 'CSV Data 1';
+            document.getElementById('dataType2Header').textContent = 'CSV Data 2';
+            
+            // Update form labels
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0]) formContainers[0].textContent = 'CSV File 1 Information';
+            if (formContainers[1]) formContainers[1].textContent = 'CSV File 2 Information';
+            
+            // Setup CSV canvases and apply current CSV mode
+            setTimeout(() => {
+                this.setupCsvCanvas(1);
+                this.setupCsvCanvas(2);
+                this.setCsvMode(this.currentCsvMode);
+                this.applyCsvLayout();
+            }, 100);
+            
+        } else {
+            // Show image mode
+            imageUploadSection.style.display = 'block';
+            csvUploadSection.style.display = 'none';
+            dualImageContainer.style.display = 'block';
+            dualCsvContainer.style.display = 'none';
+            
+            // Update table headers
+            document.getElementById('dataType1Header').textContent = 'Image 1';
+            document.getElementById('dataType2Header').textContent = 'Image 2';
+            
+            // Update form labels
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0]) formContainers[0].textContent = 'Image 1 Information';
+            if (formContainers[1]) formContainers[1].textContent = 'Image 2 Information';
+            
+            // Setup image canvases and apply current layout
+            setTimeout(() => {
+                this.setupCanvas(1);
+                this.setupCanvas(2);
+                this.setLayout(this.currentLayout);
+                
+                // Redraw existing images if any
+                const currentPage = this.getCurrentPage();
+                if (currentPage) {
+                    if (currentPage.imageState1.image) this.drawImage(1);
+                    if (currentPage.imageState2.image) this.drawImage(2);
+                }
+            }, 100);
         }
         
-        if (confirm(`Are you sure you want to remove Page ${pageId}?`)) {
-            this.pages.delete(pageId);
-            
-            // Remove tab
-            const tab = document.querySelector(`[data-page="${pageId}"]`);
-            if (tab) {
-                tab.remove();
-            }
-            
-            // Switch to another page if current page was removed
-            if (this.currentPageId === pageId) {
-                const remainingPages = Array.from(this.pages.keys());
-                this.switchToPage(remainingPages[0]);
-            }
-        }
-    }
-    
-    switchToPage(pageId) {
-        // Save current page data before switching
-        this.saveCurrentPageData();
-        
-        // Update current page
-        this.currentPageId = pageId;
-        
-        // Update tab appearance
-        document.querySelectorAll('.page-tab').forEach(tab => {
-            tab.classList.toggle('active', parseInt(tab.dataset.page) === pageId);
-        });
-        
-        // Load page data
-        this.loadPageData(pageId);
-        
-        // Refresh UI
-        this.setupCanvas(1);
-        this.setupCanvas(2);
         this.updateTables();
     }
     
-    saveCurrentPageData() {
-        const currentPage = this.getCurrentPage();
-        if (!currentPage) return;
+    updateExportButtonLabels() {
+        const exportBtn1 = document.getElementById('exportImage1');
+        const exportBtn2 = document.getElementById('exportImage2');
+        const exportBothBtn = document.getElementById('exportBoth');
         
-        // Save form data
-        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                const imageNum = id.includes('1') ? '1' : '2';
-                const field = id.replace(/[12]$/, '');
-                currentPage[`formData${imageNum}`][field] = element.value;
+        if (this.currentInputType === 'csv') {
+            if (this.currentCsvMode === 'overlay') {
+                exportBtn1.textContent = 'Export Overlay';
+                exportBtn2.textContent = 'Export Overlay';
+                exportBothBtn.textContent = 'Export Overlay';
+            } else {
+                exportBtn1.textContent = 'Export CSV 1';
+                exportBtn2.textContent = 'Export CSV 2';
+                exportBothBtn.textContent = 'Export Both CSV';
             }
-        });
-        
-        // Save comments
-        const commentsElement = document.getElementById('comments');
-        if (commentsElement) {
-            currentPage.comments = commentsElement.value;
+        } else {
+            exportBtn1.textContent = 'Export Image 1';
+            exportBtn2.textContent = 'Export Image 2';
+            exportBothBtn.textContent = 'Export Both Images';
         }
     }
     
-    loadPageData(pageId) {
-        const page = this.pages.get(pageId);
-        if (!page) return;
+    setCsvMode(csvMode) {
+        this.currentCsvMode = csvMode;
         
-        // Load form data
-        document.getElementById('runId1').value = page.formData1.runId || '';
-        document.getElementById('band1').value = page.formData1.band || '';
-        document.getElementById('location1').value = page.formData1.location || '';
-        document.getElementById('runId2').value = page.formData2.runId || '';
-        document.getElementById('band2').value = page.formData2.band || '';
-        document.getElementById('location2').value = page.formData2.location || '';
-        document.getElementById('comments').value = page.comments || '';
+        const csvSeparateMode = document.getElementById('csvSeparateMode');
+        const csvOverlayMode = document.getElementById('csvOverlayMode');
+        const dualCsvUpload = document.getElementById('dualCsvUpload');
+        const singleCsvUpload = document.getElementById('singleCsvUpload');
         
-        // Update instruction overlays
-        document.getElementById('instructionOverlay1').style.display = page.imageState1.image ? 'none' : 'block';
-        document.getElementById('instructionOverlay2').style.display = page.imageState2.image ? 'none' : 'block';
+        // Update export button labels when changing CSV mode
+        this.updateExportButtonLabels();
+        
+        if (csvMode === 'overlay') {
+            // Show overlay mode, hide separate mode
+            csvSeparateMode.style.display = 'none';
+            csvOverlayMode.style.display = 'block';
+            dualCsvUpload.style.display = 'none';
+            singleCsvUpload.style.display = 'block';
+            
+            // Update datasets array with currently loaded data
+            this.updateOverlayDatasets();
+            
+            // Setup and draw overlay canvas
+            setTimeout(() => {
+                this.setupOverlayCanvas();
+                this.drawOverlayGraph();
+                this.updateLegend();
+                this.updateOverlayFileList();
+            }, 100);
+        } else {
+            // Show separate mode, hide overlay mode
+            csvSeparateMode.style.display = 'block';
+            csvOverlayMode.style.display = 'none';
+            dualCsvUpload.style.display = 'block';
+            singleCsvUpload.style.display = 'none';
+            
+            // Redraw individual graphs
+            setTimeout(() => {
+                this.setupCsvCanvas(1);
+                this.setupCsvCanvas(2);
+                this.drawCsvGraph(1);
+                this.drawCsvGraph(2);
+            }, 100);
+        }
+        
+        // Apply current layout to the active mode
+        this.applyCsvLayout();
+    }
+    
+    applyCsvLayout() {
+        const csvSeparateMode = document.getElementById('csvSeparateMode');
+        
+        if (this.currentLayout === 'vertical') {
+            csvSeparateMode.classList.add('vertical');
+        } else {
+            csvSeparateMode.classList.remove('vertical');
+        }
+    }
+    
+    exportBothImages() {
+        const currentPage = this.getCurrentPage();
+        if (!currentPage) return;
+        
+        if (this.currentInputType === 'csv') {
+            if (this.currentCsvMode === 'overlay') {
+                // Export overlay mode
+                this.exportOverlayData();
+            } else {
+                // Export both CSV data
+                const hasData1 = currentPage.csvState1.frequencyData.length > 0;
+                const hasData2 = currentPage.csvState2.frequencyData.length > 0;
+                
+                if (!hasData1 && !hasData2) {
+                    alert('Please load at least one CSV file first.');
+                    return;
+                }
+                
+                const canvases = [];
+                const formDataArray = [];
+                
+                if (hasData1) {
+                    canvases.push(this.createCsvExportCanvas(1));
+                    formDataArray.push(this.getFormData(1));
+                }
+                
+                if (hasData2) {
+                    canvases.push(this.createCsvExportCanvas(2));
+                    formDataArray.push(this.getFormData(2));
+                }
+                
+                const comments = document.getElementById('comments').value || '-';
+                this.createExport(canvases, formDataArray, comments, `Page ${this.currentPageId} - Both CSV`);
+            }
+        } else {
+            // Export both images (existing functionality)
+            const hasImage1 = currentPage.imageState1.image !== null;
+            const hasImage2 = currentPage.imageState2.image !== null;
+            
+            if (!hasImage1 && !hasImage2) {
+                alert('Please load at least one image first.');
+                return;
+            }
+            
+            const images = [];
+            const formDataArray = [];
+            
+            if (hasImage1) {
+                images.push(currentPage.imageState1.image);
+                formDataArray.push(this.getFormData(1));
+            }
+            
+            if (hasImage2) {
+                images.push(currentPage.imageState2.image);
+                formDataArray.push(this.getFormData(2));
+            }
+            
+            const comments = document.getElementById('comments').value || '-';
+            this.createExport(images, formDataArray, comments, `Page ${this.currentPageId} - Both Images`);
+        }
     }
     
     setupUploadListeners(imageNumber) {
         const uploadArea = document.getElementById(`uploadArea${imageNumber}`);
         const imageInput = document.getElementById(`imageInput${imageNumber}`);
+        
+        if (!uploadArea || !imageInput) {
+            console.error(`Upload elements not found for image ${imageNumber}`);
+            return;
+        }
         
         uploadArea.addEventListener('click', () => imageInput.click());
         uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e, imageNumber));
@@ -379,10 +605,13 @@ class FigureExportTool {
     setupCanvasListeners(imageNumber) {
         const canvas = document.getElementById(`annotationCanvas${imageNumber}`);
         
+        if (!canvas) return;
+        
         canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e, imageNumber));
         canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e, imageNumber));
         canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e, imageNumber));
         canvas.addEventListener('wheel', (e) => this.handleWheel(e, imageNumber));
+        canvas.addEventListener('dblclick', (e) => this.handleImageDoubleClick(e, imageNumber));
     }
     
     getImageState(imageNumber) {
@@ -576,7 +805,11 @@ class FigureExportTool {
         const state = this.getImageState(imageNumber);
         const canvas = this.getCanvas(imageNumber);
         
-        if (!state || !state.image) return;
+        if (!state || !state.image) {
+            // Add fullscreen button even when no image is loaded
+            this.addBasicImageControls(imageNumber);
+            return;
+        }
         
         const container = canvas.parentElement;
         const containerWidth = container.clientWidth - 40;
@@ -611,8 +844,16 @@ class FigureExportTool {
             }
         }
         
-        canvas.width = displayWidth;
-        canvas.height = displayHeight;
+        // Use device pixel ratio for high resolution
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
+        
+        // Scale context for high DPI
+        const ctx = this.getContext(imageNumber);
+        ctx.scale(dpr, dpr);
         
         // Center the canvas in the container
         canvas.style.display = 'block';
@@ -623,7 +864,7 @@ class FigureExportTool {
         state.offsetY = 0;
         state.scale = 1;
         
-        // Store base size for zoom calculations
+        // Store base size for zoom calculations (using logical pixels)
         state.baseWidth = displayWidth;
         state.baseHeight = displayHeight;
         
@@ -654,6 +895,37 @@ class FigureExportTool {
         ctx.restore();
     }
     
+    addBasicImageControls(imageNumber) {
+        // Remove existing controls if any
+        const existingControls = document.querySelector(`#imageControls${imageNumber}`);
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        const canvas = this.getCanvas(imageNumber);
+        
+        // Create basic controls with just full screen button for when no image is loaded
+        const controls = document.createElement('div');
+        controls.className = 'image-controls basic-controls';
+        controls.id = `imageControls${imageNumber}`;
+        controls.innerHTML = `
+            <div class="zoom-controls">
+                <button class="control-btn disabled" disabled>No Image Loaded</button>
+                <button class="control-btn" id="fullScreen${imageNumber}" title="Full Screen" disabled>⛶ Full Screen</button>
+            </div>
+        `;
+        
+        canvas.parentElement.appendChild(controls);
+        
+        // Only add full screen listener when image is loaded
+        document.getElementById(`fullScreen${imageNumber}`).addEventListener('click', () => {
+            const state = this.getImageState(imageNumber);
+            if (state && state.image) {
+                this.enterFullScreen(imageNumber);
+            }
+        });
+    }
+    
     addImageControls(imageNumber) {
         // Remove existing controls if any
         const existingControls = document.querySelector(`#imageControls${imageNumber}`);
@@ -664,9 +936,12 @@ class FigureExportTool {
         const canvas = this.getCanvas(imageNumber);
         const state = this.getImageState(imageNumber);
         
-        if (!state || !state.image) return;
+        if (!state || !state.image) {
+            this.addBasicImageControls(imageNumber);
+            return;
+        }
         
-        // Create image controls
+        // Create full image controls
         const controls = document.createElement('div');
         controls.className = 'image-controls';
         controls.id = `imageControls${imageNumber}`;
@@ -677,6 +952,7 @@ class FigureExportTool {
                 <button class="control-btn" id="zoomIn${imageNumber}">+</button>
                 <button class="control-btn" id="resetZoom${imageNumber}">Reset</button>
                 <button class="control-btn" id="fitToScreen${imageNumber}">Fit</button>
+                <button class="control-btn" id="fullScreen${imageNumber}" title="Full Screen">⛶ Full Screen</button>
             </div>
         `;
         
@@ -687,6 +963,7 @@ class FigureExportTool {
         document.getElementById(`zoomOut${imageNumber}`).addEventListener('click', () => this.zoomOut(imageNumber));
         document.getElementById(`resetZoom${imageNumber}`).addEventListener('click', () => this.resetZoom(imageNumber));
         document.getElementById(`fitToScreen${imageNumber}`).addEventListener('click', () => this.fitToScreen(imageNumber));
+        document.getElementById(`fullScreen${imageNumber}`).addEventListener('click', () => this.enterFullScreen(imageNumber));
     }
     
     zoomIn(imageNumber) {
@@ -764,6 +1041,7 @@ class FigureExportTool {
         const currentX = e.clientX - rect.left;
         const currentY = e.clientY - rect.top;
         
+        // Normal sensitivity for panning
         state.offsetX += currentX - state.lastX;
         state.offsetY += currentY - state.lastY;
         
@@ -792,8 +1070,10 @@ class FigureExportTool {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
+        // Normal zoom sensitivity for better control
+        const zoomSensitivity = 0.1;
         const wheel = e.deltaY < 0 ? 1 : -1;
-        const zoom = Math.exp(wheel * 0.1);
+        const zoom = Math.exp(wheel * zoomSensitivity);
         
         state.scale *= zoom;
         state.scale = Math.max(0.1, Math.min(5, state.scale));
@@ -821,37 +1101,51 @@ class FigureExportTool {
     }
     
     clearCurrentPage() {
-        if (confirm('Are you sure you want to clear all data for the current page?')) {
-            // Clear all input fields for current page
-            ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2', 'comments'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.value = '';
-                }
-            });
-            
-            document.getElementById('frequencyRange').value = '';
-            
-            // Clear band selection
-            document.querySelectorAll('.band-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Clear peak identification helper
-            this.clearPeakIdentification();
-            
-            // Clear current page images
+        if (confirm('Are you sure you want to clear the current page? This cannot be undone.')) {
             const currentPage = this.getCurrentPage();
+            
             if (currentPage) {
+                // Clear image data
                 currentPage.imageState1.image = null;
                 currentPage.imageState2.image = null;
+                
+                // Clear CSV data
+                currentPage.csvState1.data = null;
+                currentPage.csvState1.frequencyData = [];
+                currentPage.csvState1.amplitudeData = [];
+                currentPage.csvState1.rowCount = 0;
+                currentPage.csvState1.originalFilename = null;
+                
+                currentPage.csvState2.data = null;
+                currentPage.csvState2.frequencyData = [];
+                currentPage.csvState2.amplitudeData = [];
+                currentPage.csvState2.rowCount = 0;
+                currentPage.csvState2.originalFilename = null;
+                
+                // Clear form data
                 currentPage.formData1 = { runId: '', band: '', location: '' };
                 currentPage.formData2 = { runId: '', band: '', location: '' };
                 currentPage.comments = '';
                 
-                // Show instruction overlays
+                // Show instruction overlays for both input types
                 document.getElementById('instructionOverlay1').style.display = 'block';
                 document.getElementById('instructionOverlay2').style.display = 'block';
+                document.getElementById('csvInstructionOverlay1').style.display = 'block';
+                document.getElementById('csvInstructionOverlay2').style.display = 'block';
+                
+                // Hide CSV info displays
+                document.getElementById('csvInfo1').style.display = 'none';
+                document.getElementById('csvInfo2').style.display = 'none';
+                
+                // Clear CSV overlay state
+                this.csvOverlayState.datasets = [];
+                this.csvOverlayState.scale = 1;
+                this.csvOverlayState.offsetX = 0;
+                this.csvOverlayState.offsetY = 0;
+                this.csvOverlayState.minFreq = 0;
+                this.csvOverlayState.maxFreq = 0;
+                this.csvOverlayState.minAmp = 0;
+                this.csvOverlayState.maxAmp = 0;
                 
                 // Clear canvases
                 const ctx1 = this.getContext(1);
@@ -859,8 +1153,29 @@ class FigureExportTool {
                 const canvas1 = this.getCanvas(1);
                 const canvas2 = this.getCanvas(2);
                 
-                ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
-                ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+                const csvCtx1 = this.getCsvContext(1);
+                const csvCtx2 = this.getCsvContext(2);
+                const csvCanvas1 = this.getCsvCanvas(1);
+                const csvCanvas2 = this.getCsvCanvas(2);
+                
+                const overlayCanvas = document.getElementById('csvOverlayCanvas');
+                const overlayCtx = overlayCanvas ? overlayCanvas.getContext('2d') : null;
+                
+                if (ctx1 && canvas1) ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+                if (ctx2 && canvas2) ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+                if (csvCtx1 && csvCanvas1) csvCtx1.clearRect(0, 0, csvCanvas1.width, csvCanvas1.height);
+                if (csvCtx2 && csvCanvas2) csvCtx2.clearRect(0, 0, csvCanvas2.width, csvCanvas2.height);
+                
+                if (overlayCtx) {
+                    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                }
+                
+                // Update overlay display if in overlay mode
+                if (this.currentCsvMode === 'overlay') {
+                    this.updateLegend();
+                    this.updateOverlayFileList();
+                    document.getElementById('csvOverlayInstructionOverlay').style.display = 'block';
+                }
                 
                 // Remove image controls
                 document.querySelector('#imageControls1')?.remove();
@@ -892,86 +1207,543 @@ class FigureExportTool {
         }
     }
     
-    exportSingleImage(imageNumber) {
-        const state = this.getImageState(imageNumber);
+    addNewPage() {
+        const newPageId = this.nextPageId++;
+        this.initializePage(newPageId);
+        this.addPageTab(newPageId);
+        this.switchToPage(newPageId);
+    }
+    
+    addPageTab(pageId) {
+        const pageTabs = document.getElementById('pageTabs');
+        const newTab = document.createElement('div');
+        newTab.className = 'page-tab';
+        newTab.dataset.page = pageId;
+        newTab.innerHTML = `
+            <span>Page ${pageId}</span>
+            <button class="close-tab" onclick="figureExportTool.removePage(${pageId})" title="Close Page">×</button>
+        `;
         
-        if (!state || !state.image) {
-            alert(`Please load Image ${imageNumber} first.`);
+        newTab.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('close-tab')) {
+                this.switchToPage(pageId);
+            }
+        });
+        
+        pageTabs.appendChild(newTab);
+    }
+    
+    removePage(pageId) {
+        if (this.pages.size <= 1) {
+            alert('Cannot remove the last page.');
             return;
         }
         
-        const formData = this.getFormData(imageNumber);
-        const comments = document.getElementById('comments').value || '-';
-        
-        this.createExport([state.image], [formData], comments, `Page ${this.currentPageId} - Image ${imageNumber}`);
+        if (confirm(`Are you sure you want to remove Page ${pageId}?`)) {
+            this.pages.delete(pageId);
+            
+            // Remove tab
+            const tab = document.querySelector(`[data-page="${pageId}"]`);
+            if (tab) {
+                tab.remove();
+            }
+            
+            // Switch to another page if current page was removed
+            if (this.currentPageId === pageId) {
+                const remainingPages = Array.from(this.pages.keys());
+                this.switchToPage(remainingPages[0]);
+            }
+        }
     }
     
-    exportBothImages() {
+    switchToPage(pageId) {
+        // Save current page data before switching
+        this.saveCurrentPageData();
+        
+        // Update current page
+        this.currentPageId = pageId;
+        
+        // Update tab appearance
+        document.querySelectorAll('.page-tab').forEach(tab => {
+            tab.classList.toggle('active', parseInt(tab.dataset.page) === pageId);
+        });
+        
+        // Load page data
+        this.loadPageData(pageId);
+        
+        // Refresh UI
+        this.setupCanvas(1);
+        this.setupCanvas(2);
+        this.updateTables();
+    }
+    
+    saveCurrentPageData() {
         const currentPage = this.getCurrentPage();
         if (!currentPage) return;
         
-        const hasImage1 = currentPage.imageState1.image !== null;
-        const hasImage2 = currentPage.imageState2.image !== null;
+        // Save form data
+        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                const imageNum = id.includes('1') ? '1' : '2';
+                const field = id.replace(/[12]$/, '');
+                currentPage[`formData${imageNum}`][field] = element.value;
+            }
+        });
         
-        if (!hasImage1 && !hasImage2) {
-            alert('Please load at least one image first.');
+        // Save comments
+        const commentsElement = document.getElementById('comments');
+        if (commentsElement) {
+            currentPage.comments = commentsElement.value;
+        }
+    }
+    
+    loadPageData(pageId) {
+        const page = this.pages.get(pageId);
+        if (!page) return;
+        
+        // Load form data
+        document.getElementById('runId1').value = page.formData1.runId || '';
+        document.getElementById('band1').value = page.formData1.band || '';
+        document.getElementById('location1').value = page.formData1.location || '';
+        document.getElementById('runId2').value = page.formData2.runId || '';
+        document.getElementById('band2').value = page.formData2.band || '';
+        document.getElementById('location2').value = page.formData2.location || '';
+        document.getElementById('comments').value = page.comments || '';
+        
+        // Update instruction overlays
+        document.getElementById('instructionOverlay1').style.display = page.imageState1.image ? 'none' : 'block';
+        document.getElementById('instructionOverlay2').style.display = page.imageState2.image ? 'none' : 'block';
+    }
+    
+    exportOverlayData() {
+        if (this.csvOverlayState.datasets.length === 0) {
+            alert('Please load CSV files for overlay comparison first.');
             return;
         }
         
-        const images = [];
-        const formDataArray = [];
-        
-        if (hasImage1) {
-            images.push(currentPage.imageState1.image);
-            formDataArray.push(this.getFormData(1));
-        }
-        
-        if (hasImage2) {
-            images.push(currentPage.imageState2.image);
-            formDataArray.push(this.getFormData(2));
-        }
-        
         const comments = document.getElementById('comments').value || '-';
-        this.createExport(images, formDataArray, comments, `Page ${this.currentPageId} - Both Images`);
+        
+        // Create high-resolution overlay export canvas
+        const overlayCanvas = this.createOverlayExportCanvas();
+        
+        // Use form data from the first file, or create default data
+        const formData = this.getFormData(1);
+        const exportFormData = {
+            runId: formData.runId || 'Overlay',
+            band: formData.band || 'Multi-Band', 
+            location: formData.location || 'Comparison'
+        };
+        
+        this.createExport([overlayCanvas], [exportFormData], comments, `Page ${this.currentPageId} - Overlay Comparison`);
+    }
+    
+    createOverlayExportCanvas() {
+        // Create a high-resolution canvas for overlay export
+        const exportCanvas = document.createElement('canvas');
+        const exportCtx = exportCanvas.getContext('2d');
+        
+        // Set very high resolution for better export quality
+        const dpr = window.devicePixelRatio || 1;
+        const baseWidth = 1400;
+        const baseHeight = 1000;
+        const width = baseWidth * dpr;
+        const height = baseHeight * dpr;
+        
+        exportCanvas.width = width;
+        exportCanvas.height = height;
+        
+        // Scale for high DPI
+        exportCtx.scale(dpr, dpr);
+        
+        const margin = { top: 80, right: 200, bottom: 120, left: 150 };
+        
+        // Enable highest quality rendering
+        exportCtx.imageSmoothingEnabled = true;
+        exportCtx.imageSmoothingQuality = 'high';
+        
+        // Clear canvas
+        exportCtx.fillStyle = '#ffffff';
+        exportCtx.fillRect(0, 0, baseWidth, baseHeight);
+        
+        // Calculate plot area
+        const plotWidth = baseWidth - margin.left - margin.right;
+        const plotHeight = baseHeight - margin.top - margin.bottom;
+        
+        // Draw grid with crisp lines
+        exportCtx.strokeStyle = '#e0e0e0';
+        exportCtx.lineWidth = 1;
+        
+        // Vertical grid lines (frequency)
+        for (let i = 0; i <= 10; i++) {
+            const x = margin.left + (i / 10) * plotWidth;
+            exportCtx.beginPath();
+            exportCtx.moveTo(x + 0.5, margin.top);
+            exportCtx.lineTo(x + 0.5, margin.top + plotHeight);
+            exportCtx.stroke();
+        }
+        
+        // Horizontal grid lines (amplitude)
+        for (let i = 0; i <= 10; i++) {
+            const y = margin.top + (i / 10) * plotHeight;
+            exportCtx.beginPath();
+            exportCtx.moveTo(margin.left, y + 0.5);
+            exportCtx.lineTo(margin.left + plotWidth, y + 0.5);
+            exportCtx.stroke();
+        }
+        
+        // Draw axes with crisp lines
+        exportCtx.strokeStyle = '#333333';
+        exportCtx.lineWidth = 3;
+        exportCtx.beginPath();
+        // X-axis
+        exportCtx.moveTo(margin.left, margin.top + plotHeight + 0.5);
+        exportCtx.lineTo(margin.left + plotWidth, margin.top + plotHeight + 0.5);
+        // Y-axis
+        exportCtx.moveTo(margin.left + 0.5, margin.top);
+        exportCtx.lineTo(margin.left + 0.5, margin.top + plotHeight);
+        exportCtx.stroke();
+        
+        // Draw all datasets
+        const freqRange = this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq;
+        const ampRange = this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp;
+        
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            exportCtx.strokeStyle = dataset.color;
+            exportCtx.lineWidth = 3;
+            exportCtx.lineJoin = 'round';
+            exportCtx.lineCap = 'round';
+            exportCtx.beginPath();
+            
+            let firstPoint = true;
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                const x = margin.left + ((freq - this.csvOverlayState.minFreq) / freqRange) * plotWidth;
+                const y = margin.top + plotHeight - ((amp - this.csvOverlayState.minAmp) / ampRange) * plotHeight;
+                
+                if (firstPoint) {
+                    exportCtx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    exportCtx.lineTo(x, y);
+                }
+            }
+            exportCtx.stroke();
+        });
+        
+        // Draw axis labels with crisp text
+        exportCtx.fillStyle = '#333333';
+        exportCtx.font = '20px Arial';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'top';
+        
+        // X-axis labels (frequency)
+        for (let i = 0; i <= 5; i++) {
+            const freq = this.csvOverlayState.minFreq + (freqRange * i / 5);
+            const x = margin.left + (i / 5) * plotWidth;
+            const freqMHz = freq / 1e6;
+            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 20);
+        }
+        
+        // Y-axis labels (amplitude)
+        exportCtx.textAlign = 'right';
+        exportCtx.textBaseline = 'middle';
+        for (let i = 0; i <= 5; i++) {
+            const amp = this.csvOverlayState.minAmp + (ampRange * i / 5);
+            const y = margin.top + plotHeight - (i / 5) * plotHeight;
+            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 20, y);
+        }
+        
+        // Axis titles
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'bottom';
+        exportCtx.font = 'bold 24px Arial';
+        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 30);
+        
+        exportCtx.save();
+        exportCtx.translate(35, margin.top + plotHeight / 2);
+        exportCtx.rotate(-Math.PI / 2);
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText('Amplitude (dB)', 0, 0);
+        exportCtx.restore();
+        
+        // Add title
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'top';
+        exportCtx.font = 'bold 32px Arial';
+        exportCtx.fillText('Spectrum Analysis Overlay Comparison', margin.left + plotWidth / 2, 15);
+        
+        // Add legend
+        const legendX = margin.left + plotWidth + 20;
+        const legendY = margin.top;
+        
+        exportCtx.fillStyle = '#f8f9fa';
+        exportCtx.fillRect(legendX, legendY, 150, this.csvOverlayState.datasets.length * 30 + 40);
+        exportCtx.strokeStyle = '#ddd';
+        exportCtx.lineWidth = 1;
+        exportCtx.strokeRect(legendX, legendY, 150, this.csvOverlayState.datasets.length * 30 + 40);
+        
+        exportCtx.fillStyle = '#333';
+        exportCtx.font = 'bold 16px Arial';
+        exportCtx.textAlign = 'left';
+        exportCtx.fillText('Legend', legendX + 10, legendY + 20);
+        
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            const itemY = legendY + 40 + index * 30;
+            
+            // Color line
+            exportCtx.strokeStyle = dataset.color;
+            exportCtx.lineWidth = 3;
+            exportCtx.beginPath();
+            exportCtx.moveTo(legendX + 10, itemY);
+            exportCtx.lineTo(legendX + 30, itemY);
+            exportCtx.stroke();
+            
+            // File name
+            exportCtx.fillStyle = '#333';
+            exportCtx.font = '12px Arial';
+            exportCtx.fillText(dataset.name, legendX + 35, itemY + 4);
+        });
+        
+        return exportCanvas;
     }
     
     exportAllPages() {
         const pageIds = Array.from(this.pages.keys()).sort((a, b) => a - b);
-        const allImages = [];
+        const allData = [];
         const allFormData = [];
         let combinedComments = '';
         
         pageIds.forEach(pageId => {
             const page = this.pages.get(pageId);
             if (page) {
-                if (page.imageState1.image) {
-                    allImages.push(page.imageState1.image);
-                    allFormData.push({
-                        runId: page.formData1.runId || '-',
-                        band: page.formData1.band || '-',
-                        location: page.formData1.location || '-'
-                    });
+                // Only include pages that have data AND comments (or at least some data)
+                let hasData = false;
+                
+                if (this.currentInputType === 'csv') {
+                    if (this.currentCsvMode === 'overlay' && page.csvOverlayState && page.csvOverlayState.datasets.length > 0) {
+                        // Handle overlay data - save current overlay state and restore page overlay state
+                        const tempOverlayState = { ...this.csvOverlayState };
+                        this.csvOverlayState = page.csvOverlayState;
+                        allData.push(this.createOverlayExportCanvas());
+                        this.csvOverlayState = tempOverlayState;
+                        
+                        allFormData.push({
+                            runId: page.formData1.runId || 'Overlay',
+                            band: page.formData1.band || 'Multi-Band',
+                            location: page.formData1.location || 'Comparison'
+                        });
+                        hasData = true;
+                    } else {
+                        // Handle separate CSV data - include if it has data
+                        if (page.csvState1.frequencyData.length > 0) {
+                            allData.push(this.createCsvExportCanvasFromState(page.csvState1));
+                            allFormData.push({
+                                runId: page.formData1.runId || '-',
+                                band: page.formData1.band || '-',
+                                location: page.formData1.location || '-'
+                            });
+                            hasData = true;
+                        }
+                        if (page.csvState2.frequencyData.length > 0) {
+                            allData.push(this.createCsvExportCanvasFromState(page.csvState2));
+                            allFormData.push({
+                                runId: page.formData2.runId || '-',
+                                band: page.formData2.band || '-',
+                                location: page.formData2.location || '-'
+                            });
+                            hasData = true;
+                        }
+                    }
+                } else {
+                    // Handle image data - include if it has data
+                    if (page.imageState1.image) {
+                        allData.push(page.imageState1.image);
+                        allFormData.push({
+                            runId: page.formData1.runId || '-',
+                            band: page.formData1.band || '-',
+                            location: page.formData1.location || '-'
+                        });
+                        hasData = true;
+                    }
+                    if (page.imageState2.image) {
+                        allData.push(page.imageState2.image);
+                        allFormData.push({
+                            runId: page.formData2.runId || '-',
+                            band: page.formData2.band || '-',
+                            location: page.formData2.location || '-'
+                        });
+                        hasData = true;
+                    }
                 }
-                if (page.imageState2.image) {
-                    allImages.push(page.imageState2.image);
-                    allFormData.push({
-                        runId: page.formData2.runId || '-',
-                        band: page.formData2.band || '-',
-                        location: page.formData2.location || '-'
-                    });
-                }
-                if (page.comments) {
+                
+                // Include comments from pages that have data
+                if (hasData && page.comments) {
                     combinedComments += `Page ${pageId}: ${page.comments}\n\n`;
+                } else if (hasData) {
+                    // Add a note if there's data but no comments
+                    combinedComments += `Page ${pageId}: (No additional comments)\n\n`;
                 }
             }
         });
         
-        if (allImages.length === 0) {
-            alert('No images found across all pages.');
+        if (allData.length === 0) {
+            const dataType = this.currentInputType === 'csv' ? 'CSV files' : 'images';
+            alert(`No ${dataType} found across all pages.`);
             return;
         }
         
-        this.createExport(allImages, allFormData, combinedComments || '-', 'All Pages');
+        // Ensure we have comments section even if empty
+        const finalComments = combinedComments.trim() || 'No comments provided.';
+        
+        this.createExport(allData, allFormData, finalComments, 'All Pages Export');
+    }
+    
+    createCsvExportCanvas(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        return this.createCsvExportCanvasFromState(state);
+    }
+    
+    createCsvExportCanvasFromState(csvState) {
+        // Create a high-resolution canvas for export
+        const exportCanvas = document.createElement('canvas');
+        const exportCtx = exportCanvas.getContext('2d');
+        
+        // Set very high resolution for better export quality
+        const dpr = window.devicePixelRatio || 1;
+        const baseWidth = 1200;
+        const baseHeight = 900;
+        const width = baseWidth * dpr;
+        const height = baseHeight * dpr;
+        
+        exportCanvas.width = width;
+        exportCanvas.height = height;
+        
+        // Scale for high DPI
+        exportCtx.scale(dpr, dpr);
+        
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        
+        // Enable highest quality rendering
+        exportCtx.imageSmoothingEnabled = true;
+        exportCtx.imageSmoothingQuality = 'high';
+        
+        // Clear canvas
+        exportCtx.fillStyle = '#ffffff';
+        exportCtx.fillRect(0, 0, baseWidth, baseHeight);
+        
+        // Calculate plot area
+        const plotWidth = baseWidth - margin.left - margin.right;
+        const plotHeight = baseHeight - margin.top - margin.bottom;
+        
+        // Draw grid with crisp lines
+        exportCtx.strokeStyle = '#e0e0e0';
+        exportCtx.lineWidth = 1;
+        
+        // Vertical grid lines (frequency)
+        for (let i = 0; i <= 10; i++) {
+            const x = margin.left + (i / 10) * plotWidth;
+            exportCtx.beginPath();
+            exportCtx.moveTo(x + 0.5, margin.top);
+            exportCtx.lineTo(x + 0.5, margin.top + plotHeight);
+            exportCtx.stroke();
+        }
+        
+        // Horizontal grid lines (amplitude)
+        for (let i = 0; i <= 10; i++) {
+            const y = margin.top + (i / 10) * plotHeight;
+            exportCtx.beginPath();
+            exportCtx.moveTo(margin.left, y + 0.5);
+            exportCtx.lineTo(margin.left + plotWidth, y + 0.5);
+            exportCtx.stroke();
+        }
+        
+        // Draw axes with crisp lines
+        exportCtx.strokeStyle = '#333333';
+        exportCtx.lineWidth = 3;
+        exportCtx.beginPath();
+        // X-axis
+        exportCtx.moveTo(margin.left, margin.top + plotHeight + 0.5);
+        exportCtx.lineTo(margin.left + plotWidth, margin.top + plotHeight + 0.5);
+        // Y-axis
+        exportCtx.moveTo(margin.left + 0.5, margin.top);
+        exportCtx.lineTo(margin.left + 0.5, margin.top + plotHeight);
+        exportCtx.stroke();
+        
+        // Draw data line with high quality anti-aliasing
+        exportCtx.strokeStyle = '#cc0000';
+        exportCtx.lineWidth = 3;
+        exportCtx.lineJoin = 'round';
+        exportCtx.lineCap = 'round';
+        exportCtx.beginPath();
+        
+        const freqRange = csvState.maxFreq - csvState.minFreq;
+        const ampRange = csvState.maxAmp - csvState.minAmp;
+        
+        let firstPoint = true;
+        for (let i = 0; i < csvState.frequencyData.length; i++) {
+            const freq = csvState.frequencyData[i];
+            const amp = csvState.amplitudeData[i];
+            
+            const x = margin.left + ((freq - csvState.minFreq) / freqRange) * plotWidth;
+            const y = margin.top + plotHeight - ((amp - csvState.minAmp) / ampRange) * plotHeight;
+            
+            if (firstPoint) {
+                exportCtx.moveTo(x, y);
+                firstPoint = false;
+            } else {
+                exportCtx.lineTo(x, y);
+            }
+        }
+        exportCtx.stroke();
+        
+        // Draw axis labels with crisp text
+        exportCtx.fillStyle = '#333333';
+        exportCtx.font = '20px Arial';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'top';
+        
+        // X-axis labels (frequency)
+        for (let i = 0; i <= 5; i++) {
+            const freq = csvState.minFreq + (freqRange * i / 5);
+            const x = margin.left + (i / 5) * plotWidth;
+            const freqMHz = freq / 1e6;
+            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 20);
+        }
+        
+        // Y-axis labels (amplitude)
+        exportCtx.textAlign = 'right';
+        exportCtx.textBaseline = 'middle';
+        for (let i = 0; i <= 5; i++) {
+            const amp = csvState.minAmp + (ampRange * i / 5);
+            const y = margin.top + plotHeight - (i / 5) * plotHeight;
+            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 20, y);
+        }
+        
+        // Axis titles
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'bottom';
+        exportCtx.font = 'bold 24px Arial';
+        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 30);
+        
+        exportCtx.save();
+        exportCtx.translate(35, margin.top + plotHeight / 2);
+        exportCtx.rotate(-Math.PI / 2);
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText('Amplitude (dB)', 0, 0);
+        exportCtx.restore();
+        
+        // Add title
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'top';
+        exportCtx.font = 'bold 28px Arial';
+        exportCtx.fillText('Spectrum Analysis - High Resolution Export', margin.left + plotWidth / 2, 15);
+        
+        return exportCanvas;
     }
     
     createExport(images, formDataArray, comments, exportType) {
@@ -1337,6 +2109,2509 @@ class FigureExportTool {
         this.saveCurrentPageData();
         
         console.log('Added to comments:', text);
+    }
+    
+    // =============================== CSV FUNCTIONALITY ===============================
+    
+    setupCsvUploadListeners(csvNumber) {
+        const uploadArea = document.getElementById(`csvUploadArea${csvNumber}`);
+        const csvInput = document.getElementById(`csvInput${csvNumber}`);
+        
+        uploadArea.addEventListener('click', () => csvInput.click());
+        uploadArea.addEventListener('dragover', (e) => this.handleCsvDragOver(e, csvNumber));
+        uploadArea.addEventListener('drop', (e) => this.handleCsvDrop(e, csvNumber));
+        uploadArea.addEventListener('dragleave', (e) => this.handleCsvDragLeave(e, csvNumber));
+        
+        csvInput.addEventListener('change', (e) => this.handleCsvFileSelect(e, csvNumber));
+    }
+    
+    setupOverlayUploadListeners() {
+        const uploadArea = document.getElementById('csvOverlayUploadArea');
+        const csvInput = document.getElementById('csvOverlayInput');
+        
+        if (!uploadArea || !csvInput) return;
+        
+        uploadArea.addEventListener('click', () => csvInput.click());
+        uploadArea.addEventListener('dragover', (e) => this.handleOverlayDragOver(e));
+        uploadArea.addEventListener('drop', (e) => this.handleOverlayDrop(e));
+        uploadArea.addEventListener('dragleave', (e) => this.handleOverlayDragLeave(e));
+        
+        csvInput.addEventListener('change', (e) => this.handleOverlayFileSelect(e));
+    }
+    
+    handleOverlayDragOver(e) {
+        e.preventDefault();
+        document.getElementById('csvOverlayUploadArea').classList.add('dragover');
+    }
+    
+    handleOverlayDragLeave(e) {
+        e.preventDefault();
+        document.getElementById('csvOverlayUploadArea').classList.remove('dragover');
+    }
+    
+    handleOverlayDrop(e) {
+        e.preventDefault();
+        document.getElementById('csvOverlayUploadArea').classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.loadOverlayFiles(files);
+        }
+    }
+    
+    handleOverlayFileSelect(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            this.loadOverlayFiles(files);
+        }
+    }
+    
+    loadOverlayFiles(files) {
+        // Process each file
+        Array.from(files).forEach((file, index) => {
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt') || file.type === 'text/csv') {
+                this.loadOverlayCsvFile(file);
+            }
+        });
+    }
+    
+    loadOverlayCsvFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const csvText = e.target.result;
+            this.parseOverlayCsvData(csvText, file.name);
+        };
+        reader.readAsText(file);
+    }
+    
+    parseOverlayCsvData(csvText, filename) {
+        const lines = csvText.split('\n').filter(line => line.trim());
+        
+        const frequencyData = [];
+        const amplitudeData = [];
+        
+        // Try to parse CSV data - support common formats
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Skip header lines that contain text like "Frequency" or "Hz"
+            if (i === 0 && (line.toLowerCase().includes('frequency') || line.toLowerCase().includes('hz'))) {
+                continue;
+            }
+            
+            // Split by comma, semicolon, or tab
+            const values = line.split(/[,;\t]/).map(v => v.trim());
+            
+            if (values.length >= 2) {
+                const freq = parseFloat(values[0]);
+                const amp = parseFloat(values[1]);
+                
+                // Only add valid numeric data
+                if (!isNaN(freq) && !isNaN(amp)) {
+                    frequencyData.push(freq);
+                    amplitudeData.push(amp);
+                }
+            }
+        }
+        
+        if (frequencyData.length === 0) {
+            alert(`No valid frequency/amplitude data found in ${filename}. Expected format: frequency, amplitude`);
+            return;
+        }
+        
+        // Add to overlay datasets
+        const colorIndex = this.csvOverlayState.datasets.length % this.csvColors.length;
+        const newDataset = {
+            id: Date.now() + Math.random(), // Unique ID
+            name: filename,
+            frequencyData: frequencyData,
+            amplitudeData: amplitudeData,
+            color: this.csvColors[colorIndex],
+            visible: true,
+            rowCount: frequencyData.length,
+            minFreq: Math.min(...frequencyData),
+            maxFreq: Math.max(...frequencyData),
+            minAmp: Math.min(...amplitudeData),
+            maxAmp: Math.max(...amplitudeData)
+        };
+        
+        this.csvOverlayState.datasets.push(newDataset);
+        
+        // Parse filename for form data if it's the first file
+        if (this.csvOverlayState.datasets.length === 1) {
+            this.parseFilename(filename, 1);
+        }
+        
+        // Calculate combined ranges
+        this.calculateOverlayRanges();
+        
+        // Update display
+        this.setupOverlayCanvas();
+        this.drawOverlayGraph();
+        this.updateLegend();
+        this.updateOverlayFileList();
+        
+        // Hide instruction overlay
+        document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
+        
+        console.log(`Overlay CSV loaded: ${filename}`, {
+            rows: newDataset.rowCount,
+            freqRange: `${this.formatFrequency(newDataset.minFreq / 1e6)} - ${this.formatFrequency(newDataset.maxFreq / 1e6)}`,
+            ampRange: `${newDataset.minAmp.toFixed(1)} - ${newDataset.maxAmp.toFixed(1)} dB`
+        });
+    }
+    
+    updateOverlayFileList() {
+        const fileList = document.getElementById('overlayFileList');
+        const csvOverlayFiles = document.getElementById('csvOverlayFiles');
+        
+        if (!fileList || !csvOverlayFiles) return;
+        
+        fileList.innerHTML = '';
+        
+        if (this.csvOverlayState.datasets.length === 0) {
+            csvOverlayFiles.style.display = 'none';
+            return;
+        }
+        
+        csvOverlayFiles.style.display = 'block';
+        
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-color" style="background-color: ${dataset.color}"></div>
+                    <span class="file-name">${dataset.name}</span>
+                    <span class="file-details">${dataset.rowCount.toLocaleString()} points | ${this.formatFrequency(dataset.minFreq / 1e6)} - ${this.formatFrequency(dataset.maxFreq / 1e6)}</span>
+                </div>
+                <button class="file-remove" onclick="figureExportTool.removeOverlayFile('${dataset.id}')">Remove</button>
+            `;
+            fileList.appendChild(fileItem);
+        });
+    }
+    
+    removeOverlayFile(datasetId) {
+        // Remove dataset from array
+        this.csvOverlayState.datasets = this.csvOverlayState.datasets.filter(dataset => dataset.id != datasetId);
+        
+        // Recalculate ranges
+        this.calculateOverlayRanges();
+        
+        // Update display
+        this.drawOverlayGraph();
+        this.updateLegend();
+        this.updateOverlayFileList();
+        
+        // Show instruction overlay if no files left
+        if (this.csvOverlayState.datasets.length === 0) {
+            document.getElementById('csvOverlayInstructionOverlay').style.display = 'block';
+        }
+        
+        console.log(`Removed overlay file: ${datasetId}`);
+    }
+    
+    setupCsvCanvasListeners(csvNumber) {
+        const canvas = document.getElementById(`csvGraphCanvas${csvNumber}`);
+        
+        canvas.addEventListener('mousedown', (e) => this.handleCsvMouseDown(e, csvNumber));
+        canvas.addEventListener('mousemove', (e) => this.handleCsvMouseMove(e, csvNumber));
+        canvas.addEventListener('mouseup', (e) => this.handleCsvMouseUp(e, csvNumber));
+        canvas.addEventListener('wheel', (e) => this.handleCsvWheel(e, csvNumber));
+        canvas.addEventListener('click', (e) => this.handleCsvClick(e, csvNumber));
+    }
+    
+    getCsvState(csvNumber) {
+        const currentPage = this.getCurrentPage();
+        return csvNumber === 1 ? currentPage.csvState1 : currentPage.csvState2;
+    }
+    
+    getCsvCanvas(csvNumber) {
+        return document.getElementById(`csvGraphCanvas${csvNumber}`);
+    }
+    
+    getCsvContext(csvNumber) {
+        return this.getCsvCanvas(csvNumber).getContext('2d');
+    }
+    
+    handleCsvDragOver(e, csvNumber) {
+        e.preventDefault();
+        document.getElementById(`csvUploadArea${csvNumber}`).classList.add('dragover');
+    }
+    
+    handleCsvDragLeave(e, csvNumber) {
+        e.preventDefault();
+        document.getElementById(`csvUploadArea${csvNumber}`).classList.remove('dragover');
+    }
+    
+    handleCsvDrop(e, csvNumber) {
+        e.preventDefault();
+        document.getElementById(`csvUploadArea${csvNumber}`).classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt') || file.type === 'text/csv') {
+                this.loadCsvFile(file, csvNumber);
+            }
+        }
+    }
+    
+    handleCsvFileSelect(e, csvNumber) {
+        const file = e.target.files[0];
+        if (file) {
+            this.loadCsvFile(file, csvNumber);
+        }
+    }
+    
+    loadCsvFile(file, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        state.originalFilename = file.name;
+        
+        // Parse filename and auto-fill the corresponding form fields
+        this.parseFilename(file.name, csvNumber);
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const csvText = e.target.result;
+            this.parseCsvData(csvText, csvNumber);
+        };
+        reader.readAsText(file);
+    }
+    
+    parseCsvData(csvText, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const lines = csvText.split('\n').filter(line => line.trim());
+        
+        const frequencyData = [];
+        const amplitudeData = [];
+        
+        // Try to parse CSV data - support common formats
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Skip header lines that contain text like "Frequency" or "Hz"
+            if (i === 0 && (line.toLowerCase().includes('frequency') || line.toLowerCase().includes('hz'))) {
+                continue;
+            }
+            
+            // Split by comma, semicolon, or tab
+            const values = line.split(/[,;\t]/).map(v => v.trim());
+            
+            if (values.length >= 2) {
+                const freq = parseFloat(values[0]);
+                const amp = parseFloat(values[1]);
+                
+                // Only add valid numeric data
+                if (!isNaN(freq) && !isNaN(amp)) {
+                    frequencyData.push(freq);
+                    amplitudeData.push(amp);
+                }
+            }
+        }
+        
+        if (frequencyData.length === 0) {
+            alert('No valid frequency/amplitude data found in CSV file. Expected format: frequency, amplitude');
+            return;
+        }
+        
+        // Store parsed data
+        state.frequencyData = frequencyData;
+        state.amplitudeData = amplitudeData;
+        state.rowCount = frequencyData.length;
+        
+        // Calculate min/max values
+        state.minFreq = Math.min(...frequencyData);
+        state.maxFreq = Math.max(...frequencyData);
+        state.minAmp = Math.min(...amplitudeData);
+        state.maxAmp = Math.max(...amplitudeData);
+        
+        // Reset zoom and pan
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        
+        // Update CSV info display
+        this.updateCsvInfo(csvNumber);
+        
+        // Setup and draw graph
+        this.setupCsvCanvas(csvNumber);
+        this.drawCsvGraph(csvNumber);
+        
+        // Hide instruction overlay
+        document.getElementById(`csvInstructionOverlay${csvNumber}`).style.display = 'none';
+        
+        // If in overlay mode, update the overlay display
+        if (this.currentCsvMode === 'overlay') {
+            this.updateOverlayDatasets();
+            this.setupOverlayCanvas();
+            this.drawOverlayGraph();
+            this.updateLegend();
+        }
+        
+        console.log(`CSV ${csvNumber} loaded:`, {
+            rows: state.rowCount,
+            freqRange: `${this.formatFrequency(state.minFreq / 1e6)} - ${this.formatFrequency(state.maxFreq / 1e6)}`,
+            ampRange: `${state.minAmp.toFixed(1)} - ${state.maxAmp.toFixed(1)} dB`
+        });
+    }
+    
+    updateCsvInfo(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const csvInfo = document.getElementById(`csvInfo${csvNumber}`);
+        
+        if (state.rowCount > 0) {
+            csvInfo.style.display = 'block';
+            csvInfo.querySelector('.csv-rows').textContent = state.rowCount.toLocaleString();
+            csvInfo.querySelector('.csv-freq-range').textContent = 
+                `${this.formatFrequency(state.minFreq / 1e6)} - ${this.formatFrequency(state.maxFreq / 1e6)}`;
+        } else {
+            csvInfo.style.display = 'none';
+        }
+    }
+    
+    setupCsvCanvas(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const canvas = this.getCsvCanvas(csvNumber);
+        
+        if (!state || !state.frequencyData.length) return;
+        
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth - 20;
+        const containerHeight = container.clientHeight - 60; // Account for header
+        
+        // Use device pixel ratio for very high resolution
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = containerWidth * dpr;
+        canvas.height = containerHeight * dpr;
+        canvas.style.width = containerWidth + 'px';
+        canvas.style.height = containerHeight + 'px';
+        
+        // Scale context for high DPI
+        const ctx = this.getCsvContext(csvNumber);
+        ctx.scale(dpr, dpr);
+        
+        this.drawCsvGraph(csvNumber);
+    }
+    
+    drawCsvGraph(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const canvas = this.getCsvCanvas(csvNumber);
+        const ctx = this.getCsvContext(csvNumber);
+        
+        if (!state || !state.frequencyData.length) return;
+        
+        // Use logical pixel dimensions for calculations
+        const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
+        const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        
+        // Clear canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Calculate plot area
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        // Apply zoom and pan
+        const scaledMargin = {
+            left: margin.left + state.offsetX,
+            top: margin.top + state.offsetY
+        };
+        
+        // Calculate data ranges with zoom and pan
+        const freqRange = (state.maxFreq - state.minFreq) / state.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / state.scale;
+        
+        // Calculate center point based on pan offset
+        const freqCenter = (state.minFreq + state.maxFreq) / 2 - (state.offsetX / plotWidth) * freqRange;
+        const ampCenter = (state.minAmp + state.maxAmp) / 2 + (state.offsetY / plotHeight) * ampRange;
+        
+        const freqStart = freqCenter - freqRange / 2;
+        const freqEnd = freqCenter + freqRange / 2;
+        const ampStart = ampCenter - ampRange / 2;
+        const ampEnd = ampCenter + ampRange / 2;
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw enhanced grid that aligns with axis labels
+        
+        // Calculate grid parameters to match axis labels
+        const gridMaxLabels = Math.floor(plotWidth / 100);
+        const gridMinLabels = 4;
+        const gridNumLabels = Math.max(gridMinLabels, Math.min(gridMaxLabels, Math.floor(state.scale * 4) + 4));
+        const gridMaxAmpLabels = Math.floor(plotHeight / 40);
+        const gridNumAmpLabels = Math.max(gridMinLabels, Math.min(gridMaxAmpLabels, Math.floor(state.scale * 3) + 4));
+        
+        // Draw minor grid lines (finer subdivisions)
+        ctx.strokeStyle = '#f5f5f5';
+        ctx.lineWidth = 0.5;
+        
+        // Minor vertical grid lines (frequency) - 5x subdivision
+        for (let i = 0; i <= gridNumLabels * 5; i++) {
+            const x = margin.left + (i / (gridNumLabels * 5)) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Minor horizontal grid lines (amplitude) - 5x subdivision
+        for (let i = 0; i <= gridNumAmpLabels * 5; i++) {
+            const y = margin.top + (i / (gridNumAmpLabels * 5)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw major grid lines (align with axis labels)
+        ctx.strokeStyle = '#d0d0d0';
+        ctx.lineWidth = 1;
+        
+        // Major vertical grid lines (frequency) - align with axis labels
+        for (let i = 0; i <= gridNumLabels; i++) {
+            const x = margin.left + (i / gridNumLabels) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Major horizontal grid lines (amplitude) - align with axis labels
+        for (let i = 0; i <= gridNumAmpLabels; i++) {
+            const y = margin.top + (i / gridNumAmpLabels) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw axes with crisp lines
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // X-axis
+        ctx.moveTo(scaledMargin.left, scaledMargin.top + plotHeight + 0.5);
+        ctx.lineTo(scaledMargin.left + plotWidth, scaledMargin.top + plotHeight + 0.5);
+        // Y-axis
+        ctx.moveTo(scaledMargin.left + 0.5, scaledMargin.top);
+        ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
+        ctx.stroke();
+        
+        // Draw data line with anti-aliasing
+        ctx.strokeStyle = '#cc0000';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        
+        let firstPoint = true;
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            const amp = state.amplitudeData[i];
+            
+            // Skip points outside current zoom range
+            if (freq < freqStart || freq > freqEnd) continue;
+            
+            const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+            const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+            
+            if (firstPoint) {
+                ctx.moveTo(x, y);
+                firstPoint = false;
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Draw enhanced axis labels showing actual visible range
+        ctx.fillStyle = '#333333';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        // Calculate optimal number of labels based on zoom and available space
+        const maxLabels = Math.floor(plotWidth / 100); // At least 100px between labels for readability
+        const minLabels = 4;
+        const numLabels = Math.max(minLabels, Math.min(maxLabels, Math.floor(state.scale * 4) + 4));
+        
+        // X-axis labels (frequency) - show actual visible range
+        for (let i = 0; i <= numLabels; i++) {
+            const freq = freqStart + (freqRange * i / numLabels);
+            const x = margin.left + (i / numLabels) * plotWidth; // Use fixed margin, not scaled
+            const freqMHz = freq / 1e6;
+            
+            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 10);
+        }
+        
+        // Y-axis labels (amplitude) - show actual visible range
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const maxAmpLabels = Math.floor(plotHeight / 40); // At least 40px between labels
+        const numAmpLabels = Math.max(minLabels, Math.min(maxAmpLabels, Math.floor(state.scale * 3) + 4));
+        
+        for (let i = 0; i <= numAmpLabels; i++) {
+            const amp = ampStart + (ampRange * i / numAmpLabels);
+            const y = margin.top + plotHeight - (i / numAmpLabels) * plotHeight; // Use fixed margin
+            
+            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        }
+        
+        // Axis titles with fixed positioning
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, height - 5);
+        
+        ctx.save();
+        ctx.translate(15, margin.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Amplitude (dB)', 0, 0);
+        ctx.restore();
+        
+        // Draw data points for peak identification with zoom-adaptive size
+        ctx.fillStyle = '#cc0000';
+        const pointSize = Math.min(3, Math.max(1, state.scale * 1.5));
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            const amp = state.amplitudeData[i];
+            
+            if (freq < freqStart || freq > freqEnd) continue;
+            
+            const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+            const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, pointSize, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+    
+    handleCsvMouseDown(e, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const rect = this.getCsvCanvas(csvNumber).getBoundingClientRect();
+        
+        state.isDragging = true;
+        state.lastX = e.clientX - rect.left;
+        state.lastY = e.clientY - rect.top;
+        
+        this.getCsvCanvas(csvNumber).style.cursor = 'grabbing';
+    }
+    
+    handleCsvMouseMove(e, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const canvas = this.getCsvCanvas(csvNumber);
+        
+        if (state.isDragging) {
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            const deltaX = currentX - state.lastX;
+            const deltaY = currentY - state.lastY;
+            
+            // Normal sensitivity for panning
+            state.offsetX += deltaX;
+            state.offsetY += deltaY;
+            
+            state.lastX = currentX;
+            state.lastY = currentY;
+            
+            this.drawCsvGraph(csvNumber);
+        }
+    }
+    
+    handleCsvMouseUp(e, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        state.isDragging = false;
+        this.getCsvCanvas(csvNumber).style.cursor = 'crosshair';
+    }
+    
+    handleCsvWheel(e, csvNumber) {
+        e.preventDefault();
+        const state = this.getCsvState(csvNumber);
+        
+        // Normal zoom sensitivity for control
+        const zoomSensitivity = 0.1;
+        const zoomFactor = e.deltaY > 0 ? (1 - zoomSensitivity) : (1 + zoomSensitivity);
+        state.scale *= zoomFactor;
+        
+        // Limit zoom range
+        state.scale = Math.max(0.1, Math.min(state.scale, 10));
+        
+        this.drawCsvGraph(csvNumber);
+    }
+    
+    handleCsvClick(e, csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const canvas = this.getCsvCanvas(csvNumber);
+        const rect = canvas.getBoundingClientRect();
+        
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        // Use logical pixel dimensions for calculations
+        const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
+        const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
+        
+        // Convert click coordinates to frequency/amplitude values
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + state.offsetX,
+            top: margin.top + state.offsetY
+        };
+        
+        // Check if click is within plot area
+        if (clickX < scaledMargin.left || clickX > scaledMargin.left + plotWidth ||
+            clickY < scaledMargin.top || clickY > scaledMargin.top + plotHeight) {
+            return;
+        }
+        
+        // Calculate clicked frequency and amplitude
+        const freqRange = (state.maxFreq - state.minFreq) / state.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / state.scale;
+        
+        const freqStart = state.minFreq + (state.maxFreq - state.minFreq) * 0.5 * (1 - 1/state.scale);
+        const ampStart = state.minAmp + (state.maxAmp - state.minAmp) * 0.5 * (1 - 1/state.scale);
+        
+        const clickedFreq = freqStart + ((clickX - scaledMargin.left) / plotWidth) * freqRange;
+        const clickedAmp = ampStart + ((scaledMargin.top + plotHeight - clickY) / plotHeight) * ampRange;
+        
+        // Find closest data point
+        let closestIndex = 0;
+        let minDistance = Infinity;
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            const amp = state.amplitudeData[i];
+            
+            const freqNorm = (freq - freqStart) / freqRange;
+            const ampNorm = (amp - ampStart) / ampRange;
+            const clickFreqNorm = (clickedFreq - freqStart) / freqRange;
+            const clickAmpNorm = (clickedAmp - ampStart) / ampRange;
+            
+            const distance = Math.sqrt(
+                Math.pow(freqNorm - clickFreqNorm, 2) + 
+                Math.pow(ampNorm - clickAmpNorm, 2)
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestIndex = i;
+            }
+        }
+        
+        // Get the closest peak data
+        const peakFreq = state.frequencyData[closestIndex];
+        const peakAmp = state.amplitudeData[closestIndex];
+        const peakFreqMHz = peakFreq / 1e6; // Convert to MHz
+        
+        // Identify the frequency allocation for this peak (without adding to comments)
+        this.identifyPeakForFrequencyNoComment(peakFreqMHz, peakAmp, csvNumber);
+        
+        // Visual feedback - draw a marker on the selected point
+        this.drawPeakMarker(csvNumber, closestIndex);
+    }
+    
+    drawPeakMarker(csvNumber, dataIndex) {
+        const state = this.getCsvState(csvNumber);
+        const canvas = this.getCsvCanvas(csvNumber);
+        const ctx = this.getCsvContext(csvNumber);
+        
+        const freq = state.frequencyData[dataIndex];
+        const amp = state.amplitudeData[dataIndex];
+        
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        const plotWidth = canvas.width - margin.left - margin.right;
+        const plotHeight = canvas.height - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + state.offsetX,
+            top: margin.top + state.offsetY
+        };
+        
+        const freqRange = (state.maxFreq - state.minFreq) / state.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / state.scale;
+        
+        // Calculate center point based on pan offset
+        const freqCenter = (state.minFreq + state.maxFreq) / 2 - (state.offsetX / plotWidth) * freqRange;
+        const ampCenter = (state.minAmp + state.maxAmp) / 2 + (state.offsetY / plotHeight) * ampRange;
+        
+        const freqStart = freqCenter - freqRange / 2;
+        const ampStart = ampCenter - ampRange / 2;
+        
+        const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+        const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+        
+        // Redraw graph first
+        this.drawCsvGraph(csvNumber);
+        
+        // Draw marker
+        ctx.strokeStyle = '#ff6600';
+        ctx.lineWidth = 3;
+        ctx.fillStyle = '#ff6600';
+        
+        // Draw circle marker
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Draw crosshairs
+        ctx.beginPath();
+        ctx.moveTo(x - 15, y);
+        ctx.lineTo(x + 15, y);
+        ctx.moveTo(x, y - 15);
+        ctx.lineTo(x, y + 15);
+        ctx.stroke();
+    }
+    
+    identifyPeakForFrequencyNoComment(frequencyMHz, amplitude, csvNumber) {
+        // Find the appropriate band for this frequency
+        let detectedBand = null;
+        for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+            if (frequencyMHz >= bandInfo.startMHz && frequencyMHz <= bandInfo.endMHz) {
+                detectedBand = band;
+                break;
+            }
+        }
+        
+        if (detectedBand) {
+            // Auto-select the band and show allocations (but don't add to comments)
+            this.autoSelectBandButton(detectedBand);
+            
+            console.log(`CSV ${csvNumber} Peak identified:`, {
+                frequency: this.formatFrequency(frequencyMHz),
+                amplitude: amplitude.toFixed(1) + ' dB',
+                band: detectedBand
+            });
+        } else {
+            console.log(`CSV ${csvNumber} Peak at ${this.formatFrequency(frequencyMHz)} is outside defined bands`);
+        }
+    }
+    
+    resetZoomCsv(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        this.drawCsvGraph(csvNumber);
+    }
+    
+    autoScaleCsv(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state.frequencyData.length) return;
+        
+        // Find data with significant amplitude (above noise floor)
+        const amplitudes = state.amplitudeData.slice();
+        amplitudes.sort((a, b) => b - a);
+        const significantAmp = amplitudes[Math.floor(amplitudes.length * 0.1)]; // Top 10%
+        
+        let minFreq = Infinity, maxFreq = -Infinity;
+        let minAmp = Infinity, maxAmp = -Infinity;
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            if (state.amplitudeData[i] >= significantAmp - 20) { // Within 20dB of significant signals
+                minFreq = Math.min(minFreq, state.frequencyData[i]);
+                maxFreq = Math.max(maxFreq, state.frequencyData[i]);
+                minAmp = Math.min(minAmp, state.amplitudeData[i]);
+                maxAmp = Math.max(maxAmp, state.amplitudeData[i]);
+            }
+        }
+        
+        if (minFreq === Infinity) {
+            // Fallback to full range
+            this.resetZoomCsv(csvNumber);
+            return;
+        }
+        
+        // Calculate zoom to fit significant data
+        const freqRangeTarget = maxFreq - minFreq;
+        const freqRangeFull = state.maxFreq - state.minFreq;
+        
+        if (freqRangeTarget > 0 && freqRangeTarget < freqRangeFull) {
+            state.scale = freqRangeFull / freqRangeTarget;
+            
+            // Center on the significant data
+            const freqCenter = (minFreq + maxFreq) / 2;
+            const fullCenter = (state.minFreq + state.maxFreq) / 2;
+            const freqOffset = freqCenter - fullCenter;
+            
+            // This is a simplified offset calculation
+            state.offsetX = 0;
+            state.offsetY = 0;
+        }
+        
+        this.drawCsvGraph(csvNumber);
+    }
+    
+    // =============================== CSV OVERLAY FUNCTIONALITY ===============================
+    
+    updateOverlayDatasets() {
+        // In the new system, datasets are managed directly in csvOverlayState.datasets
+        // This method is primarily for transitioning from separate mode to overlay mode
+        
+        if (this.csvOverlayState.datasets.length > 0) {
+            // Already have overlay datasets, just recalculate ranges
+            this.calculateOverlayRanges();
+            return;
+        }
+        
+        // If switching from separate mode, try to convert existing data
+        const currentPage = this.getCurrentPage();
+        if (!currentPage) return;
+        
+        // Add dataset 1 if loaded in separate mode
+        if (currentPage.csvState1.frequencyData.length > 0) {
+            const dataset1 = {
+                id: 'converted_1_' + Date.now(),
+                name: currentPage.csvState1.originalFilename || 'CSV File 1',
+                frequencyData: currentPage.csvState1.frequencyData,
+                amplitudeData: currentPage.csvState1.amplitudeData,
+                color: this.csvColors[0],
+                visible: true,
+                rowCount: currentPage.csvState1.rowCount,
+                minFreq: currentPage.csvState1.minFreq,
+                maxFreq: currentPage.csvState1.maxFreq,
+                minAmp: currentPage.csvState1.minAmp,
+                maxAmp: currentPage.csvState1.maxAmp
+            };
+            this.csvOverlayState.datasets.push(dataset1);
+        }
+        
+        // Add dataset 2 if loaded in separate mode
+        if (currentPage.csvState2.frequencyData.length > 0) {
+            const dataset2 = {
+                id: 'converted_2_' + Date.now(),
+                name: currentPage.csvState2.originalFilename || 'CSV File 2',
+                frequencyData: currentPage.csvState2.frequencyData,
+                amplitudeData: currentPage.csvState2.amplitudeData,
+                color: this.csvColors[1],
+                visible: true,
+                rowCount: currentPage.csvState2.rowCount,
+                minFreq: currentPage.csvState2.minFreq,
+                maxFreq: currentPage.csvState2.maxFreq,
+                minAmp: currentPage.csvState2.minAmp,
+                maxAmp: currentPage.csvState2.maxAmp
+            };
+            this.csvOverlayState.datasets.push(dataset2);
+        }
+        
+        // Calculate combined min/max values
+        this.calculateOverlayRanges();
+    }
+    
+    calculateOverlayRanges() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        let minFreq = Infinity, maxFreq = -Infinity;
+        let minAmp = Infinity, maxAmp = -Infinity;
+        
+        this.csvOverlayState.datasets.forEach(dataset => {
+            if (!dataset.visible) return;
+            
+            dataset.frequencyData.forEach((freq, i) => {
+                const amp = dataset.amplitudeData[i];
+                minFreq = Math.min(minFreq, freq);
+                maxFreq = Math.max(maxFreq, freq);
+                minAmp = Math.min(minAmp, amp);
+                maxAmp = Math.max(maxAmp, amp);
+            });
+        });
+        
+        this.csvOverlayState.minFreq = minFreq;
+        this.csvOverlayState.maxFreq = maxFreq;
+        this.csvOverlayState.minAmp = minAmp;
+        this.csvOverlayState.maxAmp = maxAmp;
+    }
+    
+    setupOverlayCanvasListeners() {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        
+        canvas.addEventListener('mousedown', (e) => this.handleOverlayMouseDown(e));
+        canvas.addEventListener('mousemove', (e) => this.handleOverlayMouseMove(e));
+        canvas.addEventListener('mouseup', (e) => this.handleOverlayMouseUp(e));
+        canvas.addEventListener('wheel', (e) => this.handleOverlayWheel(e));
+        canvas.addEventListener('click', (e) => this.handleOverlayClick(e));
+    }
+    
+    setupOverlayCanvas() {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        
+        const container = canvas.parentElement;
+        const containerWidth = container.clientWidth - 30;
+        const containerHeight = container.clientHeight - 100; // Account for header and legend
+        
+        // Use device pixel ratio for very high resolution
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = containerWidth * dpr;
+        canvas.height = containerHeight * dpr;
+        canvas.style.width = containerWidth + 'px';
+        canvas.style.height = containerHeight + 'px';
+        
+        // Scale context for high DPI
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+    }
+    
+    drawOverlayGraph() {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        // Use logical pixel dimensions for calculations
+        const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
+        const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        
+        // Clear canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        if (this.csvOverlayState.datasets.length === 0) {
+            // Show instruction message
+            ctx.fillStyle = '#666';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Upload CSV files to see overlay comparison', width / 2, height / 2);
+            document.getElementById('csvOverlayInstructionOverlay').style.display = 'block';
+            return;
+        }
+        
+        document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
+        
+        // Calculate plot area
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        // Apply zoom and pan
+        const scaledMargin = {
+            left: margin.left + this.csvOverlayState.offsetX,
+            top: margin.top + this.csvOverlayState.offsetY
+        };
+        
+        // Calculate data ranges with zoom and pan
+        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / this.csvOverlayState.scale;
+        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / this.csvOverlayState.scale;
+        
+        // Calculate center point based on pan offset
+        const freqCenter = (this.csvOverlayState.minFreq + this.csvOverlayState.maxFreq) / 2 - (this.csvOverlayState.offsetX / plotWidth) * freqRange;
+        const ampCenter = (this.csvOverlayState.minAmp + this.csvOverlayState.maxAmp) / 2 + (this.csvOverlayState.offsetY / plotHeight) * ampRange;
+        
+        const freqStart = freqCenter - freqRange / 2;
+        const freqEnd = freqCenter + freqRange / 2;
+        const ampStart = ampCenter - ampRange / 2;
+        const ampEnd = ampCenter + ampRange / 2;
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw enhanced grid that aligns with axis labels
+        
+        // Calculate grid parameters to match axis labels
+        const overlayGridMaxLabels = Math.floor(plotWidth / 100);
+        const overlayGridMinLabels = 4;
+        const overlayGridNumLabels = Math.max(overlayGridMinLabels, Math.min(overlayGridMaxLabels, Math.floor(this.csvOverlayState.scale * 3) + 4));
+        const overlayGridMaxAmpLabels = Math.floor(plotHeight / 40);
+        const overlayGridNumAmpLabels = Math.max(overlayGridMinLabels, Math.min(overlayGridMaxAmpLabels, Math.floor(this.csvOverlayState.scale * 3) + 4));
+        
+        // Draw minor grid lines (finer subdivisions)
+        ctx.strokeStyle = '#f5f5f5';
+        ctx.lineWidth = 0.5;
+        
+        // Minor vertical grid lines (frequency) - 5x subdivision
+        for (let i = 0; i <= overlayGridNumLabels * 5; i++) {
+            const x = margin.left + (i / (overlayGridNumLabels * 5)) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Minor horizontal grid lines (amplitude) - 5x subdivision
+        for (let i = 0; i <= overlayGridNumAmpLabels * 5; i++) {
+            const y = margin.top + (i / (overlayGridNumAmpLabels * 5)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw major grid lines (align with axis labels)
+        ctx.strokeStyle = '#d0d0d0';
+        ctx.lineWidth = 1;
+        
+        // Major vertical grid lines (frequency) - align with axis labels
+        for (let i = 0; i <= overlayGridNumLabels; i++) {
+            const x = margin.left + (i / overlayGridNumLabels) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Major horizontal grid lines (amplitude) - align with axis labels
+        for (let i = 0; i <= overlayGridNumAmpLabels; i++) {
+            const y = margin.top + (i / overlayGridNumAmpLabels) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw axes with crisp lines
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // X-axis
+        ctx.moveTo(scaledMargin.left, scaledMargin.top + plotHeight + 0.5);
+        ctx.lineTo(scaledMargin.left + plotWidth, scaledMargin.top + plotHeight + 0.5);
+        // Y-axis
+        ctx.moveTo(scaledMargin.left + 0.5, scaledMargin.top);
+        ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
+        ctx.stroke();
+        
+        // Draw each dataset with high quality
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            if (!dataset.visible) return;
+            
+            // Draw data line with anti-aliasing
+            ctx.strokeStyle = dataset.color;
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                // Skip points outside current zoom range
+                if (freq < freqStart || freq > freqEnd) continue;
+                
+                const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+                const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+                
+                if (firstPoint) {
+                    ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw data points for peak identification
+            ctx.fillStyle = dataset.color;
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                if (freq < freqStart || freq > freqEnd) continue;
+                
+                const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+                const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        });
+        
+        // Draw axis labels showing actual visible range
+        ctx.fillStyle = '#333333';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        // Calculate optimal number of labels based on zoom
+        const maxLabels = Math.floor(plotWidth / 100);
+        const minLabels = 4;
+        const numLabels = Math.max(minLabels, Math.min(maxLabels, Math.floor(this.csvOverlayState.scale * 3) + 4));
+        
+        // X-axis labels (frequency) - show actual visible range
+        for (let i = 0; i <= numLabels; i++) {
+            const freq = freqStart + (freqRange * i / numLabels);
+            const x = margin.left + (i / numLabels) * plotWidth; // Use fixed margin
+            const freqMHz = freq / 1e6;
+            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 10);
+        }
+        
+        // Y-axis labels (amplitude) - show actual visible range
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const maxAmpLabels = Math.floor(plotHeight / 40);
+        const numAmpLabels = Math.max(minLabels, Math.min(maxAmpLabels, Math.floor(this.csvOverlayState.scale * 3) + 4));
+        
+        for (let i = 0; i <= numAmpLabels; i++) {
+            const amp = ampStart + (ampRange * i / numAmpLabels);
+            const y = margin.top + plotHeight - (i / numAmpLabels) * plotHeight; // Use fixed margin
+            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        }
+        
+        // Axis titles with fixed positioning
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, height - 5);
+        
+        ctx.save();
+        ctx.translate(15, margin.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Amplitude (dB)', 0, 0);
+        ctx.restore();
+    }
+    
+    updateLegend() {
+        const legendItems = document.getElementById('legendItems');
+        const csvLegend = document.getElementById('csvLegend');
+        
+        if (!legendItems || !csvLegend) return;
+        
+        // Clear existing legend items
+        legendItems.innerHTML = '';
+        
+        if (this.csvOverlayState.datasets.length === 0) {
+            csvLegend.style.display = 'none';
+            return;
+        }
+        
+        if (this.csvOverlayState.showLegend) {
+            csvLegend.style.display = 'block';
+            
+            this.csvOverlayState.datasets.forEach(dataset => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <div class="legend-color" style="background-color: ${dataset.color}"></div>
+                    <span class="legend-label">${dataset.name}</span>
+                `;
+                legendItems.appendChild(legendItem);
+            });
+        } else {
+            csvLegend.style.display = 'none';
+        }
+    }
+    
+    handleOverlayMouseDown(e) {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        
+        this.csvOverlayState.isDragging = true;
+        this.csvOverlayState.lastX = e.clientX - rect.left;
+        this.csvOverlayState.lastY = e.clientY - rect.top;
+        
+        canvas.style.cursor = 'grabbing';
+    }
+    
+    handleOverlayMouseMove(e) {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        
+        if (this.csvOverlayState.isDragging) {
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            const deltaX = currentX - this.csvOverlayState.lastX;
+            const deltaY = currentY - this.csvOverlayState.lastY;
+            
+            // Reduced sensitivity for smoother control
+            const panSensitivity = 0.6;
+            this.csvOverlayState.offsetX += deltaX * panSensitivity;
+            this.csvOverlayState.offsetY += deltaY * panSensitivity;
+            
+            this.csvOverlayState.lastX = currentX;
+            this.csvOverlayState.lastY = currentY;
+            
+            this.drawOverlayGraph();
+        }
+    }
+    
+    handleOverlayMouseUp(e) {
+        this.csvOverlayState.isDragging = false;
+        document.getElementById('csvOverlayCanvas').style.cursor = 'crosshair';
+    }
+    
+    handleOverlayWheel(e) {
+        e.preventDefault();
+        
+        // Normal zoom sensitivity for control
+        const zoomSensitivity = 0.1;
+        const zoomFactor = e.deltaY > 0 ? (1 - zoomSensitivity) : (1 + zoomSensitivity);
+        this.csvOverlayState.scale *= zoomFactor;
+        
+        // Limit zoom range
+        this.csvOverlayState.scale = Math.max(0.1, Math.min(this.csvOverlayState.scale, 10));
+        
+        this.drawOverlayGraph();
+    }
+    
+    handleOverlayClick(e) {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        // Use logical pixel dimensions for calculations
+        const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
+        const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
+        
+        // Convert click coordinates to frequency/amplitude values
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + this.csvOverlayState.offsetX,
+            top: margin.top + this.csvOverlayState.offsetY
+        };
+        
+        // Check if click is within plot area
+        if (clickX < scaledMargin.left || clickX > scaledMargin.left + plotWidth ||
+            clickY < scaledMargin.top || clickY > scaledMargin.top + plotHeight) {
+            return;
+        }
+        
+        // Calculate clicked frequency and amplitude
+        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / this.csvOverlayState.scale;
+        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / this.csvOverlayState.scale;
+        
+        const freqStart = this.csvOverlayState.minFreq + (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) * 0.5 * (1 - 1/this.csvOverlayState.scale);
+        const ampStart = this.csvOverlayState.minAmp + (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) * 0.5 * (1 - 1/this.csvOverlayState.scale);
+        
+        const clickedFreq = freqStart + ((clickX - scaledMargin.left) / plotWidth) * freqRange;
+        const clickedAmp = ampStart + ((scaledMargin.top + plotHeight - clickY) / plotHeight) * ampRange;
+        
+        // Find closest data point across all datasets
+        let closestDataset = null;
+        let closestIndex = 0;
+        let minDistance = Infinity;
+        
+        this.csvOverlayState.datasets.forEach((dataset, datasetIndex) => {
+            if (!dataset.visible) return;
+            
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                const freqNorm = (freq - freqStart) / freqRange;
+                const ampNorm = (amp - ampStart) / ampRange;
+                const clickFreqNorm = (clickedFreq - freqStart) / freqRange;
+                const clickAmpNorm = (clickedAmp - ampStart) / ampRange;
+                
+                const distance = Math.sqrt(
+                    Math.pow(freqNorm - clickFreqNorm, 2) + 
+                    Math.pow(ampNorm - clickAmpNorm, 2)
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestDataset = dataset;
+                    closestIndex = i;
+                }
+            }
+        });
+        
+        if (closestDataset) {
+            // Get the closest peak data
+            const peakFreq = closestDataset.frequencyData[closestIndex];
+            const peakAmp = closestDataset.amplitudeData[closestIndex];
+            const peakFreqMHz = peakFreq / 1e6; // Convert to MHz
+            
+            // Identify the frequency allocation for this peak (without adding to comments)
+            this.identifyOverlayPeakForFrequencyNoComment(peakFreqMHz, peakAmp, closestDataset);
+            
+            // Visual feedback - draw a marker on the selected point
+            this.drawOverlayPeakMarker(closestDataset, closestIndex);
+        }
+    }
+    
+    drawOverlayPeakMarker(dataset, dataIndex) {
+        const canvas = document.getElementById('csvOverlayCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const freq = dataset.frequencyData[dataIndex];
+        const amp = dataset.amplitudeData[dataIndex];
+        
+        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        const plotWidth = canvas.width - margin.left - margin.right;
+        const plotHeight = canvas.height - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + this.csvOverlayState.offsetX,
+            top: margin.top + this.csvOverlayState.offsetY
+        };
+        
+        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / this.csvOverlayState.scale;
+        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / this.csvOverlayState.scale;
+        const freqStart = this.csvOverlayState.minFreq + (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) * 0.5 * (1 - 1/this.csvOverlayState.scale);
+        const ampStart = this.csvOverlayState.minAmp + (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) * 0.5 * (1 - 1/this.csvOverlayState.scale);
+        
+        const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+        const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+        
+        // Redraw graph first
+        this.drawOverlayGraph();
+        
+        // Draw marker
+        ctx.strokeStyle = '#ff6600';
+        ctx.lineWidth = 3;
+        ctx.fillStyle = '#ff6600';
+        
+        // Draw circle marker
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Draw crosshairs
+        ctx.beginPath();
+        ctx.moveTo(x - 15, y);
+        ctx.lineTo(x + 15, y);
+        ctx.moveTo(x, y - 15);
+        ctx.lineTo(x, y + 15);
+        ctx.stroke();
+    }
+    
+    resetZoomOverlay() {
+        this.csvOverlayState.scale = 1;
+        this.csvOverlayState.offsetX = 0;
+        this.csvOverlayState.offsetY = 0;
+        this.drawOverlayGraph();
+    }
+    
+    autoScaleOverlay() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Find data with significant amplitude across all datasets
+        const allAmplitudes = [];
+        this.csvOverlayState.datasets.forEach(dataset => {
+            if (dataset.visible) {
+                allAmplitudes.push(...dataset.amplitudeData);
+            }
+        });
+        
+        if (allAmplitudes.length === 0) return;
+        
+        allAmplitudes.sort((a, b) => b - a);
+        const significantAmp = allAmplitudes[Math.floor(allAmplitudes.length * 0.1)]; // Top 10%
+        
+        let minFreq = Infinity, maxFreq = -Infinity;
+        
+        this.csvOverlayState.datasets.forEach(dataset => {
+            if (!dataset.visible) return;
+            
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                if (dataset.amplitudeData[i] >= significantAmp - 20) { // Within 20dB of significant signals
+                    minFreq = Math.min(minFreq, dataset.frequencyData[i]);
+                    maxFreq = Math.max(maxFreq, dataset.frequencyData[i]);
+                }
+            }
+        });
+        
+        if (minFreq === Infinity) {
+            // Fallback to full range
+            this.resetZoomOverlay();
+            return;
+        }
+        
+        // Calculate zoom to fit significant data
+        const freqRangeTarget = maxFreq - minFreq;
+        const freqRangeFull = this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq;
+        
+        if (freqRangeTarget > 0 && freqRangeTarget < freqRangeFull) {
+            this.csvOverlayState.scale = freqRangeFull / freqRangeTarget;
+            
+            // This is a simplified offset calculation
+            this.csvOverlayState.offsetX = 0;
+            this.csvOverlayState.offsetY = 0;
+        }
+        
+        this.drawOverlayGraph();
+    }
+    
+    toggleLegend() {
+        this.csvOverlayState.showLegend = !this.csvOverlayState.showLegend;
+        this.updateLegend();
+    }
+
+    handleImageDoubleClick(e, imageNumber) {
+        // Enter full screen on double click
+        this.enterFullScreen(imageNumber);
+    }
+
+    enterFullScreen(imageNumber) {
+        const state = this.getImageState(imageNumber);
+        if (!state || !state.image) return;
+
+        // Create full screen overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'fullscreen-overlay';
+        overlay.innerHTML = `
+            <div class="fullscreen-container">
+                <canvas id="fullscreenCanvas${imageNumber}"></canvas>
+                <div class="fullscreen-controls">
+                    <button class="control-btn" onclick="figureExportTool.zoomInFullscreen(${imageNumber})">+</button>
+                    <button class="control-btn" onclick="figureExportTool.zoomOutFullscreen(${imageNumber})">−</button>
+                    <button class="control-btn" onclick="figureExportTool.resetZoomFullscreen(${imageNumber})">Reset</button>
+                    <button class="control-btn" onclick="figureExportTool.exitFullScreen()">Exit</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Setup full screen canvas with high resolution
+        const fsCanvas = document.getElementById(`fullscreenCanvas${imageNumber}`);
+        const fsCtx = fsCanvas.getContext('2d');
+        
+        // Use high resolution for full screen
+        const displayWidth = window.innerWidth - 100;
+        const displayHeight = window.innerHeight - 100;
+        const dpr = window.devicePixelRatio || 1;
+        
+        fsCanvas.width = displayWidth * dpr;
+        fsCanvas.height = displayHeight * dpr;
+        fsCanvas.style.width = displayWidth + 'px';
+        fsCanvas.style.height = displayHeight + 'px';
+        
+        // Scale for high DPI
+        fsCtx.scale(dpr, dpr);
+        
+        // Store full screen state
+        this.fullScreenState = {
+            imageNumber: imageNumber,
+            canvas: fsCanvas,
+            ctx: fsCtx,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            displayWidth: displayWidth,
+            displayHeight: displayHeight
+        };
+        
+        this.drawFullScreenImage();
+        this.setupFullScreenListeners();
+    }
+
+    drawFullScreenImage() {
+        if (!this.fullScreenState) return;
+        
+        const state = this.getImageState(this.fullScreenState.imageNumber);
+        const fsState = this.fullScreenState;
+        const ctx = fsState.ctx;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, fsState.displayWidth, fsState.displayHeight);
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Calculate image dimensions to fit screen while maintaining aspect ratio
+        const imageAspect = state.image.width / state.image.height;
+        const screenAspect = fsState.displayWidth / fsState.displayHeight;
+        
+        let drawWidth, drawHeight;
+        if (imageAspect > screenAspect) {
+            drawWidth = fsState.displayWidth * 0.9;
+            drawHeight = drawWidth / imageAspect;
+        } else {
+            drawHeight = fsState.displayHeight * 0.9;
+            drawWidth = drawHeight * imageAspect;
+        }
+        
+        // Center the image
+        const centerX = fsState.displayWidth / 2;
+        const centerY = fsState.displayHeight / 2;
+        
+        ctx.save();
+        ctx.translate(centerX + fsState.offsetX, centerY + fsState.offsetY);
+        ctx.scale(fsState.scale, fsState.scale);
+        ctx.drawImage(state.image, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
+        ctx.restore();
+    }
+
+    setupFullScreenListeners() {
+        const canvas = this.fullScreenState.canvas;
+        
+        canvas.addEventListener('mousedown', (e) => this.handleFullScreenMouseDown(e));
+        canvas.addEventListener('mousemove', (e) => this.handleFullScreenMouseMove(e));
+        canvas.addEventListener('mouseup', (e) => this.handleFullScreenMouseUp(e));
+        canvas.addEventListener('wheel', (e) => this.handleFullScreenWheel(e));
+        
+        // ESC key to exit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.exitFullScreen();
+        });
+    }
+
+    handleFullScreenMouseDown(e) {
+        const rect = this.fullScreenState.canvas.getBoundingClientRect();
+        this.fullScreenState.isDragging = true;
+        this.fullScreenState.lastX = e.clientX - rect.left;
+        this.fullScreenState.lastY = e.clientY - rect.top;
+    }
+
+    handleFullScreenMouseMove(e) {
+        if (!this.fullScreenState.isDragging) return;
+        
+        const rect = this.fullScreenState.canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        // Reduced sensitivity for smoother control
+        const sensitivity = 0.8;
+        this.fullScreenState.offsetX += (currentX - this.fullScreenState.lastX) * sensitivity;
+        this.fullScreenState.offsetY += (currentY - this.fullScreenState.lastY) * sensitivity;
+        
+        this.fullScreenState.lastX = currentX;
+        this.fullScreenState.lastY = currentY;
+        
+        this.drawFullScreenImage();
+    }
+
+    handleFullScreenMouseUp(e) {
+        this.fullScreenState.isDragging = false;
+    }
+
+    handleFullScreenWheel(e) {
+        e.preventDefault();
+        
+        // Reduced zoom sensitivity for better control
+        const zoomSensitivity = 0.05;
+        const wheel = e.deltaY < 0 ? 1 : -1;
+        const zoom = Math.exp(wheel * zoomSensitivity);
+        
+        this.fullScreenState.scale *= zoom;
+        this.fullScreenState.scale = Math.max(0.1, Math.min(5, this.fullScreenState.scale));
+        
+        this.drawFullScreenImage();
+    }
+
+    zoomInFullscreen(imageNumber) {
+        this.fullScreenState.scale = Math.min(this.fullScreenState.scale * 1.1, 5);
+        this.drawFullScreenImage();
+    }
+
+    zoomOutFullscreen(imageNumber) {
+        this.fullScreenState.scale = Math.max(this.fullScreenState.scale / 1.1, 0.1);
+        this.drawFullScreenImage();
+    }
+
+    resetZoomFullscreen(imageNumber) {
+        this.fullScreenState.scale = 1;
+        this.fullScreenState.offsetX = 0;
+        this.fullScreenState.offsetY = 0;
+        this.drawFullScreenImage();
+    }
+
+    exitFullScreen() {
+        const overlay = document.querySelector('.fullscreen-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.fullScreenState = null;
+        
+        // Remove ESC key listener
+        document.removeEventListener('keydown', this.handleFullScreenEscKey);
+    }
+
+    identifyOverlayPeakForFrequencyNoComment(frequencyMHz, amplitude, dataset) {
+        // Find the appropriate band for this frequency
+        let detectedBand = null;
+        for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+            if (frequencyMHz >= bandInfo.startMHz && frequencyMHz <= bandInfo.endMHz) {
+                detectedBand = band;
+                break;
+            }
+        }
+        
+        if (detectedBand) {
+            // Auto-select the band and show allocations (but don't add to comments)
+            this.autoSelectBandButton(detectedBand);
+            
+            console.log(`Overlay Peak identified:`, {
+                dataset: dataset.name,
+                frequency: this.formatFrequency(frequencyMHz),
+                amplitude: amplitude.toFixed(1) + ' dB',
+                band: detectedBand
+            });
+        } else {
+            console.log(`Overlay Peak at ${this.formatFrequency(frequencyMHz)} is outside defined bands`);
+        }
+    }
+
+    enterFullScreenCsv(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state || !state.frequencyData.length) return;
+
+        // Create full screen overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'fullscreen-overlay';
+        overlay.innerHTML = `
+            <div class="fullscreen-container">
+                <canvas id="fullscreenCsvCanvas${csvNumber}"></canvas>
+                <div class="fullscreen-controls">
+                    <button class="control-btn" onclick="figureExportTool.zoomInFullscreenCsv(${csvNumber})">+</button>
+                    <button class="control-btn" onclick="figureExportTool.zoomOutFullscreenCsv(${csvNumber})">−</button>
+                    <button class="control-btn" onclick="figureExportTool.resetZoomFullscreenCsv(${csvNumber})">Reset</button>
+                    <button class="control-btn" onclick="figureExportTool.autoScaleFullscreenCsv(${csvNumber})">Auto</button>
+                    <button class="control-btn" onclick="figureExportTool.exitFullScreenCsv()">Exit</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Setup full screen canvas with high resolution
+        const fsCanvas = document.getElementById(`fullscreenCsvCanvas${csvNumber}`);
+        const fsCtx = fsCanvas.getContext('2d');
+        
+        // Use high resolution for full screen
+        const displayWidth = window.innerWidth - 100;
+        const displayHeight = window.innerHeight - 100;
+        const dpr = window.devicePixelRatio || 1;
+        
+        fsCanvas.width = displayWidth * dpr;
+        fsCanvas.height = displayHeight * dpr;
+        fsCanvas.style.width = displayWidth + 'px';
+        fsCanvas.style.height = displayHeight + 'px';
+        
+        // Scale for high DPI
+        fsCtx.scale(dpr, dpr);
+        
+        // Store full screen CSV state
+        this.fullScreenCsvState = {
+            csvNumber: csvNumber,
+            canvas: fsCanvas,
+            ctx: fsCtx,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            displayWidth: displayWidth,
+            displayHeight: displayHeight,
+            originalState: { ...state } // Copy original state
+        };
+        
+        this.drawFullScreenCsv();
+        this.setupFullScreenCsvListeners();
+    }
+
+    drawFullScreenCsv() {
+        if (!this.fullScreenCsvState) return;
+        
+        const state = this.getCsvState(this.fullScreenCsvState.csvNumber);
+        const fsState = this.fullScreenCsvState;
+        const ctx = fsState.ctx;
+        const width = fsState.displayWidth;
+        const height = fsState.displayHeight;
+        
+        // Clear canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Use larger margins for better visibility
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        // Apply zoom and pan
+        const scaledMargin = {
+            left: margin.left + fsState.offsetX,
+            top: margin.top + fsState.offsetY
+        };
+        
+        // Calculate data ranges with zoom and pan
+        const freqRange = (state.maxFreq - state.minFreq) / fsState.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / fsState.scale;
+        
+        // Calculate center point based on pan offset
+        const freqCenter = (state.minFreq + state.maxFreq) / 2 - (fsState.offsetX / plotWidth) * freqRange;
+        const ampCenter = (state.minAmp + state.maxAmp) / 2 + (fsState.offsetY / plotHeight) * ampRange;
+        
+        const freqStart = freqCenter - freqRange / 2;
+        const freqEnd = freqCenter + freqRange / 2;
+        const ampStart = ampCenter - ampRange / 2;
+        const ampEnd = ampCenter + ampRange / 2;
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw enhanced grid that aligns with axis labels
+        
+        // Calculate grid parameters to match axis labels
+        const csvGridNumLabels = Math.min(12, Math.max(5, Math.floor(fsState.scale * 6) + 4));
+        
+        // Draw minor grid lines (finer subdivisions)
+        ctx.strokeStyle = '#f5f5f5';
+        ctx.lineWidth = 0.8;
+        
+        // Minor vertical grid lines (frequency) - 5x subdivision
+        for (let i = 0; i <= csvGridNumLabels * 5; i++) {
+            const x = margin.left + (i / (csvGridNumLabels * 5)) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Minor horizontal grid lines (amplitude) - 5x subdivision
+        for (let i = 0; i <= csvGridNumLabels * 5; i++) {
+            const y = margin.top + (i / (csvGridNumLabels * 5)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw major grid lines (align with axis labels)
+        ctx.strokeStyle = '#c0c0c0';
+        ctx.lineWidth = 1.5;
+        
+        // Major vertical grid lines (frequency) - align with axis labels
+        for (let i = 0; i <= csvGridNumLabels; i++) {
+            const x = margin.left + (i / csvGridNumLabels) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Major horizontal grid lines (amplitude) - align with axis labels
+        for (let i = 0; i <= csvGridNumLabels; i++) {
+            const y = margin.top + (i / csvGridNumLabels) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw axes with crisp lines
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(scaledMargin.left, scaledMargin.top + plotHeight + 0.5);
+        ctx.lineTo(scaledMargin.left + plotWidth, scaledMargin.top + plotHeight + 0.5);
+        ctx.moveTo(scaledMargin.left + 0.5, scaledMargin.top);
+        ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
+        ctx.stroke();
+        
+        // Draw data line with high quality
+        ctx.strokeStyle = '#cc0000';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        
+        let firstPoint = true;
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            const amp = state.amplitudeData[i];
+            
+            if (freq < freqStart || freq > freqEnd) continue;
+            
+            const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+            const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+            
+            if (firstPoint) {
+                ctx.moveTo(x, y);
+                firstPoint = false;
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Draw enhanced axis labels showing actual visible range
+        ctx.fillStyle = '#333333';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        // Calculate number of labels based on zoom level
+        const csvAxisNumLabels = Math.min(12, Math.max(5, Math.floor(fsState.scale * 6) + 4));
+        
+        // X-axis labels (frequency) - show actual visible range
+        for (let i = 0; i <= csvAxisNumLabels; i++) {
+            const freq = freqStart + (freqRange * i / csvAxisNumLabels);
+            const x = margin.left + (i / csvAxisNumLabels) * plotWidth; // Use fixed margin
+            const freqMHz = freq / 1e6;
+            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 15);
+        }
+        
+        // Y-axis labels (amplitude) - show actual visible range
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= csvAxisNumLabels; i++) {
+            const amp = ampStart + (ampRange * i / csvAxisNumLabels);
+            const y = margin.top + plotHeight - (i / csvAxisNumLabels) * plotHeight; // Use fixed margin
+            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        }
+        
+        // Axis titles with fixed positioning
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, height - 20);
+        
+        ctx.save();
+        ctx.translate(40, margin.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Amplitude (dB)', 0, 0);
+        ctx.restore();
+        
+        // Add title with dataset info
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = 'bold 28px Arial';
+        const title = `CSV ${this.fullScreenCsvState.csvNumber} - Spectrum Analysis (${state.rowCount} points)`;
+        ctx.fillText(title, width / 2, 20);
+    }
+
+    setupFullScreenCsvListeners() {
+        const canvas = this.fullScreenCsvState.canvas;
+        
+        canvas.addEventListener('mousedown', (e) => this.handleFullScreenCsvMouseDown(e));
+        canvas.addEventListener('mousemove', (e) => this.handleFullScreenCsvMouseMove(e));
+        canvas.addEventListener('mouseup', (e) => this.handleFullScreenCsvMouseUp(e));
+        canvas.addEventListener('wheel', (e) => this.handleFullScreenCsvWheel(e));
+        canvas.addEventListener('click', (e) => this.handleFullScreenCsvClick(e));
+        
+        // ESC key to exit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.exitFullScreenCsv();
+        });
+    }
+
+    handleFullScreenCsvMouseDown(e) {
+        const rect = this.fullScreenCsvState.canvas.getBoundingClientRect();
+        this.fullScreenCsvState.isDragging = true;
+        this.fullScreenCsvState.lastX = e.clientX - rect.left;
+        this.fullScreenCsvState.lastY = e.clientY - rect.top;
+    }
+
+    handleFullScreenCsvMouseMove(e) {
+        if (!this.fullScreenCsvState.isDragging) return;
+        
+        const rect = this.fullScreenCsvState.canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        const sensitivity = 0.8;
+        this.fullScreenCsvState.offsetX += (currentX - this.fullScreenCsvState.lastX) * sensitivity;
+        this.fullScreenCsvState.offsetY += (currentY - this.fullScreenCsvState.lastY) * sensitivity;
+        
+        this.fullScreenCsvState.lastX = currentX;
+        this.fullScreenCsvState.lastY = currentY;
+        
+        this.drawFullScreenCsv();
+    }
+
+    handleFullScreenCsvMouseUp(e) {
+        this.fullScreenCsvState.isDragging = false;
+    }
+
+    handleFullScreenCsvWheel(e) {
+        e.preventDefault();
+        
+        const zoomSensitivity = 0.05;
+        const wheel = e.deltaY < 0 ? 1 : -1;
+        const zoom = Math.exp(wheel * zoomSensitivity);
+        
+        this.fullScreenCsvState.scale *= zoom;
+        this.fullScreenCsvState.scale = Math.max(0.1, Math.min(20, this.fullScreenCsvState.scale));
+        
+        this.drawFullScreenCsv();
+    }
+
+    handleFullScreenCsvClick(e) {
+        // Peak identification in full screen mode
+        const rect = this.fullScreenCsvState.canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        const state = this.getCsvState(this.fullScreenCsvState.csvNumber);
+        const fsState = this.fullScreenCsvState;
+        
+        // Similar click handling as regular CSV but adapted for full screen
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const plotWidth = fsState.displayWidth - margin.left - margin.right;
+        const plotHeight = fsState.displayHeight - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + fsState.offsetX,
+            top: margin.top + fsState.offsetY
+        };
+        
+        if (clickX < scaledMargin.left || clickX > scaledMargin.left + plotWidth ||
+            clickY < scaledMargin.top || clickY > scaledMargin.top + plotHeight) {
+            return;
+        }
+        
+        // Find closest data point and identify peak
+        const freqRange = (state.maxFreq - state.minFreq) / fsState.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / fsState.scale;
+        
+        const freqStart = state.minFreq + (state.maxFreq - state.minFreq) * 0.5 * (1 - 1/fsState.scale);
+        const ampStart = state.minAmp + (state.maxAmp - state.minAmp) * 0.5 * (1 - 1/fsState.scale);
+        
+        const clickedFreq = freqStart + ((clickX - scaledMargin.left) / plotWidth) * freqRange;
+        const clickedAmp = ampStart + ((scaledMargin.top + plotHeight - clickY) / plotHeight) * ampRange;
+        
+        let closestIndex = 0;
+        let minDistance = Infinity;
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            const amp = state.amplitudeData[i];
+            
+            const freqNorm = (freq - freqStart) / freqRange;
+            const ampNorm = (amp - ampStart) / ampRange;
+            const clickFreqNorm = (clickedFreq - freqStart) / freqRange;
+            const clickAmpNorm = (clickedAmp - ampStart) / ampRange;
+            
+            const distance = Math.sqrt(
+                Math.pow(freqNorm - clickFreqNorm, 2) + 
+                Math.pow(ampNorm - clickAmpNorm, 2)
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestIndex = i;
+            }
+        }
+        
+        const peakFreq = state.frequencyData[closestIndex];
+        const peakAmp = state.amplitudeData[closestIndex];
+        const peakFreqMHz = peakFreq / 1e6;
+        
+        this.identifyPeakForFrequencyNoComment(peakFreqMHz, peakAmp, this.fullScreenCsvState.csvNumber);
+        this.drawFullScreenCsvPeakMarker(closestIndex);
+    }
+
+    drawFullScreenCsvPeakMarker(dataIndex) {
+        const state = this.getCsvState(this.fullScreenCsvState.csvNumber);
+        const fsState = this.fullScreenCsvState;
+        const ctx = fsState.ctx;
+        
+        const freq = state.frequencyData[dataIndex];
+        const amp = state.amplitudeData[dataIndex];
+        
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const plotWidth = fsState.displayWidth - margin.left - margin.right;
+        const plotHeight = fsState.displayHeight - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + fsState.offsetX,
+            top: margin.top + fsState.offsetY
+        };
+        
+        const freqRange = (state.maxFreq - state.minFreq) / fsState.scale;
+        const ampRange = (state.maxAmp - state.minAmp) / fsState.scale;
+        const freqStart = state.minFreq + (state.maxFreq - state.minFreq) * 0.5 * (1 - 1/fsState.scale);
+        const ampStart = state.minAmp + (state.maxAmp - state.minAmp) * 0.5 * (1 - 1/fsState.scale);
+        
+        const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+        const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+        
+        // Redraw graph first
+        this.drawFullScreenCsv();
+        
+        // Draw enhanced marker for full screen
+        ctx.strokeStyle = '#ff6600';
+        ctx.lineWidth = 4;
+        ctx.fillStyle = '#ff6600';
+        
+        // Draw circle marker
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Draw crosshairs
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y);
+        ctx.lineTo(x + 20, y);
+        ctx.moveTo(x, y - 20);
+        ctx.lineTo(x, y + 20);
+        ctx.stroke();
+    }
+
+    zoomInFullscreenCsv(csvNumber) {
+        this.fullScreenCsvState.scale = Math.min(this.fullScreenCsvState.scale * 1.2, 20);
+        this.drawFullScreenCsv();
+    }
+
+    zoomOutFullscreenCsv(csvNumber) {
+        this.fullScreenCsvState.scale = Math.max(this.fullScreenCsvState.scale / 1.2, 0.1);
+        this.drawFullScreenCsv();
+    }
+
+    resetZoomFullscreenCsv(csvNumber) {
+        this.fullScreenCsvState.scale = 1;
+        this.fullScreenCsvState.offsetX = 0;
+        this.fullScreenCsvState.offsetY = 0;
+        this.drawFullScreenCsv();
+    }
+
+    autoScaleFullscreenCsv(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state.frequencyData.length) return;
+        
+        // Auto scale to show significant data
+        const amplitudes = state.amplitudeData.slice();
+        amplitudes.sort((a, b) => b - a);
+        const significantAmp = amplitudes[Math.floor(amplitudes.length * 0.1)];
+        
+        let minFreq = Infinity, maxFreq = -Infinity;
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            if (state.amplitudeData[i] >= significantAmp - 20) {
+                minFreq = Math.min(minFreq, state.frequencyData[i]);
+                maxFreq = Math.max(maxFreq, state.frequencyData[i]);
+            }
+        }
+        
+        if (minFreq === Infinity) {
+            this.resetZoomFullscreenCsv(csvNumber);
+            return;
+        }
+        
+        const freqRangeTarget = maxFreq - minFreq;
+        const freqRangeFull = state.maxFreq - state.minFreq;
+        
+        if (freqRangeTarget > 0 && freqRangeTarget < freqRangeFull) {
+            this.fullScreenCsvState.scale = freqRangeFull / freqRangeTarget;
+            this.fullScreenCsvState.offsetX = 0;
+            this.fullScreenCsvState.offsetY = 0;
+        }
+        
+        this.drawFullScreenCsv();
+    }
+
+    exitFullScreenCsv() {
+        const overlay = document.querySelector('.fullscreen-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.fullScreenCsvState = null;
+    }
+
+    enterFullScreenOverlay() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+
+        // Create full screen overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'fullscreen-overlay';
+        overlay.innerHTML = `
+            <div class="fullscreen-container">
+                <canvas id="fullscreenOverlayCanvas"></canvas>
+                <div class="fullscreen-controls">
+                    <button class="control-btn" onclick="figureExportTool.zoomInFullscreenOverlay()">+</button>
+                    <button class="control-btn" onclick="figureExportTool.zoomOutFullscreenOverlay()">−</button>
+                    <button class="control-btn" onclick="figureExportTool.resetZoomFullscreenOverlay()">Reset</button>
+                    <button class="control-btn" onclick="figureExportTool.autoScaleFullscreenOverlay()">Auto</button>
+                    <button class="control-btn" onclick="figureExportTool.exitFullScreenOverlay()">Exit</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Setup full screen canvas with high resolution
+        const fsCanvas = document.getElementById('fullscreenOverlayCanvas');
+        const fsCtx = fsCanvas.getContext('2d');
+        
+        // Use high resolution for full screen
+        const displayWidth = window.innerWidth - 100;
+        const displayHeight = window.innerHeight - 100;
+        const dpr = window.devicePixelRatio || 1;
+        
+        fsCanvas.width = displayWidth * dpr;
+        fsCanvas.height = displayHeight * dpr;
+        fsCanvas.style.width = displayWidth + 'px';
+        fsCanvas.style.height = displayHeight + 'px';
+        
+        // Scale for high DPI
+        fsCtx.scale(dpr, dpr);
+        
+        // Store full screen overlay state
+        this.fullScreenOverlayState = {
+            canvas: fsCanvas,
+            ctx: fsCtx,
+            scale: this.csvOverlayState.scale,
+            offsetX: this.csvOverlayState.offsetX,
+            offsetY: this.csvOverlayState.offsetY,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            displayWidth: displayWidth,
+            displayHeight: displayHeight
+        };
+        
+        this.drawFullScreenOverlay();
+        this.setupFullScreenOverlayListeners();
+    }
+
+    drawFullScreenOverlay() {
+        if (!this.fullScreenOverlayState) return;
+        
+        const fsState = this.fullScreenOverlayState;
+        const ctx = fsState.ctx;
+        const width = fsState.displayWidth;
+        const height = fsState.displayHeight;
+        
+        // Clear canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Use larger margins for full screen
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        
+        // Apply zoom and pan
+        const scaledMargin = {
+            left: margin.left + fsState.offsetX,
+            top: margin.top + fsState.offsetY
+        };
+        
+        // Calculate data ranges with zoom and pan
+        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / fsState.scale;
+        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / fsState.scale;
+        
+        // Calculate center point based on pan offset
+        const freqCenter = (this.csvOverlayState.minFreq + this.csvOverlayState.maxFreq) / 2 - (fsState.offsetX / plotWidth) * freqRange;
+        const ampCenter = (this.csvOverlayState.minAmp + this.csvOverlayState.maxAmp) / 2 + (fsState.offsetY / plotHeight) * ampRange;
+        
+        const freqStart = freqCenter - freqRange / 2;
+        const freqEnd = freqCenter + freqRange / 2;
+        const ampStart = ampCenter - ampRange / 2;
+        const ampEnd = ampCenter + ampRange / 2;
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw enhanced grid that aligns with axis labels
+        
+        // Calculate grid parameters to match axis labels
+        const numLabels = Math.min(12, Math.max(5, Math.floor(fsState.scale * 6) + 4));
+        
+        // Draw minor grid lines (finer subdivisions)
+        ctx.strokeStyle = '#f5f5f5';
+        ctx.lineWidth = 0.8;
+        
+        // Minor vertical grid lines (frequency) - 5x subdivision
+        for (let i = 0; i <= numLabels * 5; i++) {
+            const x = margin.left + (i / (numLabels * 5)) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Minor horizontal grid lines (amplitude) - 5x subdivision
+        for (let i = 0; i <= numLabels * 5; i++) {
+            const y = margin.top + (i / (numLabels * 5)) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw major grid lines (align with axis labels)
+        ctx.strokeStyle = '#c0c0c0';
+        ctx.lineWidth = 1.5;
+        
+        // Major vertical grid lines (frequency) - align with axis labels
+        for (let i = 0; i <= numLabels; i++) {
+            const x = margin.left + (i / numLabels) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, margin.top);
+            ctx.lineTo(x + 0.5, margin.top + plotHeight);
+            ctx.stroke();
+        }
+        
+        // Major horizontal grid lines (amplitude) - align with axis labels
+        for (let i = 0; i <= numLabels; i++) {
+            const y = margin.top + (i / numLabels) * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, y + 0.5);
+            ctx.lineTo(margin.left + plotWidth, y + 0.5);
+            ctx.stroke();
+        }
+        
+        // Draw axes
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(scaledMargin.left, scaledMargin.top + plotHeight + 0.5);
+        ctx.lineTo(scaledMargin.left + plotWidth, scaledMargin.top + plotHeight + 0.5);
+        ctx.moveTo(scaledMargin.left + 0.5, scaledMargin.top);
+        ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
+        ctx.stroke();
+        
+        // Draw each dataset
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            if (!dataset.visible) return;
+            
+            ctx.strokeStyle = dataset.color;
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                if (freq < freqStart || freq > freqEnd) continue;
+                
+                const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
+                const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+                
+                if (firstPoint) {
+                    ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        });
+        
+        // Draw enhanced axis labels showing actual visible range
+        ctx.fillStyle = '#333333';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        
+        // X-axis labels - show actual visible range
+        for (let i = 0; i <= numLabels; i++) {
+            const freq = freqStart + (freqRange * i / numLabels);
+            const x = margin.left + (i / numLabels) * plotWidth; // Use fixed margin
+            const freqMHz = freq / 1e6;
+            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 15);
+        }
+        
+        // Y-axis labels - show actual visible range
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= numLabels; i++) {
+            const amp = ampStart + (ampRange * i / numLabels);
+            const y = margin.top + plotHeight - (i / numLabels) * plotHeight; // Use fixed margin
+            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        }
+        
+        // Axis titles with fixed positioning
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, height - 20);
+        
+        ctx.save();
+        ctx.translate(40, margin.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Amplitude (dB)', 0, 0);
+        ctx.restore();
+        
+        // Add title
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = 'bold 28px Arial';
+        const title = `Spectrum Overlay Analysis (${this.csvOverlayState.datasets.length} datasets)`;
+        ctx.fillText(title, width / 2, 20);
+    }
+
+    setupFullScreenOverlayListeners() {
+        const canvas = this.fullScreenOverlayState.canvas;
+        
+        canvas.addEventListener('mousedown', (e) => this.handleFullScreenOverlayMouseDown(e));
+        canvas.addEventListener('mousemove', (e) => this.handleFullScreenOverlayMouseMove(e));
+        canvas.addEventListener('mouseup', (e) => this.handleFullScreenOverlayMouseUp(e));
+        canvas.addEventListener('wheel', (e) => this.handleFullScreenOverlayWheel(e));
+        canvas.addEventListener('click', (e) => this.handleFullScreenOverlayClick(e));
+        
+        // ESC key to exit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.exitFullScreenOverlay();
+        });
+    }
+
+    handleFullScreenOverlayMouseDown(e) {
+        const rect = this.fullScreenOverlayState.canvas.getBoundingClientRect();
+        this.fullScreenOverlayState.isDragging = true;
+        this.fullScreenOverlayState.lastX = e.clientX - rect.left;
+        this.fullScreenOverlayState.lastY = e.clientY - rect.top;
+    }
+
+    handleFullScreenOverlayMouseMove(e) {
+        if (!this.fullScreenOverlayState.isDragging) return;
+        
+        const rect = this.fullScreenOverlayState.canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        const sensitivity = 0.8;
+        this.fullScreenOverlayState.offsetX += (currentX - this.fullScreenOverlayState.lastX) * sensitivity;
+        this.fullScreenOverlayState.offsetY += (currentY - this.fullScreenOverlayState.lastY) * sensitivity;
+        
+        this.fullScreenOverlayState.lastX = currentX;
+        this.fullScreenOverlayState.lastY = currentY;
+        
+        this.drawFullScreenOverlay();
+    }
+
+    handleFullScreenOverlayMouseUp(e) {
+        this.fullScreenOverlayState.isDragging = false;
+    }
+
+    handleFullScreenOverlayWheel(e) {
+        e.preventDefault();
+        
+        const zoomSensitivity = 0.05;
+        const wheel = e.deltaY < 0 ? 1 : -1;
+        const zoom = Math.exp(wheel * zoomSensitivity);
+        
+        this.fullScreenOverlayState.scale *= zoom;
+        this.fullScreenOverlayState.scale = Math.max(0.1, Math.min(20, this.fullScreenOverlayState.scale));
+        
+        this.drawFullScreenOverlay();
+    }
+
+    handleFullScreenOverlayClick(e) {
+        // Similar to regular overlay click but for full screen
+        const rect = this.fullScreenOverlayState.canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        const fsState = this.fullScreenOverlayState;
+        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const plotWidth = fsState.displayWidth - margin.left - margin.right;
+        const plotHeight = fsState.displayHeight - margin.top - margin.bottom;
+        
+        const scaledMargin = {
+            left: margin.left + fsState.offsetX,
+            top: margin.top + fsState.offsetY
+        };
+        
+        if (clickX < scaledMargin.left || clickX > scaledMargin.left + plotWidth ||
+            clickY < scaledMargin.top || clickY > scaledMargin.top + plotHeight) {
+            return;
+        }
+        
+        // Find closest point in any dataset
+        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / fsState.scale;
+        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / fsState.scale;
+        
+        const freqStart = this.csvOverlayState.minFreq + (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) * 0.5 * (1 - 1/fsState.scale);
+        const ampStart = this.csvOverlayState.minAmp + (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) * 0.5 * (1 - 1/fsState.scale);
+        
+        const clickedFreq = freqStart + ((clickX - scaledMargin.left) / plotWidth) * freqRange;
+        const clickedAmp = ampStart + ((scaledMargin.top + plotHeight - clickY) / plotHeight) * ampRange;
+        
+        let closestDataset = null;
+        let closestIndex = 0;
+        let minDistance = Infinity;
+        
+        this.csvOverlayState.datasets.forEach((dataset) => {
+            if (!dataset.visible) return;
+            
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                const amp = dataset.amplitudeData[i];
+                
+                const freqNorm = (freq - freqStart) / freqRange;
+                const ampNorm = (amp - ampStart) / ampRange;
+                const clickFreqNorm = (clickedFreq - freqStart) / freqRange;
+                const clickAmpNorm = (clickedAmp - ampStart) / ampRange;
+                
+                const distance = Math.sqrt(
+                    Math.pow(freqNorm - clickFreqNorm, 2) + 
+                    Math.pow(ampNorm - clickAmpNorm, 2)
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestDataset = dataset;
+                    closestIndex = i;
+                }
+            }
+        });
+        
+        if (closestDataset) {
+            const peakFreq = closestDataset.frequencyData[closestIndex];
+            const peakAmp = closestDataset.amplitudeData[closestIndex];
+            const peakFreqMHz = peakFreq / 1e6;
+            
+            this.identifyOverlayPeakForFrequencyNoComment(peakFreqMHz, peakAmp, closestDataset);
+        }
+    }
+
+    zoomInFullscreenOverlay() {
+        this.fullScreenOverlayState.scale = Math.min(this.fullScreenOverlayState.scale * 1.2, 20);
+        this.drawFullScreenOverlay();
+    }
+
+    zoomOutFullscreenOverlay() {
+        this.fullScreenOverlayState.scale = Math.max(this.fullScreenOverlayState.scale / 1.2, 0.1);
+        this.drawFullScreenOverlay();
+    }
+
+    resetZoomFullscreenOverlay() {
+        this.fullScreenOverlayState.scale = 1;
+        this.fullScreenOverlayState.offsetX = 0;
+        this.fullScreenOverlayState.offsetY = 0;
+        this.drawFullScreenOverlay();
+    }
+
+    autoScaleFullscreenOverlay() {
+        // Similar to regular auto scale but for full screen
+        this.resetZoomFullscreenOverlay();
+    }
+
+    exitFullScreenOverlay() {
+        const overlay = document.querySelector('.fullscreen-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.fullScreenOverlayState = null;
     }
 }
 

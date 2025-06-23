@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Figure Export Tool v3.1 - Turner Engineering Corporation</title>
+    <title>Figure Export Tool v3.3 - Turner Engineering Corporation</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
                     <img src="tenco-logo.png" alt="Turner Engineering Corporation" class="company-logo" onerror="this.style.display='none'">
                 </div>
                 <div class="title-section">
-                    <h1>Figure Export Tool v3.1</h1>
+                    <h1>Figure Export Tool v3.3</h1>
                     <p class="subtitle">Professional EMC Testing Annotation System</p>
                     <p class="company-name">Turner Engineering Corporation</p>
                 </div>
@@ -35,6 +35,21 @@
         <div class="main-content">
             <!-- Left Panel: Controls -->
             <div class="left-panel">
+                <!-- Data Input Type Selection -->
+                <div class="input-type-control">
+                    <h2>Data Input Type</h2>
+                    <div class="input-type-toggle">
+                        <label>
+                            <input type="radio" name="inputType" value="images" checked>
+                            <span>📷 Image Files</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="inputType" value="csv">
+                            <span>📊 CSV Data Files</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="layout-control">
                     <h2>Layout Options</h2>
                     <div class="layout-toggle">
@@ -49,7 +64,8 @@
                     </div>
                 </div>
 
-                <div class="upload-section">
+                <!-- Image Upload Section -->
+                <div class="upload-section" id="imageUploadSection">
                     <h2>Upload Images</h2>
                     <div class="dual-upload" id="dualUpload">
                         <div class="upload-container">
@@ -67,6 +83,79 @@
                                 <input type="file" id="imageInput2" accept="image/*" style="display: none;">
                                 <div class="upload-placeholder">
                                     <p>Click to select or drag & drop</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CSV Upload Section -->
+                <div class="upload-section" id="csvUploadSection" style="display: none;">
+                    <h2>Upload CSV Data Files</h2>
+                    
+                    <!-- CSV Display Mode Toggle -->
+                    <div class="csv-mode-control">
+                        <h3>Display Mode</h3>
+                        <div class="csv-mode-toggle">
+                            <label>
+                                <input type="radio" name="csvMode" value="separate" checked>
+                                <span>📊 Separate Graphs</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="csvMode" value="overlay">
+                                <span>📈 Overlay Comparison</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Separate Mode Upload Areas -->
+                    <div class="dual-upload" id="dualCsvUpload">
+                        <div class="upload-container">
+                            <h3>CSV File 1</h3>
+                            <div class="upload-area" id="csvUploadArea1">
+                                <input type="file" id="csvInput1" accept=".csv,.txt" style="display: none;">
+                                <div class="upload-placeholder">
+                                    <p>Click to select CSV file</p>
+                                    <small>Frequency vs Amplitude data</small>
+                                </div>
+                            </div>
+                            <div class="csv-info" id="csvInfo1" style="display: none;">
+                                <p><strong>Rows:</strong> <span class="csv-rows">-</span></p>
+                                <p><strong>Frequency Range:</strong> <span class="csv-freq-range">-</span></p>
+                            </div>
+                        </div>
+                        <div class="upload-container">
+                            <h3>CSV File 2</h3>
+                            <div class="upload-area" id="csvUploadArea2">
+                                <input type="file" id="csvInput2" accept=".csv,.txt" style="display: none;">
+                                <div class="upload-placeholder">
+                                    <p>Click to select CSV file</p>
+                                    <small>Frequency vs Amplitude data</small>
+                                </div>
+                            </div>
+                            <div class="csv-info" id="csvInfo2" style="display: none;">
+                                <p><strong>Rows:</strong> <span class="csv-rows">-</span></p>
+                                <p><strong>Frequency Range:</strong> <span class="csv-freq-range">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Overlay Mode Upload Area -->
+                    <div class="single-upload" id="singleCsvUpload" style="display: none;">
+                        <div class="upload-container overlay-upload">
+                            <h3>CSV Files for Overlay Comparison</h3>
+                            <div class="upload-area" id="csvOverlayUploadArea">
+                                <input type="file" id="csvOverlayInput" accept=".csv,.txt" multiple style="display: none;">
+                                <div class="upload-placeholder">
+                                    <p>Click to select multiple CSV files</p>
+                                    <small>Hold Ctrl/Cmd to select multiple files</small>
+                                    <small>All files will be overlaid on one graph</small>
+                                </div>
+                            </div>
+                            <div class="csv-overlay-files" id="csvOverlayFiles">
+                                <h4>Loaded Files:</h4>
+                                <div class="file-list" id="overlayFileList">
+                                    <!-- File list will be populated here -->
                                 </div>
                             </div>
                         </div>
@@ -125,7 +214,7 @@
                 <!-- Information Tables Above Images -->
                 <div class="dual-info-tables" id="dualInfoTables">
                     <div class="info-table">
-                        <h4>Image 1</h4>
+                        <h4 id="dataType1Header">Image 1</h4>
                         <table>
                             <thead>
                                 <tr>
@@ -145,7 +234,7 @@
                     </div>
                     
                     <div class="info-table">
-                        <h4>Image 2</h4>
+                        <h4 id="dataType2Header">Image 2</h4>
                         <table>
                             <thead>
                                 <tr>
@@ -165,17 +254,85 @@
                     </div>
                 </div>
 
-                <div class="dual-image-container" id="dualImageContainer">
-                    <div class="image-container">
-                        <canvas id="annotationCanvas1"></canvas>
-                        <div class="instruction-overlay" id="instructionOverlay1">
-                            <p>Upload Image 1</p>
+                <!-- Dual Data Container (Images or CSV Graphs) -->
+                <div class="dual-data-container" id="dualDataContainer">
+                    <!-- Image Display Container -->
+                    <div class="dual-image-container" id="dualImageContainer">
+                        <div class="image-container">
+                            <canvas id="annotationCanvas1"></canvas>
+                            <div class="instruction-overlay" id="instructionOverlay1">
+                                <p>Upload Image 1</p>
+                            </div>
+                        </div>
+                        <div class="image-container">
+                            <canvas id="annotationCanvas2"></canvas>
+                            <div class="instruction-overlay" id="instructionOverlay2">
+                                <p>Upload Image 2</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="image-container">
-                        <canvas id="annotationCanvas2"></canvas>
-                        <div class="instruction-overlay" id="instructionOverlay2">
-                            <p>Upload Image 2</p>
+
+                    <!-- CSV Graph Container -->
+                    <div class="dual-csv-container" id="dualCsvContainer" style="display: none;">
+                        <!-- Separate Graphs Mode -->
+                        <div class="csv-separate-mode" id="csvSeparateMode">
+                            <div class="csv-container">
+                                <div class="csv-graph-header">
+                                    <h4>CSV Data 1</h4>
+                                    <div class="graph-controls">
+                                        <button class="control-btn" onclick="figureExportTool.resetZoomCsv(1)">Reset Zoom</button>
+                                        <button class="control-btn" onclick="figureExportTool.autoScaleCsv(1)">Auto Scale</button>
+                                        <button class="control-btn" onclick="figureExportTool.enterFullScreenCsv(1)" title="Full Screen">⛶</button>
+                                    </div>
+                                </div>
+                                <canvas id="csvGraphCanvas1"></canvas>
+                                <div class="instruction-overlay" id="csvInstructionOverlay1">
+                                    <p>Upload CSV File 1</p>
+                                    <small>Expected format: Frequency, Amplitude</small>
+                                </div>
+                            </div>
+                            <div class="csv-container">
+                                <div class="csv-graph-header">
+                                    <h4>CSV Data 2</h4>
+                                    <div class="graph-controls">
+                                        <button class="control-btn" onclick="figureExportTool.resetZoomCsv(2)">Reset Zoom</button>
+                                        <button class="control-btn" onclick="figureExportTool.autoScaleCsv(2)">Auto Scale</button>
+                                        <button class="control-btn" onclick="figureExportTool.enterFullScreenCsv(2)" title="Full Screen">⛶</button>
+                                    </div>
+                                </div>
+                                <canvas id="csvGraphCanvas2"></canvas>
+                                <div class="instruction-overlay" id="csvInstructionOverlay2">
+                                    <p>Upload CSV File 2</p>
+                                    <small>Expected format: Frequency, Amplitude</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overlay Comparison Mode -->
+                        <div class="csv-overlay-mode" id="csvOverlayMode" style="display: none;">
+                            <div class="csv-overlay-container">
+                                <div class="csv-graph-header">
+                                    <h4>Spectrum Comparison</h4>
+                                    <div class="graph-controls">
+                                        <button class="control-btn" onclick="figureExportTool.resetZoomOverlay()">Reset Zoom</button>
+                                        <button class="control-btn" onclick="figureExportTool.autoScaleOverlay()">Auto Scale</button>
+                                        <button class="control-btn" onclick="figureExportTool.toggleLegend()">Toggle Legend</button>
+                                        <button class="control-btn" onclick="figureExportTool.exportOverlayData()" title="Export Overlay">📤</button>
+                                        <button class="control-btn" onclick="figureExportTool.enterFullScreenOverlay()" title="Full Screen">⛶</button>
+                                    </div>
+                                </div>
+                                <canvas id="csvOverlayCanvas"></canvas>
+                                <div class="instruction-overlay" id="csvOverlayInstructionOverlay">
+                                    <p>Upload CSV files to see overlay comparison</p>
+                                    <small>Multiple datasets will be displayed with different colors</small>
+                                </div>
+                                <div class="csv-legend" id="csvLegend">
+                                    <h5>Legend</h5>
+                                    <div class="legend-items" id="legendItems">
+                                        <!-- Legend items will be added dynamically -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -226,8 +383,8 @@
         <!-- Footer -->
         <footer>
             <div class="footer-content">
-                <p>&copy; 2024 Turner Engineering Corporation. All rights reserved.</p>
-                <p>Professional EMC Testing Tools | Band-Specific Peak Identification System v3.1</p>
+                <p>&copy; 2025 Turner Engineering Corporation. All rights reserved.</p>
+                <p>Professional EMC Testing Tools | Enhanced CSV Analysis with Full Screen & Dynamic Grids v3.3</p>
                 <div class="attribution">
                     <p>Developed by Howard Wang | Supervised by Temba Mateke</p>
                 </div>

@@ -1,4 +1,4 @@
-# Figure Export Tool v3.1
+# Figure Export Tool v3.3
 
 **Turner Engineering Corporation** - Professional EMC Testing Annotation System  
 *Developed by Howard Wang | Supervised by Temba Mateke*
@@ -10,24 +10,24 @@ Professional EMC testing annotation tool with comprehensive band-specific freque
 **Company**: Turner Engineering Corporation (Tenco)  
 **Developer**: Howard Wang  
 **Supervisor**: Temba Mateke  
-**Version**: 3.1 (Band-Specific Peak Identification System)  
+**Version**: 3.3 (Enhanced CSV Analysis with Full Screen & Dynamic Grids)  
 **Copyright**: © 2024 Turner Engineering Corporation. All rights reserved.
 
 ## Quick Setup
 
 1. **Download**: Clone or download all files from [GitHub](https://github.com/HowardWHSrun/figauto.git)
 2. **Open**: Launch `index.html` in any modern web browser
-3. **Logo** (Optional): Replace `tenco-logo.png` with your company logo
-4. **Ready**: No additional installation required - fully client-side application
+3. **Ready**: No additional installation required - fully client-side application
 
-## 🚀 What's New in v3.1
+## 🚀 What's New in v3.3
 
-### **Band-Specific Peak Identification System**
-- **Modular Architecture**: 8 separate frequency band databases for efficient loading
-- **400+ Allocations**: Comprehensive coverage from VLF to SHF with complete FCC data
-- **Smart Band Selection**: Click B0-B7 buttons for targeted frequency identification
-- **Multi-Page Support**: Tabbed interface for managing multiple spectrum analyses
-- **Corporate Branding**: Professional Tenco styling and logo integration
+### **Enhanced CSV Analysis with Professional Features**
+- **Full Screen Mode**: High-resolution full screen viewing for all graph types with zoom/pan controls
+- **Dynamic Axis System**: Real-time axis labels showing exact visible frequency/amplitude ranges during zoom
+- **Professional Grid System**: Two-tier grid with minor/major lines for precise measurements and analysis
+- **CSV Overlay Comparison**: Multi-dataset overlay with color-coded legends for comparative analysis
+- **Enhanced Zoom Controls**: Improved sensitivity and Auto Scale functionality for optimal data viewing
+- **Peak Identification**: Click-to-identify functionality works across all CSV modes with band detection
 
 ### **Complete Band Coverage (B0-B7 All Ready)**
 ✅ **Band 0 (VLF/LF)**: 9-160 kHz (22 allocations) - Navigation, time signals, maritime  
@@ -90,10 +90,10 @@ Professional EMC testing annotation tool with comprehensive band-specific freque
 | **B1** | 148.5 kHz-1.605 MHz | 22 | MF: AM broadcast, maritime, amateur 160m | ✅ **Ready** |
 | **B2** | 535 kHz-3.025 MHz | 27 | HF Lower: Extended AM, amateur, maritime | ✅ **Ready** |
 | **B3** | 2.495-8.1 MHz | 47 | HF Core: Amateur 80m/40m, international broadcast, WWV | ✅ **Ready** |
-| **B4** | 5-30 MHz | ~95 | Upper HF: Amateur 20m/15m/12m/10m, CB radio | ✅ **Ready** |
-| **B5** | 25-325 MHz | ~65 | VHF: FM radio, TV, aviation, amateur 6m/2m | ✅ **Ready** |
-| **B6** | 273 MHz-1.3 GHz | ~66 | UHF: TV, cellular, GPS, amateur 70cm | ✅ **Ready** |
-| **B7** | 960 MHz-6 GHz | ~55 | SHF: GPS L1, cellular/PCS, WiFi 2.4/5 GHz | ✅ **Ready** |
+| **B4** | 5-30 MHz | 95 | Upper HF: Amateur 20m/15m/12m/10m, CB radio | ✅ **Ready** |
+| **B5** | 25-325 MHz | 65 | VHF: FM radio, TV, aviation, amateur 6m/2m | ✅ **Ready** |
+| **B6** | 273 MHz-1.3 GHz | 66 | UHF: TV, cellular, GPS, amateur 70cm | ✅ **Ready** |
+| **B7** | 960 MHz-6 GHz | 55 | SHF: GPS L1, cellular/PCS, WiFi 2.4/5 GHz | ✅ **Ready** |
 
 **📈 Total System Coverage**: 400+ frequency allocations across complete EMC testing spectrum (9 kHz to 6+ GHz)
 
@@ -186,12 +186,29 @@ peak-identification-database-band7.js  // B7: SHF (960 MHz-6 GHz)
 ## Support & Documentation
 
 - **Repository**: [https://github.com/HowardWHSrun/figauto.git](https://github.com/HowardWHSrun/figauto.git)
-- **Version**: 3.1 (Band-Specific Peak Identification System)
+- **Version**: 3.3 (Enhanced CSV Analysis with Full Screen & Dynamic Grids)
 - **Developer**: Howard Wang
 - **Supervisor**: Temba Mateke  
 - **Company**: Turner Engineering Corporation
 - **License**: © 2024 Turner Engineering Corporation. All rights reserved.
 - **Updates**: Check GitHub releases for latest versions
+
+## 📋 Changelog
+
+### v3.3 - Enhanced CSV Analysis (Current)
+- ✅ **Full Screen Mode**: High-resolution full screen viewing for all graph types
+- ✅ **Dynamic Axis Labels**: Real-time frequency/amplitude ranges during zoom/pan
+- ✅ **Professional Grid System**: Two-tier minor/major grid lines for precision
+- ✅ **CSV Overlay Comparison**: Multi-dataset overlay with color legends
+- ✅ **Enhanced Zoom Controls**: Improved sensitivity and auto-scale functionality
+- ✅ **Universal Peak Identification**: Click-to-identify across all CSV modes
+- 🔧 **Bug Fixes**: Resolved upload function and grid rendering issues
+
+### v3.1 - Band-Specific Peak Identification System
+- Band-specific frequency databases (B0-B7)
+- 400+ FCC frequency allocations
+- Multi-page support with tabbed interface
+- Corporate Tenco branding integration
 
 ---
 
