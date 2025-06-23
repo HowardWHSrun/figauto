@@ -143,6 +143,34 @@ class FigureExportTool {
             '#666600'  // Olive
         ];
         
+        // Limit lines configuration for EMC testing (NYCT AC Train Standards)
+        this.limitLines = {
+            enabled: true,
+            distance: '50ft', // '50ft' or '100ft'
+            limits: {
+                // NYCT AC Train Radiated Emission Limits at 50 ft (dBμV/m/MHz)
+                'B0': 126,   // 10 kHz – 160 kHz (10 kHz, 150 kHz points)
+                'B1': 126,   // 150 kHz – 650 kHz (150 kHz point)
+                'B2': 115,   // 500 kHz – 3 MHz (1.6 MHz point)
+                'B3': 100,   // 2.5 MHz – 7.5 MHz (3.2 MHz point)
+                'B4': 85,    // 5 MHz – 30 MHz (interpolated between 3.2 MHz and 200 MHz)
+                'B5': 81,    // 25 MHz – 325 MHz (200 MHz point)
+                'B6': 96,    // 300 MHz – 1.3 GHz (1.0 GHz point)
+                'B7': 96     // 1 GHz – 6 GHz (1.0 GHz, 6.0 GHz points)
+            },
+            limits100ft: {
+                // NYCT AC Train Radiated Emission Limits at 100 ft (dBμV/m/MHz)
+                'B0': 108,   // 10 kHz – 160 kHz (10 kHz, 150 kHz points)
+                'B1': 108,   // 150 kHz – 650 kHz (150 kHz point)
+                'B2': 97,    // 500 kHz – 3 MHz (1.6 MHz point)
+                'B3': 94,    // 2.5 MHz – 7.5 MHz (3.2 MHz point)
+                'B4': 84,    // 5 MHz – 30 MHz (interpolated between 3.2 MHz and 200 MHz)
+                'B5': 75,    // 25 MHz – 325 MHz (200 MHz point)
+                'B6': 90,    // 300 MHz – 1.3 GHz (1.0 GHz point)
+                'B7': 90     // 1 GHz – 6 GHz (1.0 GHz, 6.0 GHz points)
+            }
+        };
+        
         // Initialize first page
         this.initializePage(1);
         this.initializeEventListeners();
@@ -314,6 +342,9 @@ class FigureExportTool {
         
         // Page tab clicks
         this.setupPageTabListeners();
+        
+        // Limit lines controls
+        this.setupLimitLinesListeners();
     }
     
     setupPageTabListeners() {
@@ -1356,7 +1387,7 @@ class FigureExportTool {
         // Scale for high DPI
         exportCtx.scale(dpr, dpr);
         
-        const margin = { top: 80, right: 200, bottom: 120, left: 150 };
+        const margin = { top: 80, right: 200, bottom: 160, left: 150 };
         
         // Enable highest quality rendering
         exportCtx.imageSmoothingEnabled = true;
@@ -1476,39 +1507,91 @@ class FigureExportTool {
         exportCtx.font = 'bold 32px Arial';
         exportCtx.fillText('Spectrum Analysis Overlay Comparison', margin.left + plotWidth / 2, 15);
         
-        // Add legend
-        const legendX = margin.left + plotWidth + 20;
-        const legendY = margin.top;
+        // Draw regulatory limit lines
+        const freqStartMHz = this.csvOverlayState.minFreq / 1e6;
+        const freqEndMHz = this.csvOverlayState.maxFreq / 1e6;
+        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, this.csvOverlayState.minAmp, this.csvOverlayState.maxAmp);
         
-        exportCtx.fillStyle = '#f8f9fa';
-        exportCtx.fillRect(legendX, legendY, 150, this.csvOverlayState.datasets.length * 30 + 40);
-        exportCtx.strokeStyle = '#ddd';
-        exportCtx.lineWidth = 1;
-        exportCtx.strokeRect(legendX, legendY, 150, this.csvOverlayState.datasets.length * 30 + 40);
+        // Add legend outside the graph area at the bottom
+        const legendX = margin.left + plotWidth / 2;
+        const legendY = margin.top + plotHeight + 90; // In the margin area outside graph
         
-        exportCtx.fillStyle = '#333';
-        exportCtx.font = 'bold 16px Arial';
-        exportCtx.textAlign = 'left';
-        exportCtx.fillText('Legend', legendX + 10, legendY + 20);
+        // Calculate legend dimensions
+        const itemWidth = 140;
+        const maxItemsPerRow = Math.floor(plotWidth / itemWidth);
+        const itemsPerRow = Math.min(this.csvOverlayState.datasets.length, maxItemsPerRow);
+        
+        // Draw legend items horizontally centered
+        const totalItemWidth = itemsPerRow * itemWidth;
+        const startX = legendX - totalItemWidth / 2;
         
         this.csvOverlayState.datasets.forEach((dataset, index) => {
-            const itemY = legendY + 40 + index * 30;
+            const row = Math.floor(index / itemsPerRow);
+            const col = index % itemsPerRow;
+            const itemX = startX + col * itemWidth;
+            const itemY = legendY + row * 25;
             
-            // Color line
+            // Draw color line
             exportCtx.strokeStyle = dataset.color;
             exportCtx.lineWidth = 3;
             exportCtx.beginPath();
-            exportCtx.moveTo(legendX + 10, itemY);
-            exportCtx.lineTo(legendX + 30, itemY);
+            exportCtx.moveTo(itemX, itemY);
+            exportCtx.lineTo(itemX + 25, itemY);
             exportCtx.stroke();
             
-            // File name
+            // Draw dataset name
             exportCtx.fillStyle = '#333';
-            exportCtx.font = '12px Arial';
-            exportCtx.fillText(dataset.name, legendX + 35, itemY + 4);
+            exportCtx.font = 'bold 14px Arial';
+            exportCtx.textAlign = 'left';
+            exportCtx.textBaseline = 'middle';
+            
+            // Truncate long names for export
+            let displayName = dataset.name;
+            if (displayName.length > 12) {
+                displayName = displayName.substring(0, 9) + '...';
+            }
+            
+            exportCtx.fillText(displayName, itemX + 30, itemY);
         });
         
         return exportCanvas;
+    }
+    
+    exportSingleImage(imageNumber) {
+        const currentPage = this.getCurrentPage();
+        if (!currentPage) return;
+        
+        if (this.currentInputType === 'csv') {
+            if (this.currentCsvMode === 'overlay') {
+                // In overlay mode, both buttons export the same overlay data
+                this.exportOverlayData();
+            } else {
+                // In separate mode, export the specific CSV file
+                const state = this.getCsvState(imageNumber);
+                if (state.frequencyData.length === 0) {
+                    alert(`Please load CSV file ${imageNumber} first.`);
+                    return;
+                }
+                
+                const canvas = this.createCsvExportCanvas(imageNumber);
+                const formData = this.getFormData(imageNumber);
+                const comments = document.getElementById('comments').value || '-';
+                
+                this.createExport([canvas], [formData], comments, `Page ${this.currentPageId} - CSV ${imageNumber}`);
+            }
+        } else {
+            // Image mode
+            const state = this.getImageState(imageNumber);
+            if (!state.image) {
+                alert(`Please load image ${imageNumber} first.`);
+                return;
+            }
+            
+            const formData = this.getFormData(imageNumber);
+            const comments = document.getElementById('comments').value || '-';
+            
+            this.createExport([state.image], [formData], comments, `Page ${this.currentPageId} - Image ${imageNumber}`);
+        }
     }
     
     exportAllPages() {
@@ -1742,6 +1825,11 @@ class FigureExportTool {
         exportCtx.textBaseline = 'top';
         exportCtx.font = 'bold 28px Arial';
         exportCtx.fillText('Spectrum Analysis - High Resolution Export', margin.left + plotWidth / 2, 15);
+        
+        // Draw regulatory limit lines
+        const freqStartMHz = csvState.minFreq / 1e6;
+        const freqEndMHz = csvState.maxFreq / 1e6;
+        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, csvState.minAmp, csvState.maxAmp);
         
         return exportCanvas;
     }
@@ -2109,6 +2197,195 @@ class FigureExportTool {
         this.saveCurrentPageData();
         
         console.log('Added to comments:', text);
+    }
+    
+    // =============================== LIMIT LINES FUNCTIONALITY ===============================
+    
+    setupLimitLinesListeners() {
+        // Show/hide limit lines checkbox
+        const showLimitLinesCheckbox = document.getElementById('showLimitLines');
+        if (showLimitLinesCheckbox) {
+            showLimitLinesCheckbox.addEventListener('change', (e) => {
+                this.limitLines.enabled = e.target.checked;
+                this.redrawAllCsvGraphs();
+            });
+        }
+        
+        // Distance selection dropdown
+        const distanceSelect = document.getElementById('distanceSelect');
+        if (distanceSelect) {
+            distanceSelect.addEventListener('change', (e) => {
+                this.limitLines.distance = e.target.value;
+                this.switchToDistance(e.target.value);
+            });
+        }
+        
+        // Limit input fields
+        document.querySelectorAll('.limit-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const band = e.target.dataset.band;
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && band) {
+                    this.limitLines.limits[band] = value;
+                    this.redrawAllCsvGraphs();
+                }
+            });
+            
+            // Also listen for input events for real-time updates
+            input.addEventListener('input', (e) => {
+                const band = e.target.dataset.band;
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && band) {
+                    this.limitLines.limits[band] = value;
+                    // Debounce the redraw for performance
+                    clearTimeout(this.limitRedrawTimeout);
+                    this.limitRedrawTimeout = setTimeout(() => {
+                        this.redrawAllCsvGraphs();
+                    }, 300);
+                }
+            });
+        });
+    }
+    
+    switchToDistance(distance) {
+        // Switch between 50ft and 100ft limits
+        if (distance === '100ft') {
+            // Update current limits to 100ft values
+            this.limitLines.limits = { ...this.limitLines.limits100ft };
+        } else {
+            // Update current limits to 50ft values (default)
+            this.limitLines.limits = {
+                'B0': 126,   // 10 kHz – 160 kHz (10 kHz, 150 kHz points)
+                'B1': 126,   // 150 kHz – 650 kHz (150 kHz point)
+                'B2': 115,   // 500 kHz – 3 MHz (1.6 MHz point)
+                'B3': 100,   // 2.5 MHz – 7.5 MHz (3.2 MHz point)
+                'B4': 85,    // 5 MHz – 30 MHz (interpolated)
+                'B5': 81,    // 25 MHz – 325 MHz (200 MHz point)
+                'B6': 96,    // 300 MHz – 1.3 GHz (1.0 GHz point)
+                'B7': 96     // 1 GHz – 6 GHz (1.0 GHz, 6.0 GHz points)
+            };
+        }
+        
+        // Update input fields
+        document.querySelectorAll('.limit-input').forEach(input => {
+            const band = input.dataset.band;
+            if (band && this.limitLines.limits[band] !== undefined) {
+                input.value = this.limitLines.limits[band];
+            }
+        });
+        
+        // Redraw graphs
+        this.redrawAllCsvGraphs();
+        
+        console.log(`Switched to NYCT ${distance} limits`);
+    }
+    
+    resetLimitsToDefaults() {
+        // Reset to NYCT default values based on current distance
+        this.switchToDistance(this.limitLines.distance);
+        
+        console.log(`Limit lines reset to NYCT ${this.limitLines.distance} default values`);
+    }
+    
+    redrawAllCsvGraphs() {
+        // Only redraw if we're in CSV mode
+        if (this.currentInputType !== 'csv') return;
+        
+        if (this.currentCsvMode === 'overlay') {
+            // Redraw overlay graph
+            this.drawOverlayGraph();
+            
+            // Redraw full screen overlay if active
+            if (this.fullScreenOverlayState) {
+                this.drawFullScreenOverlay();
+            }
+        } else {
+            // Redraw separate graphs
+            this.drawCsvGraph(1);
+            this.drawCsvGraph(2);
+            
+            // Redraw full screen CSV if active
+            if (this.fullScreenCsvState) {
+                this.drawFullScreenCsv();
+            }
+        }
+    }
+    
+    getLimitForFrequency(frequencyMHz) {
+        // Find which band this frequency belongs to and return the limit
+        for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+            if (frequencyMHz >= bandInfo.startMHz && frequencyMHz <= bandInfo.endMHz) {
+                return this.limitLines.limits[band];
+            }
+        }
+        return null;
+    }
+    
+    drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStart, freqEnd, ampStart, ampEnd) {
+        if (!this.limitLines.enabled) return;
+        
+        const freqRange = freqEnd - freqStart;
+        const ampRange = ampEnd - ampStart;
+        
+        // Store current drawing state
+        ctx.save();
+        
+        // Draw limit lines for each band that intersects with the visible frequency range
+        for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+            const limitValue = this.limitLines.limits[band];
+            if (limitValue === undefined) continue;
+            
+            // Convert band frequency range to MHz for comparison
+            const bandStartMHz = bandInfo.startMHz;
+            const bandEndMHz = bandInfo.endMHz;
+            
+            // Check if this band intersects with the visible frequency range
+            if (bandEndMHz < freqStart || bandStartMHz > freqEnd) continue;
+            
+            // Check if the limit line is within the visible amplitude range
+            if (limitValue < ampStart || limitValue > ampEnd) continue;
+            
+            // Calculate the frequency range where this limit applies (intersection of band and visible range)
+            const limitStartFreq = Math.max(bandStartMHz, freqStart);
+            const limitEndFreq = Math.min(bandEndMHz, freqEnd);
+            
+            // Convert to canvas coordinates
+            const x1 = margin.left + ((limitStartFreq - freqStart) / freqRange) * plotWidth;
+            const x2 = margin.left + ((limitEndFreq - freqStart) / freqRange) * plotWidth;
+            const y = margin.top + plotHeight - ((limitValue - ampStart) / ampRange) * plotHeight;
+            
+            // Draw the limit line
+            ctx.strokeStyle = '#ff0000'; // Red for regulatory limits
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]); // Dashed line pattern
+            
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.stroke();
+            
+            // Draw limit label
+            const labelX = x1 + (x2 - x1) / 2;
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            
+            // Add background for better readability
+            const labelText = `${band} Limit (${this.limitLines.distance}): ${limitValue} dBμV/m/MHz`;
+            const textMetrics = ctx.measureText(labelText);
+            const textWidth = textMetrics.width;
+            const textHeight = 14;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(labelX - textWidth/2 - 4, y - textHeight - 2, textWidth + 8, textHeight + 4);
+            
+            ctx.fillStyle = '#ff0000';
+            ctx.fillText(labelText, labelX, y - 4);
+        }
+        
+        // Restore drawing state
+        ctx.restore();
     }
     
     // =============================== CSV FUNCTIONALITY ===============================
@@ -2494,6 +2771,7 @@ class FigureExportTool {
         ctx.scale(dpr, dpr);
         
         this.drawCsvGraph(csvNumber);
+        this.addCsvControls(csvNumber);
     }
     
     drawCsvGraph(csvNumber) {
@@ -2695,6 +2973,11 @@ class FigureExportTool {
             ctx.arc(x, y, pointSize, 0, 2 * Math.PI);
             ctx.fill();
         }
+        
+        // Draw regulatory limit lines
+        const freqStartMHz = freqStart / 1e6;
+        const freqEndMHz = freqEnd / 1e6;
+        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, ampStart, ampEnd);
     }
     
     handleCsvMouseDown(e, csvNumber) {
@@ -2910,6 +3193,76 @@ class FigureExportTool {
         this.drawCsvGraph(csvNumber);
     }
     
+    addCsvControls(csvNumber) {
+        // Remove existing controls if any
+        const existingControls = document.querySelector(`#csvControls${csvNumber}`);
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        const canvas = this.getCsvCanvas(csvNumber);
+        const state = this.getCsvState(csvNumber);
+        
+        if (!state || !state.frequencyData.length) return;
+        
+        // Create CSV controls
+        const controls = document.createElement('div');
+        controls.className = 'csv-controls';
+        controls.id = `csvControls${csvNumber}`;
+        controls.innerHTML = `
+            <div class="zoom-controls">
+                <button class="control-btn" id="csvZoomOut${csvNumber}">−</button>
+                <span class="zoom-level" id="csvZoomLevel${csvNumber}">${Math.round(state.scale * 100)}%</span>
+                <button class="control-btn" id="csvZoomIn${csvNumber}">+</button>
+                <button class="control-btn" id="csvResetZoom${csvNumber}">Reset</button>
+                <button class="control-btn" id="csvAutoScale${csvNumber}">Auto</button>
+                <button class="control-btn" id="csvFullScreen${csvNumber}" title="Full Screen">⛶ Full Screen</button>
+            </div>
+        `;
+        
+        canvas.parentElement.appendChild(controls);
+        
+        // Add event listeners
+        document.getElementById(`csvZoomIn${csvNumber}`).addEventListener('click', () => {
+            const state = this.getCsvState(csvNumber);
+            state.scale = Math.min(state.scale * 1.2, 10);
+            this.drawCsvGraph(csvNumber);
+            this.updateCsvZoomDisplay(csvNumber);
+        });
+        
+        document.getElementById(`csvZoomOut${csvNumber}`).addEventListener('click', () => {
+            const state = this.getCsvState(csvNumber);
+            state.scale = Math.max(state.scale / 1.2, 0.1);
+            this.drawCsvGraph(csvNumber);
+            this.updateCsvZoomDisplay(csvNumber);
+        });
+        
+        document.getElementById(`csvResetZoom${csvNumber}`).addEventListener('click', () => {
+            this.resetZoomCsv(csvNumber);
+            this.updateCsvZoomDisplay(csvNumber);
+        });
+        
+        document.getElementById(`csvAutoScale${csvNumber}`).addEventListener('click', () => {
+            this.autoScaleCsv(csvNumber);
+            this.updateCsvZoomDisplay(csvNumber);
+        });
+        
+        document.getElementById(`csvFullScreen${csvNumber}`).addEventListener('click', () => {
+            this.enterFullScreenCsv(csvNumber);
+        });
+        
+        // Update zoom display
+        this.updateCsvZoomDisplay(csvNumber);
+    }
+    
+    updateCsvZoomDisplay(csvNumber) {
+        const zoomDisplay = document.getElementById(`csvZoomLevel${csvNumber}`);
+        const state = this.getCsvState(csvNumber);
+        if (zoomDisplay && state) {
+            zoomDisplay.textContent = `${Math.round(state.scale * 100)}%`;
+        }
+    }
+    
     autoScaleCsv(csvNumber) {
         const state = this.getCsvState(csvNumber);
         if (!state.frequencyData.length) return;
@@ -3066,6 +3419,8 @@ class FigureExportTool {
         // Scale context for high DPI
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
+        
+        // Overlay controls removed - cleaner interface
     }
     
     drawOverlayGraph() {
@@ -3076,7 +3431,8 @@ class FigureExportTool {
         // Use logical pixel dimensions for calculations
         const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
         const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Increase bottom margin to make space for legend outside graph area
+        const margin = { top: 20, right: 40, bottom: this.csvOverlayState.datasets.length > 0 ? 100 : 60, left: 80 };
         
         // Clear canvas
         ctx.fillStyle = '#ffffff';
@@ -3270,7 +3626,7 @@ class FigureExportTool {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.font = 'bold 14px Arial';
-        ctx.fillText('Frequency', margin.left + plotWidth / 2, height - 5);
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, margin.top + plotHeight + 40);
         
         ctx.save();
         ctx.translate(15, margin.top + plotHeight / 2);
@@ -3279,6 +3635,16 @@ class FigureExportTool {
         ctx.textBaseline = 'middle';
         ctx.fillText('Amplitude (dB)', 0, 0);
         ctx.restore();
+        
+        // Draw regulatory limit lines
+        const freqStartMHz = freqStart / 1e6;
+        const freqEndMHz = freqEnd / 1e6;
+        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, ampStart, ampEnd);
+        
+        // Draw legend outside graph area if datasets exist
+        if (this.csvOverlayState.datasets.length > 0) {
+            this.drawOverlayLegendOutside(ctx, width, height, margin);
+        }
     }
     
     updateLegend() {
@@ -3287,29 +3653,8 @@ class FigureExportTool {
         
         if (!legendItems || !csvLegend) return;
         
-        // Clear existing legend items
-        legendItems.innerHTML = '';
-        
-        if (this.csvOverlayState.datasets.length === 0) {
-            csvLegend.style.display = 'none';
-            return;
-        }
-        
-        if (this.csvOverlayState.showLegend) {
-            csvLegend.style.display = 'block';
-            
-            this.csvOverlayState.datasets.forEach(dataset => {
-                const legendItem = document.createElement('div');
-                legendItem.className = 'legend-item';
-                legendItem.innerHTML = `
-                    <div class="legend-color" style="background-color: ${dataset.color}"></div>
-                    <span class="legend-label">${dataset.name}</span>
-                `;
-                legendItems.appendChild(legendItem);
-            });
-        } else {
-            csvLegend.style.display = 'none';
-        }
+        // Hide HTML legend since we're now drawing it directly on canvas outside graph area
+        csvLegend.style.display = 'none';
     }
     
     handleOverlayMouseDown(e) {
@@ -3552,8 +3897,166 @@ class FigureExportTool {
     }
     
     toggleLegend() {
-        this.csvOverlayState.showLegend = !this.csvOverlayState.showLegend;
-        this.updateLegend();
+        // Legend is now permanently drawn outside the graph area
+        // This function is kept for compatibility but does nothing
+        console.log('Legend is now permanently displayed outside the graph area');
+    }
+    
+    addOverlayControls() {
+        // Remove existing controls if any
+        const existingControls = document.querySelector('#csvOverlayControls');
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        const canvas = document.getElementById('csvOverlayCanvas');
+        if (!canvas) return;
+        
+        // Create overlay controls
+        const controls = document.createElement('div');
+        controls.className = 'csv-controls';
+        controls.id = 'csvOverlayControls';
+        controls.innerHTML = `
+            <div class="zoom-controls">
+                <button class="control-btn" id="overlayZoomOut">−</button>
+                <span class="zoom-level" id="overlayZoomLevel">${Math.round(this.csvOverlayState.scale * 100)}%</span>
+                <button class="control-btn" id="overlayZoomIn">+</button>
+                <button class="control-btn" id="overlayResetZoom">Reset</button>
+                <button class="control-btn" id="overlayFullScreen" title="Full Screen">⛶ Full Screen</button>
+            </div>
+        `;
+        
+        canvas.parentElement.appendChild(controls);
+        
+        // Add event listeners
+        document.getElementById('overlayZoomIn').addEventListener('click', () => {
+            this.csvOverlayState.scale = Math.min(this.csvOverlayState.scale * 1.2, 10);
+            this.drawOverlayGraph();
+            this.updateOverlayZoomDisplay();
+        });
+        
+        document.getElementById('overlayZoomOut').addEventListener('click', () => {
+            this.csvOverlayState.scale = Math.max(this.csvOverlayState.scale / 1.2, 0.1);
+            this.drawOverlayGraph();
+            this.updateOverlayZoomDisplay();
+        });
+        
+        document.getElementById('overlayResetZoom').addEventListener('click', () => {
+            this.resetZoomOverlay();
+            this.updateOverlayZoomDisplay();
+        });
+        
+        document.getElementById('overlayFullScreen').addEventListener('click', () => {
+            this.enterFullScreenOverlay();
+        });
+        
+        // Update zoom display
+        this.updateOverlayZoomDisplay();
+    }
+    
+    updateOverlayZoomDisplay() {
+        const zoomDisplay = document.getElementById('overlayZoomLevel');
+        if (zoomDisplay) {
+            zoomDisplay.textContent = `${Math.round(this.csvOverlayState.scale * 100)}%`;
+        }
+    }
+    
+    drawOverlayLegendOutside(ctx, width, height, margin) {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Position legend in the bottom margin area, outside the graph
+        const legendX = margin.left + (width - margin.left - margin.right) / 2;
+        const legendY = margin.top + (height - margin.top - margin.bottom) + 65; // In the margin area
+        
+        // Calculate legend dimensions
+        const itemWidth = 120;
+        const maxItemsPerRow = Math.floor((width - margin.left - margin.right) / itemWidth);
+        const itemsPerRow = Math.min(this.csvOverlayState.datasets.length, maxItemsPerRow);
+        
+        // Draw legend items horizontally centered
+        const totalItemWidth = itemsPerRow * itemWidth;
+        const startX = legendX - totalItemWidth / 2;
+        
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            const row = Math.floor(index / itemsPerRow);
+            const col = index % itemsPerRow;
+            const itemX = startX + col * itemWidth;
+            const itemY = legendY + row * 20;
+            
+            // Draw color line
+            ctx.strokeStyle = dataset.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(itemX, itemY);
+            ctx.lineTo(itemX + 20, itemY);
+            ctx.stroke();
+            
+            // Draw dataset name
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            // Truncate long names
+            let displayName = dataset.name;
+            if (displayName.length > 12) {
+                displayName = displayName.substring(0, 9) + '...';
+            }
+            
+            ctx.fillText(displayName, itemX + 25, itemY);
+        });
+    }
+    
+    drawFullScreenLegend(ctx, width, height, margin) {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Position legend at the bottom center
+        const legendX = width / 2;
+        const legendY = height - 50;
+        
+        // Calculate legend dimensions
+        const itemWidth = 150;
+        const itemHeight = 25;
+        const totalWidth = Math.min(this.csvOverlayState.datasets.length * itemWidth, width - 40);
+        const legendWidth = totalWidth + 20;
+        const legendHeight = itemHeight + 20;
+        
+        // Draw legend background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fillRect(legendX - legendWidth/2, legendY - legendHeight/2, legendWidth, legendHeight);
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(legendX - legendWidth/2, legendY - legendHeight/2, legendWidth, legendHeight);
+        
+        // Draw legend items horizontally centered
+        const startX = legendX - (this.csvOverlayState.datasets.length * itemWidth) / 2;
+        
+        this.csvOverlayState.datasets.forEach((dataset, index) => {
+            const itemX = startX + index * itemWidth;
+            const itemY = legendY;
+            
+            // Draw color line
+            ctx.strokeStyle = dataset.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(itemX, itemY);
+            ctx.lineTo(itemX + 20, itemY);
+            ctx.stroke();
+            
+            // Draw dataset name
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            // Truncate long names
+            let displayName = dataset.name;
+            if (displayName.length > 15) {
+                displayName = displayName.substring(0, 12) + '...';
+            }
+            
+            ctx.fillText(displayName, itemX + 25, itemY);
+        });
     }
 
     handleImageDoubleClick(e, imageNumber) {
@@ -3997,6 +4500,11 @@ class FigureExportTool {
         ctx.font = 'bold 28px Arial';
         const title = `CSV ${this.fullScreenCsvState.csvNumber} - Spectrum Analysis (${state.rowCount} points)`;
         ctx.fillText(title, width / 2, 20);
+        
+        // Draw regulatory limit lines
+        const freqStartMHz = freqStart / 1e6;
+        const freqEndMHz = freqEnd / 1e6;
+        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, ampStart, ampEnd);
     }
 
     setupFullScreenCsvListeners() {
@@ -4297,8 +4805,8 @@ class FigureExportTool {
         
         if (this.csvOverlayState.datasets.length === 0) return;
         
-        // Use larger margins for full screen
-        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        // Use larger margins for full screen, extra space for legend outside graph
+        const margin = { top: 60, right: 100, bottom: 160, left: 150 };
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
         
@@ -4457,6 +4965,14 @@ class FigureExportTool {
         ctx.font = 'bold 28px Arial';
         const title = `Spectrum Overlay Analysis (${this.csvOverlayState.datasets.length} datasets)`;
         ctx.fillText(title, width / 2, 20);
+        
+        // Draw regulatory limit lines
+        const freqStartMHz = freqStart / 1e6;
+        const freqEndMHz = freqEnd / 1e6;
+        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, ampStart, ampEnd);
+        
+        // Draw legend at the bottom
+        this.drawFullScreenLegend(ctx, width, height, margin);
     }
 
     setupFullScreenOverlayListeners() {

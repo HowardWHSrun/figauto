@@ -316,7 +316,6 @@
                                     <div class="graph-controls">
                                         <button class="control-btn" onclick="figureExportTool.resetZoomOverlay()">Reset Zoom</button>
                                         <button class="control-btn" onclick="figureExportTool.autoScaleOverlay()">Auto Scale</button>
-                                        <button class="control-btn" onclick="figureExportTool.toggleLegend()">Toggle Legend</button>
                                         <button class="control-btn" onclick="figureExportTool.exportOverlayData()" title="Export Overlay">📤</button>
                                         <button class="control-btn" onclick="figureExportTool.enterFullScreenOverlay()" title="Full Screen">⛶</button>
                                     </div>
@@ -345,6 +344,78 @@
                     <h3>Comments</h3>
                     <div class="form-group">
                         <textarea id="comments" placeholder="Additional notes, observations, test conditions, anomalies, or other relevant information..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Limit Lines Configuration -->
+                <div class="limit-lines-section">
+                    <h3>NYCT AC Train Emission Limits</h3>
+                    <div class="limit-controls">
+                        <label>
+                            <input type="checkbox" id="showLimitLines" checked>
+                            Show Limit Lines on CSV Graphs
+                        </label>
+                        <div class="distance-controls">
+                            <label for="distanceSelect">Distance:</label>
+                            <select id="distanceSelect">
+                                <option value="50ft">50 ft</option>
+                                <option value="100ft">100 ft</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-small" onclick="figureExportTool.resetLimitsToDefaults()">Reset to NYCT Defaults</button>
+                    </div>
+                    <div class="limit-table-container">
+                        <table class="limit-table" id="limitTable">
+                            <thead>
+                                <tr>
+                                    <th>Band</th>
+                                    <th>Frequency Range</th>
+                                    <th>Limit (dBμV/m/MHz)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr data-band="B0">
+                                    <td><strong>B0</strong></td>
+                                    <td>10 kHz – 160 kHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B0" value="126" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B1">
+                                    <td><strong>B1</strong></td>
+                                    <td>150 kHz – 650 kHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B1" value="126" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B2">
+                                    <td><strong>B2</strong></td>
+                                    <td>500 kHz – 3 MHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B2" value="115" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B3">
+                                    <td><strong>B3</strong></td>
+                                    <td>2.5 MHz – 7.5 MHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B3" value="100" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B4">
+                                    <td><strong>B4</strong></td>
+                                    <td>5 MHz – 30 MHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B4" value="85" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B5">
+                                    <td><strong>B5</strong></td>
+                                    <td>25 MHz – 325 MHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B5" value="81" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B6">
+                                    <td><strong>B6</strong></td>
+                                    <td>300 MHz – 1.3 GHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B6" value="96" step="0.1"></td>
+                                </tr>
+                                <tr data-band="B7">
+                                    <td><strong>B7</strong></td>
+                                    <td>1 GHz – 6 GHz</td>
+                                    <td><input type="number" class="limit-input" data-band="B7" value="96" step="0.1"></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 
