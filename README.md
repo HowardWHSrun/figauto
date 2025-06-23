@@ -1,6 +1,17 @@
 # Figure Export Tool v3.1
 
-Professional EMC testing annotation tool with comprehensive band-specific frequency identification, multi-page support, and Tenco-compliant documentation export. Complete modular frequency database covering 9 kHz to 325 MHz with framework for expansion to 3 THz.
+**Turner Engineering Corporation** - Professional EMC Testing Annotation System  
+*Developed by Howard Wang | Supervised by Temba Mateke*
+
+Professional EMC testing annotation tool with comprehensive band-specific frequency identification, multi-page support, and Tenco-compliant documentation export. Complete modular frequency database covering 9 kHz to 6+ GHz with framework for full spectrum analysis.
+
+## 🏢 Corporate Information
+
+**Company**: Turner Engineering Corporation (Tenco)  
+**Developer**: Howard Wang  
+**Supervisor**: Temba Mateke  
+**Version**: 3.1 (Band-Specific Peak Identification System)  
+**Copyright**: © 2024 Turner Engineering Corporation. All rights reserved.
 
 ## Quick Setup
 
@@ -13,23 +24,26 @@ Professional EMC testing annotation tool with comprehensive band-specific freque
 
 ### **Band-Specific Peak Identification System**
 - **Modular Architecture**: 8 separate frequency band databases for efficient loading
-- **150+ Allocations**: Comprehensive coverage from VLF to VHF with room for expansion
+- **400+ Allocations**: Comprehensive coverage from VLF to SHF with complete FCC data
 - **Smart Band Selection**: Click B0-B7 buttons for targeted frequency identification
 - **Multi-Page Support**: Tabbed interface for managing multiple spectrum analyses
+- **Corporate Branding**: Professional Tenco styling and logo integration
 
-### **Complete Frequency Coverage**
-- **Band 0 (VLF/LF)**: 9-160 kHz (22 allocations) - Navigation, time signals, maritime
-- **Band 1 (MF)**: 148.5 kHz-1.605 MHz (22 allocations) - AM broadcast, maritime, amateur 160m
-- **Band 2 (HF Lower)**: 535 kHz-3.025 MHz (28 allocations) - Extended AM, amateur, maritime
-- **Band 3 (HF Core)**: 2.495-8.1 MHz (47 allocations) - Amateur 80m/40m, international broadcast, WWV
-- **Band 4 (Upper HF)**: 5-30 MHz (6 key allocations) - Amateur 20m/15m/12m/10m, CB radio
-- **Band 5 (VHF)**: 25-325 MHz (15 critical allocations) - FM radio, TV, aviation, amateur 6m/2m
+### **Complete Band Coverage (B0-B7 All Ready)**
+✅ **Band 0 (VLF/LF)**: 9-160 kHz (22 allocations) - Navigation, time signals, maritime  
+✅ **Band 1 (MF)**: 148.5 kHz-1.605 MHz (22 allocations) - AM broadcast, maritime, amateur 630m  
+✅ **Band 2 (HF Lower)**: 535 kHz-3.025 MHz (27 allocations) - Extended AM, amateur, maritime  
+✅ **Band 3 (HF Core)**: 2.495-8.1 MHz (47 allocations) - Amateur 80m/40m, WWV, international broadcast  
+✅ **Band 4 (Upper HF)**: 5-30 MHz (~95 allocations) - Amateur 20m/15m/12m/10m, CB radio  
+✅ **Band 5 (VHF)**: 25-325 MHz (~65 allocations) - FM radio, TV, aviation, amateur 6m/2m  
+✅ **Band 6 (UHF)**: 273 MHz-1.3 GHz (~66 allocations) - TV, cellular, GPS, amateur 70cm  
+✅ **Band 7 (SHF)**: 960 MHz-6 GHz (~55 allocations) - GPS L1, cellular/PCS, WiFi 2.4/5 GHz
 
 ## Key Features
 
 ### **🎯 Intelligent Peak Identification**
 - **Auto-Identification Mode**: Click peaks for automatic FCC frequency identification
-- **Band-Specific Search**: Select target frequency band for focused results
+- **Band-Specific Search**: Select target frequency band (B0-B7) for focused results
 - **Range Search**: Find all allocations in frequency ranges (e.g., "144-148 MHz")
 - **Click-to-Add**: One-click addition of identified services to comments
 
@@ -66,25 +80,22 @@ Professional EMC testing annotation tool with comprehensive band-specific freque
 - **Comment Integration**: Click identified frequencies to automatically add to analysis comments
 - **Professional Export**: Generate publication-ready documentation with corporate styling
 
-## Frequency Band Reference
+## Complete Band Reference (All Ready for Use)
 
-### **Currently Implemented (v3.1)**
+### **📊 Implemented Bands B0-B7**
 
-| Band | Frequency Range | Coverage | Key Services |
-|------|----------------|----------|--------------|
-| **B0** | 9-160 kHz | VLF/LF | Navigation, time signals, maritime |
-| **B1** | 148.5 kHz-1.605 MHz | MF | AM broadcast, maritime, amateur 160m |
-| **B2** | 535 kHz-3.025 MHz | HF Lower | Extended AM, amateur, maritime |
-| **B3** | 2.495-8.1 MHz | HF Core | Amateur 80m/40m, international broadcast, WWV |
-| **B4** | 5-30 MHz | Upper HF | Amateur 20m/15m/12m/10m, CB radio |
-| **B5** | 25-325 MHz | VHF | FM radio, TV, aviation, amateur 6m/2m |
+| Band | Frequency Range | Allocations | Key Services | Status |
+|------|----------------|-------------|--------------|---------|
+| **B0** | 9-160 kHz | 22 | VLF/LF: Navigation, time signals, maritime | ✅ **Ready** |
+| **B1** | 148.5 kHz-1.605 MHz | 22 | MF: AM broadcast, maritime, amateur 160m | ✅ **Ready** |
+| **B2** | 535 kHz-3.025 MHz | 27 | HF Lower: Extended AM, amateur, maritime | ✅ **Ready** |
+| **B3** | 2.495-8.1 MHz | 47 | HF Core: Amateur 80m/40m, international broadcast, WWV | ✅ **Ready** |
+| **B4** | 5-30 MHz | ~95 | Upper HF: Amateur 20m/15m/12m/10m, CB radio | ✅ **Ready** |
+| **B5** | 25-325 MHz | ~65 | VHF: FM radio, TV, aviation, amateur 6m/2m | ✅ **Ready** |
+| **B6** | 273 MHz-1.3 GHz | ~66 | UHF: TV, cellular, GPS, amateur 70cm | ✅ **Ready** |
+| **B7** | 960 MHz-6 GHz | ~55 | SHF: GPS L1, cellular/PCS, WiFi 2.4/5 GHz | ✅ **Ready** |
 
-### **Framework Ready (Future Expansion)**
-
-| Band | Planned Range | Services |
-|------|---------------|----------|
-| **B6** | 300 MHz-3 GHz | UHF TV, cellular, GPS, WiFi, amateur 70cm |
-| **B7** | 3-30 GHz | SHF radar, satellite, microwave links |
+**📈 Total System Coverage**: 400+ frequency allocations across complete EMC testing spectrum (9 kHz to 6+ GHz)
 
 ## Professional Export Features
 
@@ -136,14 +147,14 @@ The tool automatically recognizes common EMC test filename patterns:
 
 ### **Modular Database Design**
 ```
-peak-identification-database-band0.js  // VLF/LF (9-160 kHz)
-peak-identification-database-band1.js  // MF (148.5 kHz-1.605 MHz)
-peak-identification-database-band2.js  // HF Lower (535 kHz-3.025 MHz)
-peak-identification-database-band3.js  // HF Core (2.495-8.1 MHz)
-peak-identification-database-band4.js  // Upper HF (5-30 MHz)
-peak-identification-database-band5.js  // VHF (25-325 MHz)
-peak-identification-database-band6.js  // UHF (framework ready)
-peak-identification-database-band7.js  // SHF (framework ready)
+peak-identification-database-band0.js  // B0: VLF/LF (9-160 kHz)
+peak-identification-database-band1.js  // B1: MF (148.5 kHz-1.605 MHz)
+peak-identification-database-band2.js  // B2: HF Lower (535 kHz-3.025 MHz)
+peak-identification-database-band3.js  // B3: HF Core (2.495-8.1 MHz)
+peak-identification-database-band4.js  // B4: Upper HF (5-30 MHz)
+peak-identification-database-band5.js  // B5: VHF (25-325 MHz)
+peak-identification-database-band6.js  // B6: UHF (273 MHz-1.3 GHz)
+peak-identification-database-band7.js  // B7: SHF (960 MHz-6 GHz)
 ```
 
 ### **Performance Optimizations**
@@ -176,9 +187,13 @@ peak-identification-database-band7.js  // SHF (framework ready)
 
 - **Repository**: [https://github.com/HowardWHSrun/figauto.git](https://github.com/HowardWHSrun/figauto.git)
 - **Version**: 3.1 (Band-Specific Peak Identification System)
-- **License**: Contact Turner Engineering Corporation for licensing
+- **Developer**: Howard Wang
+- **Supervisor**: Temba Mateke  
+- **Company**: Turner Engineering Corporation
+- **License**: © 2024 Turner Engineering Corporation. All rights reserved.
 - **Updates**: Check GitHub releases for latest versions
 
 ---
 
-**Turner Engineering Corporation** - Professional EMC testing tools for regulatory compliance and spectrum management. 
+**Turner Engineering Corporation** - Professional EMC testing tools for regulatory compliance and spectrum management.  
+*Developed by Howard Wang | Supervised by Temba Mateke* 
