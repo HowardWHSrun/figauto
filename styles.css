@@ -7,10 +7,12 @@
 }
 
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f5f5f5;
+    font-family: 'Segoe UI', 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
     color: #333;
     line-height: 1.6;
+    min-height: 100vh;
 }
 
 .container {
@@ -21,11 +23,13 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 20px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    padding: 20px;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 30px;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 .header-content {
@@ -55,11 +59,15 @@ header {
 }
 
 .title-section h1 {
-    font-size: 2.4rem;
-    font-weight: bold;
-    color: #1e3a8a;
-    margin-bottom: 8px;
+    font-size: 2.6rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
     line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
 }
 
 .subtitle {
@@ -78,12 +86,14 @@ header {
 
 /* Footer Styles */
 footer {
-    margin-top: 40px;
-    padding: 20px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-top: 50px;
+    padding: 25px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
     text-align: center;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 .footer-content p {
@@ -179,14 +189,16 @@ header h1 {
 
 /* Page Management */
 .page-management {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    padding: 15px 20px;
-    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 18px 25px;
+    margin-bottom: 25px;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 18px;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 .page-tabs {
@@ -326,33 +338,37 @@ header h1 {
 
 .main-content {
     display: grid;
-    grid-template-columns: 350px 1fr 400px;
-    gap: 20px;
+    grid-template-columns: 380px 2fr 420px;
+    gap: 25px;
     min-height: 80vh;
     max-height: 90vh;
 }
 
 /* Left Panel */
 .left-panel {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    padding: 25px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 30px;
     height: fit-content;
     max-height: 90vh;
     overflow-y: auto;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 /* Center Panel - Dual Images */
 .center-panel {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    padding: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 25px;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    gap: 15px;
+    gap: 18px;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 /* Dual Info Tables */
@@ -445,10 +461,18 @@ header h1 {
 }
 
 .form-container {
-    padding: 15px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    background: #fafafa;
+    padding: 20px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.form-container:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
 }
 
 .form-container h3 {
@@ -524,27 +548,33 @@ header h1 {
 
 /* Upload Area */
 .upload-area {
-    border: 2px dashed #ddd;
-    border-radius: 8px;
-    padding: 30px 15px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 35px 20px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s ease;
-    background-color: #fafafa;
-    min-height: 120px;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #fafafa 0%, #f1f5f9 100%);
+    min-height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transform: translateY(0);
 }
 
 .upload-area:hover {
-    border-color: #1e3a8a;
-    background: rgba(30, 58, 138, 0.02);
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.15);
 }
 
 .upload-area.dragover {
-    border-color: #1e3a8a;
-    background: rgba(30, 58, 138, 0.05);
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bfdbfe 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
 }
 
 .upload-placeholder p {
@@ -738,19 +768,24 @@ header h1 {
 .form-group textarea,
 .form-group select {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.2);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 4px 16px rgba(0,0,0,0.1);
     outline: none;
+    background: #ffffff;
+    transform: translateY(-1px);
 }
 
 .form-group textarea {
@@ -760,24 +795,31 @@ header h1 {
 
 /* Buttons */
 .btn {
-    padding: 12px 24px;
+    padding: 14px 28px;
     border: none;
-    border-radius: 4px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    transition: all 0.2s ease;
-    margin-right: 10px;
-    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    margin-right: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(0);
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
     color: white;
+    box-shadow: 0 6px 20px rgba(30, 58, 138, 0.4);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(30, 58, 138, 0.5);
 }
 
 .btn-secondary {
@@ -789,22 +831,36 @@ header h1 {
     background-color: #545b62;
 }
 
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
 }
 
 /* Right Panel */
 .right-panel {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    padding: 25px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 30px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 22px;
     max-height: 90vh;
     overflow-y: auto;
+    border: 1px solid rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
 }
 
 /* Information Table */
