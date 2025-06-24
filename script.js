@@ -244,8 +244,8 @@ class FigureExportTool {
                 lastX: 0,
                 lastY: 0
             },
-            formData1: { runId: '', band: '', location: '' },
-            formData2: { runId: '', band: '', location: '' },
+            formData1: { runId: '', band: '', location: '', testType: '', equipmentDescription: '', operatingCondition: '', traces: 'Top - maximum peak hold\nBottom - minimum peak hold' },
+            formData2: { runId: '', band: '', location: '', testType: '', equipmentDescription: '', operatingCondition: '', traces: 'Top - maximum peak hold\nBottom - minimum peak hold' },
             comments: ''
         };
         
@@ -304,7 +304,8 @@ class FigureExportTool {
         this.setupOverlayUploadListeners();
         
         // Form inputs - update tables when values change
-        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2', 'comments'].forEach(id => {
+        ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
+         'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2', 'comments'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('input', () => {
@@ -662,7 +663,11 @@ class FigureExportTool {
         return {
             runId: document.getElementById(`runId${imageNumber}`)?.value || '-',
             band: document.getElementById(`band${imageNumber}`)?.value || '-',
-            location: document.getElementById(`location${imageNumber}`)?.value || '-'
+            location: document.getElementById(`location${imageNumber}`)?.value || '-',
+            testType: document.getElementById(`testType${imageNumber}`)?.value || '-',
+            equipmentDescription: document.getElementById(`equipmentDescription${imageNumber}`)?.value || '-',
+            operatingCondition: document.getElementById(`operatingCondition${imageNumber}`)?.value || '-',
+            traces: document.getElementById(`traces${imageNumber}`)?.value || 'Top - maximum peak hold\nBottom - minimum peak hold'
         };
     }
     
@@ -1312,8 +1317,9 @@ class FigureExportTool {
         const currentPage = this.getCurrentPage();
         if (!currentPage) return;
         
-        // Save form data
-        ['runId1', 'band1', 'location1', 'runId2', 'band2', 'location2'].forEach(id => {
+        // Save form data - including new fields
+        ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
+         'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 const imageNum = id.includes('1') ? '1' : '2';
@@ -1333,13 +1339,23 @@ class FigureExportTool {
         const page = this.pages.get(pageId);
         if (!page) return;
         
-        // Load form data
+        // Load form data - including new fields
         document.getElementById('runId1').value = page.formData1.runId || '';
         document.getElementById('band1').value = page.formData1.band || '';
         document.getElementById('location1').value = page.formData1.location || '';
+        document.getElementById('testType1').value = page.formData1.testType || '';
+        document.getElementById('equipmentDescription1').value = page.formData1.equipmentDescription || '';
+        document.getElementById('operatingCondition1').value = page.formData1.operatingCondition || '';
+        document.getElementById('traces1').value = page.formData1.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+        
         document.getElementById('runId2').value = page.formData2.runId || '';
         document.getElementById('band2').value = page.formData2.band || '';
         document.getElementById('location2').value = page.formData2.location || '';
+        document.getElementById('testType2').value = page.formData2.testType || '';
+        document.getElementById('equipmentDescription2').value = page.formData2.equipmentDescription || '';
+        document.getElementById('operatingCondition2').value = page.formData2.operatingCondition || '';
+        document.getElementById('traces2').value = page.formData2.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+        
         document.getElementById('comments').value = page.comments || '';
         
         // Update instruction overlays
@@ -1835,13 +1851,16 @@ class FigureExportTool {
     }
     
     createExport(images, formDataArray, comments, exportType) {
-        const exportCanvas = document.createElement('canvas');
-        const exportCtx = exportCanvas.getContext('2d');
+        console.log('Starting export:', { exportType, images: images.length, formDataArray: formDataArray.length });
+        console.log('Form data:', formDataArray[0]);
         
-        const tableHeight = 80;
-        const commentsWidth = 400;
-        const margin = 20;
-        const imagePadding = 20;
+        try {
+            const exportCanvas = document.createElement('canvas');
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            const margin = 40;
+            const imagePadding = 30;
+            const commentsWidth = 800;
         
         // Calculate dimensions based on available images
         let totalImageWidth = 0;
@@ -1856,89 +1875,165 @@ class FigureExportTool {
             totalImageWidth += imagePadding * (images.length - 1);
         }
         
-        exportCanvas.width = Math.max(totalImageWidth, 800) + commentsWidth + 10;
-        exportCanvas.height = maxImageHeight + tableHeight;
+        // Set table dimensions with larger text and comments section
+        const tableWidth = Math.max(totalImageWidth, 1000);
+        const titleHeight = 150;
+        const headerHeight = 120;
+        const dataHeight = 200;
+        const tableHeight = titleHeight + headerHeight + dataHeight;
+        
+        exportCanvas.width = tableWidth + commentsWidth + (3 * margin);
+        exportCanvas.height = tableHeight + maxImageHeight + (3 * margin);
         
         // Fill background
         exportCtx.fillStyle = 'white';
         exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
         
-        // Draw table header
-        const tableY = margin;
-        const tableWidth = Math.max(totalImageWidth, 600);
-        const cellHeight = 30;
-        const headerHeight = 25;
+        // Use first image's data for the table with safe defaults
+        const primaryFormData = {
+            runId: '-',
+            band: '-',
+            location: '-',
+            testType: '',
+            equipmentDescription: '',
+            operatingCondition: '',
+            traces: 'Top - maximum peak hold\nBottom - minimum peak hold',
+            ...formDataArray[0] // Override with actual data
+        };
         
-        exportCtx.strokeStyle = '#333';
-        exportCtx.lineWidth = 2;
-        exportCtx.fillStyle = '#f8f9fa';
+        // Create title from run data - exactly like template
+        const titleText = `Run ${primaryFormData.runId} ${primaryFormData.band}`;
         
-        exportCtx.fillRect(margin, tableY, tableWidth, headerHeight + cellHeight);
-        exportCtx.strokeRect(margin, tableY, tableWidth, headerHeight + cellHeight);
+        // Draw title section
+        const titleY = margin;
+        exportCtx.fillStyle = 'white';
+        exportCtx.fillRect(margin, titleY, tableWidth, titleHeight);
+        exportCtx.strokeStyle = 'black';
+        exportCtx.lineWidth = 4;
+        exportCtx.strokeRect(margin, titleY, tableWidth, titleHeight);
         
-        // Draw table content
-        exportCtx.fillStyle = '#1a472a';
-        exportCtx.font = 'bold 14px Arial';
+        exportCtx.fillStyle = 'black';
+        exportCtx.font = 'bold 80px Arial';
+        exportCtx.textAlign = 'center';
+        exportCtx.fillText(titleText, margin + tableWidth/2, titleY + titleHeight/2 + 30);
+        
+        // Define 4 columns (removing comment from table)
+        const columnWidths = [
+            tableWidth * 0.2,   // Run ID - 20%
+            tableWidth * 0.15,  // Band - 15%
+            tableWidth * 0.4,   // Description - 40%
+            tableWidth * 0.25   // Traces - 25%
+        ];
+        
+        const columnHeaders = ['Run ID', 'Band', 'Description', 'Traces'];
+        
+        // Draw table header section
+        const headerY = titleY + titleHeight;
+        const dataY = headerY + headerHeight;
+        
+        exportCtx.fillStyle = 'white';
+        exportCtx.fillRect(margin, headerY, tableWidth, headerHeight + dataHeight);
+        exportCtx.strokeRect(margin, headerY, tableWidth, headerHeight + dataHeight);
+        
+        // Draw column headers
+        exportCtx.fillStyle = 'black';
+        exportCtx.font = 'bold 70px Arial';
         exportCtx.textAlign = 'center';
         
-        const cellWidth = tableWidth / 3;
-        exportCtx.fillText('Run', margin + cellWidth/2, tableY + headerHeight/2 + 5);
-        exportCtx.fillText('Band', margin + cellWidth + cellWidth/2, tableY + headerHeight/2 + 5);
-        exportCtx.fillText('Location', margin + 2*cellWidth + cellWidth/2, tableY + headerHeight/2 + 5);
-        
-        // Draw vertical lines
-        exportCtx.beginPath();
-        exportCtx.moveTo(margin + cellWidth, tableY);
-        exportCtx.lineTo(margin + cellWidth, tableY + headerHeight + cellHeight);
-        exportCtx.moveTo(margin + 2*cellWidth, tableY);
-        exportCtx.lineTo(margin + 2*cellWidth, tableY + headerHeight + cellHeight);
-        exportCtx.stroke();
+        let currentX = margin;
+        for (let i = 0; i < columnHeaders.length; i++) {
+            // Draw vertical lines between columns
+            if (i > 0) {
+                exportCtx.beginPath();
+                exportCtx.moveTo(currentX, headerY);
+                exportCtx.lineTo(currentX, dataY + dataHeight);
+                exportCtx.stroke();
+            }
+            
+            // Draw header text
+            exportCtx.fillText(columnHeaders[i], currentX + columnWidths[i]/2, headerY + headerHeight/2 + 25);
+            currentX += columnWidths[i];
+        }
         
         // Draw horizontal line between header and data
         exportCtx.beginPath();
-        exportCtx.moveTo(margin, tableY + headerHeight);
-        exportCtx.lineTo(margin + tableWidth, tableY + headerHeight);
+        exportCtx.moveTo(margin, dataY);
+        exportCtx.lineTo(margin + tableWidth, dataY);
         exportCtx.stroke();
         
-        // Fill data cells
+        // Prepare all data content with safe defaults
+        let description = '';
+        if (primaryFormData.testType && primaryFormData.testType !== '-' && primaryFormData.testType !== '') {
+            description += primaryFormData.testType;
+        }
+        if (primaryFormData.equipmentDescription && primaryFormData.equipmentDescription !== '-' && primaryFormData.equipmentDescription !== '') {
+            if (description) description += ', ';
+            description += primaryFormData.equipmentDescription;
+        }
+        if (primaryFormData.operatingCondition && primaryFormData.operatingCondition !== '-' && primaryFormData.operatingCondition !== '') {
+            if (description) description += ', ';
+            description += primaryFormData.operatingCondition;
+        }
+        
+        // Use traces from form data with safe default
+        const tracesText = primaryFormData.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+        
+        const tableData = [
+            primaryFormData.runId,
+            primaryFormData.band,
+            description || 'EMC test measurement',
+            tracesText
+        ];
+        
+        // Draw data cells
+        exportCtx.fillStyle = 'black';
+        exportCtx.font = '70px Arial';
+        exportCtx.textAlign = 'center';
+        
+        currentX = margin;
+        for (let i = 0; i < tableData.length; i++) {
+            const cellY = dataY + dataHeight/2 + 25;
+            
+            if (i === 2 || i === 3) { // Description and Traces columns - use left align
+                exportCtx.textAlign = 'left';
+                this.wrapTextInCell(exportCtx, tableData[i], currentX + 15, cellY - 60, columnWidths[i] - 30, dataHeight - 40, 80);
+            } else {
+                exportCtx.textAlign = 'center';
+                exportCtx.fillText(tableData[i], currentX + columnWidths[i]/2, cellY);
+            }
+            
+            currentX += columnWidths[i];
+        }
+        
+        // Draw comments section on the right side - connected to table
+        const commentsX = margin + tableWidth;
+        const commentsY = titleY;
+        
         exportCtx.fillStyle = 'white';
-        exportCtx.fillRect(margin + 1, tableY + headerHeight + 1, tableWidth - 2, cellHeight - 2);
+        exportCtx.fillRect(commentsX, commentsY, commentsWidth, exportCanvas.height - commentsY - margin);
+        exportCtx.strokeStyle = 'black';
+        exportCtx.lineWidth = 4;
+        exportCtx.strokeRect(commentsX, commentsY, commentsWidth, exportCanvas.height - commentsY - margin);
         
-        exportCtx.fillStyle = '#333';
-        exportCtx.font = '16px "Times New Roman"';
+        // Comments header with large text
+        exportCtx.fillStyle = 'black';
+        exportCtx.font = 'bold 80px Arial';
+        exportCtx.textAlign = 'left';
+        exportCtx.fillText('Comment', commentsX + 30, commentsY + 90);
         
-        // Use first image's data for the table, or combine if needed
-        const primaryFormData = formDataArray[0];
-        exportCtx.fillText(primaryFormData.runId, margin + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
-        exportCtx.fillText(primaryFormData.band, margin + cellWidth + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
-        exportCtx.fillText(primaryFormData.location, margin + 2*cellWidth + cellWidth/2, tableY + headerHeight + cellHeight/2 + 5);
+        // Comments content with large text
+        exportCtx.fillStyle = 'black';
+        exportCtx.font = '60px Arial';
+        this.wrapText(exportCtx, comments, commentsX + 30, commentsY + 180, commentsWidth - 60, 70);
         
-        // Draw images
+        // Draw images below the table
         let imageX = margin;
-        const imageY = tableY + headerHeight + cellHeight + margin;
+        const imageY = titleY + tableHeight + margin;
         
         images.forEach((image, index) => {
             exportCtx.drawImage(image, imageX, imageY);
             imageX += image.width + imagePadding;
         });
-        
-        // Draw comments section
-        const commentsX = Math.max(totalImageWidth, 600) + margin + 10;
-        const commentsY = tableY;
-        
-        exportCtx.fillStyle = '#f8f9fa';
-        exportCtx.fillRect(commentsX, commentsY, commentsWidth - 10, exportCanvas.height - commentsY - margin);
-        exportCtx.strokeRect(commentsX, commentsY, commentsWidth - 10, exportCanvas.height - commentsY - margin);
-        
-        exportCtx.fillStyle = '#1a472a';
-        exportCtx.font = 'bold 16px Arial';
-        exportCtx.textAlign = 'left';
-        exportCtx.fillText('Comments:', commentsX + 10, commentsY + 25);
-        
-        // Word wrap comments
-        exportCtx.fillStyle = '#333';
-        exportCtx.font = '14px "Times New Roman"';
-        this.wrapText(exportCtx, comments, commentsX + 10, commentsY + 50, commentsWidth - 30, 18);
         
         // Convert to blob and download
         exportCanvas.toBlob((blob) => {
@@ -1962,12 +2057,56 @@ class FigureExportTool {
             
             console.log(`Exported ${exportType}: ${filename}`);
         });
+        
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert(`Export failed: ${error.message}`);
+        }
+    }
+    
+    wrapTextInCell(ctx, text, x, y, maxWidth, maxHeight, lineHeight) {
+        // Handle null, undefined, or non-string text
+        if (!text || typeof text !== 'string') {
+            text = '';
+        }
+        
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y + lineHeight;
+        
+        // Set font for measurements - large text
+        ctx.font = '60px Arial';
+        
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            
+            if (testWidth > maxWidth && n > 0) {
+                if (currentY < y + maxHeight) {
+                    ctx.fillText(line, x, currentY);
+                    line = words[n] + ' ';
+                    currentY += lineHeight;
+                } else {
+                    break; // Stop if we exceed cell height
+                }
+            } else {
+                line = testLine;
+            }
+        }
+        
+        if (currentY < y + maxHeight && line.trim()) {
+            ctx.fillText(line, x, currentY);
+        }
     }
     
     wrapText(ctx, text, x, y, maxWidth, lineHeight) {
         const words = text.split(' ');
         let line = '';
         let currentY = y;
+        
+        // Ensure font is set for measurements
+        ctx.font = '60px Arial';
         
         for (let n = 0; n < words.length; n++) {
             const testLine = line + words[n] + ' ';
