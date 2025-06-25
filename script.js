@@ -985,7 +985,6 @@ class FigureExportTool {
             <div class="zoom-controls">
                 <button class="control-btn" id="zoomOut${imageNumber}">−</button>
                 <span class="zoom-level" id="zoomLevel${imageNumber}">${Math.round(state.scale * 100)}%</span>
-                <button class="control-btn" id="zoomIn${imageNumber}">+</button>
                 <button class="control-btn" id="resetZoom${imageNumber}">Reset</button>
                 <button class="control-btn" id="fitToScreen${imageNumber}">Fit</button>
                 <button class="control-btn" id="fullScreen${imageNumber}" title="Full Screen">⛶ Full Screen</button>
@@ -3357,6 +3356,35 @@ class FigureExportTool {
                 <button class="control-btn" id="csvAutoScale${csvNumber}">Auto</button>
                 <button class="control-btn" id="csvFullScreen${csvNumber}" title="Full Screen">⛶ Full Screen</button>
             </div>
+            <div class="peak-detection-controls">
+                <button class="control-btn peak-detect-btn" id="csvAutoPeaks${csvNumber}" title="Automatically detect peaks">🔍 Auto Detect Peaks</button>
+                <button class="control-btn" id="csvPeakSettings${csvNumber}" title="Peak detection settings">⚙️</button>
+            </div>
+            <div class="peak-settings-panel" id="csvPeakSettings${csvNumber}Panel" style="display: none;">
+                <div class="setting-group">
+                    <label>Sensitivity:</label>
+                    <select id="csvPeakSensitivity${csvNumber}">
+                        <option value="low">Low (Major peaks only)</option>
+                        <option value="medium" selected>Medium (Balanced)</option>
+                        <option value="high">High (More sensitive)</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="setting-group" id="csvCustomSettings${csvNumber}" style="display: none;">
+                    <label>Min Height (dB):</label>
+                    <input type="number" id="csvMinHeight${csvNumber}" value="10" step="1">
+                    <label>Min Distance (%):</label>
+                    <input type="number" id="csvMinDistance${csvNumber}" value="2" step="0.5" min="0.1" max="10">
+                </div>
+                <div class="setting-group">
+                    <label>Frequency Range:</label>
+                    <select id="csvFreqRange${csvNumber}">
+                        <option value="full">Full spectrum</option>
+                        <option value="current">Current view only</option>
+                        <option value="band">Current band only</option>
+                    </select>
+                </div>
+            </div>
         `;
         
         canvas.parentElement.appendChild(controls);
@@ -3390,6 +3418,21 @@ class FigureExportTool {
             this.enterFullScreenCsv(csvNumber);
         });
         
+        // Peak detection controls
+        document.getElementById(`csvAutoPeaks${csvNumber}`).addEventListener('click', () => {
+            this.autoDetectPeaks(csvNumber);
+        });
+        
+        document.getElementById(`csvPeakSettings${csvNumber}`).addEventListener('click', () => {
+            const panel = document.getElementById(`csvPeakSettings${csvNumber}Panel`);
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.getElementById(`csvPeakSensitivity${csvNumber}`).addEventListener('change', (e) => {
+            const customSettings = document.getElementById(`csvCustomSettings${csvNumber}`);
+            customSettings.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        });
+        
         // Update zoom display
         this.updateCsvZoomDisplay(csvNumber);
     }
@@ -3400,6 +3443,225 @@ class FigureExportTool {
         if (zoomDisplay && state) {
             zoomDisplay.textContent = `${Math.round(state.scale * 100)}%`;
         }
+    }
+    
+    autoDetectPeaks(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state || !state.frequencyData.length) {
+            alert('No CSV data loaded for automatic peak detection.');
+            return;
+        }
+        
+        // Get detection settings
+        const sensitivity = document.getElementById(`csvPeakSensitivity${csvNumber}`)?.value || 'medium';
+        const freqRange = document.getElementById(`csvFreqRange${csvNumber}`)?.value || 'full';
+        
+        // Configure detection parameters based on sensitivity
+        let minHeightDb, minDistancePercent;
+        
+        switch (sensitivity) {
+            case 'low':
+                minHeightDb = 15;
+                minDistancePercent = 5;
+                break;
+            case 'medium':
+                minHeightDb = 10;
+                minDistancePercent = 2;
+                break;
+            case 'high':
+                minHeightDb = 5;
+                minDistancePercent = 1;
+                break;
+            case 'custom':
+                minHeightDb = parseFloat(document.getElementById(`csvMinHeight${csvNumber}`)?.value) || 10;
+                minDistancePercent = parseFloat(document.getElementById(`csvMinDistance${csvNumber}`)?.value) || 2;
+                break;
+            default:
+                minHeightDb = 10;
+                minDistancePercent = 2;
+        }
+        
+        // Determine frequency range for detection
+        let startFreq, endFreq;
+        switch (freqRange) {
+            case 'current':
+                // Use currently visible range based on zoom/pan
+                const freqRangeView = (state.maxFreq - state.minFreq) / state.scale;
+                const freqCenter = (state.minFreq + state.maxFreq) / 2;
+                startFreq = freqCenter - freqRangeView / 2;
+                endFreq = freqCenter + freqRangeView / 2;
+                break;
+            case 'band':
+                // Use current selected band range
+                const selectedBand = document.querySelector('.band-btn.selected')?.dataset.band;
+                if (selectedBand && this.bandDefinitions[selectedBand]) {
+                    startFreq = this.bandDefinitions[selectedBand].startMHz * 1e6; // Convert to Hz
+                    endFreq = this.bandDefinitions[selectedBand].endMHz * 1e6;
+                } else {
+                    startFreq = state.minFreq;
+                    endFreq = state.maxFreq;
+                }
+                break;
+            default: // 'full'
+                startFreq = state.minFreq;
+                endFreq = state.maxFreq;
+        }
+        
+        // Find peaks in the specified range
+        const peaks = this.findPeaksInData(state.frequencyData, state.amplitudeData, {
+            startFreq,
+            endFreq,
+            minHeightDb,
+            minDistancePercent
+        });
+        
+        if (peaks.length === 0) {
+            alert(`No significant peaks found with current settings.\n\nTry adjusting sensitivity or frequency range in the settings panel.`);
+            return;
+        }
+        
+        // Display results and auto-identify peaks
+        this.displayAutoDetectedPeaks(csvNumber, peaks);
+        
+        console.log(`Auto-detected ${peaks.length} peaks in CSV ${csvNumber}:`, peaks);
+    }
+    
+    findPeaksInData(frequencyData, amplitudeData, options) {
+        const { startFreq, endFreq, minHeightDb, minDistancePercent } = options;
+        const peaks = [];
+        
+        // Calculate minimum distance in data points
+        const totalFreqRange = Math.max(...frequencyData) - Math.min(...frequencyData);
+        const minDistanceHz = totalFreqRange * (minDistancePercent / 100);
+        
+        // Calculate noise floor (average of bottom 25% of amplitudes)
+        const sortedAmps = amplitudeData.slice().sort((a, b) => a - b);
+        const noiseFloor = sortedAmps.slice(0, Math.floor(sortedAmps.length * 0.25))
+            .reduce((sum, amp) => sum + amp, 0) / Math.floor(sortedAmps.length * 0.25);
+        
+        const minAbsoluteHeight = noiseFloor + minHeightDb;
+        
+        // Find local maxima
+        for (let i = 1; i < amplitudeData.length - 1; i++) {
+            const freq = frequencyData[i];
+            const amp = amplitudeData[i];
+            
+            // Skip if outside frequency range
+            if (freq < startFreq || freq > endFreq) continue;
+            
+            // Check if it's a local maximum
+            const prevAmp = amplitudeData[i - 1];
+            const nextAmp = amplitudeData[i + 1];
+            
+            if (amp > prevAmp && amp > nextAmp && amp >= minAbsoluteHeight) {
+                // Check minimum distance from existing peaks
+                const tooClose = peaks.some(peak => 
+                    Math.abs(peak.frequency - freq) < minDistanceHz
+                );
+                
+                if (!tooClose) {
+                    // Calculate prominence (height above surrounding local minima)
+                    const prominence = this.calculateProminence(amplitudeData, i);
+                    
+                    peaks.push({
+                        index: i,
+                        frequency: freq,
+                        amplitude: amp,
+                        prominence: prominence,
+                        frequencyMHz: freq / 1e6
+                    });
+                }
+            }
+        }
+        
+        // Sort peaks by amplitude (highest first)
+        peaks.sort((a, b) => b.amplitude - a.amplitude);
+        
+        // Limit to top 20 peaks to avoid overwhelming the user
+        return peaks.slice(0, 20);
+    }
+    
+    calculateProminence(amplitudeData, peakIndex) {
+        const peakAmp = amplitudeData[peakIndex];
+        
+        // Find lowest point to the left
+        let leftMin = peakAmp;
+        for (let i = peakIndex - 1; i >= 0; i--) {
+            leftMin = Math.min(leftMin, amplitudeData[i]);
+            // Stop if we encounter a higher peak
+            if (amplitudeData[i] > peakAmp) break;
+        }
+        
+        // Find lowest point to the right
+        let rightMin = peakAmp;
+        for (let i = peakIndex + 1; i < amplitudeData.length; i++) {
+            rightMin = Math.min(rightMin, amplitudeData[i]);
+            // Stop if we encounter a higher peak
+            if (amplitudeData[i] > peakAmp) break;
+        }
+        
+        // Prominence is height above the higher of the two surrounding minima
+        return peakAmp - Math.max(leftMin, rightMin);
+    }
+    
+    displayAutoDetectedPeaks(csvNumber, peaks) {
+        if (peaks.length === 0) return;
+        
+        // Clear previous peak markers
+        this.drawCsvGraph(csvNumber);
+        
+        // Create results summary
+        let resultsText = `🔍 AUTO-DETECTED ${peaks.length} PEAKS:\n\n`;
+        
+        peaks.forEach((peak, index) => {
+            // Draw visual marker for each peak
+            this.drawPeakMarker(csvNumber, peak.index);
+            
+            // Identify the peak allocation
+            this.identifyPeakForFrequencyNoComment(peak.frequencyMHz, peak.amplitude, csvNumber);
+            
+            // Add to results summary
+            resultsText += `${index + 1}. ${this.formatFrequency(peak.frequencyMHz)} @ ${peak.amplitude.toFixed(1)} dB\n`;
+            
+            // Find band for this frequency
+            let bandName = 'Unknown';
+            for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+                if (peak.frequencyMHz >= bandInfo.startMHz && peak.frequencyMHz <= bandInfo.endMHz) {
+                    bandName = `Band ${band} (${bandInfo.range})`;
+                    break;
+                }
+            }
+            resultsText += `   ${bandName}\n`;
+            resultsText += `   Prominence: ${peak.prominence.toFixed(1)} dB\n\n`;
+        });
+        
+        // Add to comments section
+        resultsText += `\nDetection completed at ${new Date().toLocaleTimeString()}\n`;
+        resultsText += `Settings: ${document.getElementById(`csvPeakSensitivity${csvNumber}`)?.value || 'medium'} sensitivity\n`;
+        resultsText += `Range: ${document.getElementById(`csvFreqRange${csvNumber}`)?.value || 'full'} spectrum\n`;
+        resultsText += `========================================\n\n`;
+        
+        this.addToComments(resultsText);
+        
+        // Show success notification
+        const notification = document.createElement('div');
+        notification.className = 'peak-detection-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">✅</span>
+                <span class="notification-text">Auto-detected ${peaks.length} peaks successfully!</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove notification after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
     }
     
     autoScaleCsv(csvNumber) {
@@ -4063,6 +4325,43 @@ class FigureExportTool {
                 <button class="control-btn" id="overlayResetZoom">Reset</button>
                 <button class="control-btn" id="overlayFullScreen" title="Full Screen">⛶ Full Screen</button>
             </div>
+            <div class="peak-detection-controls">
+                <button class="control-btn peak-detect-btn" id="overlayAutoPeaks" title="Automatically detect peaks in all datasets">🔍 Auto Detect Peaks (All)</button>
+                <button class="control-btn" id="overlayPeakSettings" title="Peak detection settings">⚙️</button>
+            </div>
+            <div class="peak-settings-panel" id="overlayPeakSettingsPanel" style="display: none;">
+                <div class="setting-group">
+                    <label>Sensitivity:</label>
+                    <select id="overlayPeakSensitivity">
+                        <option value="low">Low (Major peaks only)</option>
+                        <option value="medium" selected>Medium (Balanced)</option>
+                        <option value="high">High (More sensitive)</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="setting-group" id="overlayCustomSettings" style="display: none;">
+                    <label>Min Height (dB):</label>
+                    <input type="number" id="overlayMinHeight" value="10" step="1">
+                    <label>Min Distance (%):</label>
+                    <input type="number" id="overlayMinDistance" value="2" step="0.5" min="0.1" max="10">
+                </div>
+                <div class="setting-group">
+                    <label>Frequency Range:</label>
+                    <select id="overlayFreqRange">
+                        <option value="full">Full spectrum</option>
+                        <option value="current">Current view only</option>
+                        <option value="band">Current band only</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Dataset Selection:</label>
+                    <select id="overlayDatasetSelection">
+                        <option value="all">All datasets</option>
+                        <option value="visible">Visible datasets only</option>
+                        <option value="highest">Highest amplitude dataset</option>
+                    </select>
+                </div>
+            </div>
         `;
         
         canvas.parentElement.appendChild(controls);
@@ -4089,6 +4388,21 @@ class FigureExportTool {
             this.enterFullScreenOverlay();
         });
         
+        // Peak detection controls for overlay
+        document.getElementById('overlayAutoPeaks').addEventListener('click', () => {
+            this.autoDetectOverlayPeaks();
+        });
+        
+        document.getElementById('overlayPeakSettings').addEventListener('click', () => {
+            const panel = document.getElementById('overlayPeakSettingsPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        document.getElementById('overlayPeakSensitivity').addEventListener('change', (e) => {
+            const customSettings = document.getElementById('overlayCustomSettings');
+            customSettings.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        });
+        
         // Update zoom display
         this.updateOverlayZoomDisplay();
     }
@@ -4098,6 +4412,211 @@ class FigureExportTool {
         if (zoomDisplay) {
             zoomDisplay.textContent = `${Math.round(this.csvOverlayState.scale * 100)}%`;
         }
+    }
+    
+    autoDetectOverlayPeaks() {
+        if (this.csvOverlayState.datasets.length === 0) {
+            alert('No CSV datasets loaded for automatic peak detection.');
+            return;
+        }
+        
+        // Get detection settings
+        const sensitivity = document.getElementById('overlayPeakSensitivity')?.value || 'medium';
+        const freqRange = document.getElementById('overlayFreqRange')?.value || 'full';
+        const datasetSelection = document.getElementById('overlayDatasetSelection')?.value || 'all';
+        
+        // Configure detection parameters based on sensitivity
+        let minHeightDb, minDistancePercent;
+        
+        switch (sensitivity) {
+            case 'low':
+                minHeightDb = 15;
+                minDistancePercent = 5;
+                break;
+            case 'medium':
+                minHeightDb = 10;
+                minDistancePercent = 2;
+                break;
+            case 'high':
+                minHeightDb = 5;
+                minDistancePercent = 1;
+                break;
+            case 'custom':
+                minHeightDb = parseFloat(document.getElementById('overlayMinHeight')?.value) || 10;
+                minDistancePercent = parseFloat(document.getElementById('overlayMinDistance')?.value) || 2;
+                break;
+            default:
+                minHeightDb = 10;
+                minDistancePercent = 2;
+        }
+        
+        // Determine frequency range for detection
+        let startFreq, endFreq;
+        switch (freqRange) {
+            case 'current':
+                // Use currently visible range based on zoom/pan
+                const freqRangeView = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / this.csvOverlayState.scale;
+                const freqCenter = (this.csvOverlayState.minFreq + this.csvOverlayState.maxFreq) / 2;
+                startFreq = freqCenter - freqRangeView / 2;
+                endFreq = freqCenter + freqRangeView / 2;
+                break;
+            case 'band':
+                // Use current selected band range
+                const selectedBand = document.querySelector('.band-btn.selected')?.dataset.band;
+                if (selectedBand && this.bandDefinitions[selectedBand]) {
+                    startFreq = this.bandDefinitions[selectedBand].startMHz * 1e6; // Convert to Hz
+                    endFreq = this.bandDefinitions[selectedBand].endMHz * 1e6;
+                } else {
+                    startFreq = this.csvOverlayState.minFreq;
+                    endFreq = this.csvOverlayState.maxFreq;
+                }
+                break;
+            default: // 'full'
+                startFreq = this.csvOverlayState.minFreq;
+                endFreq = this.csvOverlayState.maxFreq;
+        }
+        
+        // Select datasets to analyze
+        let datasetsToAnalyze = [];
+        switch (datasetSelection) {
+            case 'visible':
+                datasetsToAnalyze = this.csvOverlayState.datasets.filter(dataset => dataset.visible);
+                break;
+            case 'highest':
+                // Find dataset with highest overall amplitude
+                let highestDataset = null;
+                let maxAmp = -Infinity;
+                this.csvOverlayState.datasets.forEach(dataset => {
+                    if (dataset.visible && dataset.maxAmp > maxAmp) {
+                        maxAmp = dataset.maxAmp;
+                        highestDataset = dataset;
+                    }
+                });
+                if (highestDataset) datasetsToAnalyze = [highestDataset];
+                break;
+            default: // 'all'
+                datasetsToAnalyze = this.csvOverlayState.datasets.slice();
+        }
+        
+        if (datasetsToAnalyze.length === 0) {
+            alert('No datasets available for analysis with current selection settings.');
+            return;
+        }
+        
+        // Find peaks in all selected datasets
+        let allPeaks = [];
+        datasetsToAnalyze.forEach(dataset => {
+            const peaks = this.findPeaksInData(dataset.frequencyData, dataset.amplitudeData, {
+                startFreq,
+                endFreq,
+                minHeightDb,
+                minDistancePercent
+            });
+            
+            peaks.forEach(peak => {
+                peak.dataset = dataset;
+                peak.datasetName = dataset.name;
+                peak.datasetColor = dataset.color;
+            });
+            
+            allPeaks = allPeaks.concat(peaks);
+        });
+        
+        if (allPeaks.length === 0) {
+            alert(`No significant peaks found with current settings.\n\nTry adjusting sensitivity or frequency range in the settings panel.`);
+            return;
+        }
+        
+        // Sort all peaks by amplitude (highest first)
+        allPeaks.sort((a, b) => b.amplitude - a.amplitude);
+        
+        // Limit to top 30 peaks across all datasets
+        allPeaks = allPeaks.slice(0, 30);
+        
+        // Display results and auto-identify peaks
+        this.displayAutoDetectedOverlayPeaks(allPeaks);
+        
+        console.log(`Auto-detected ${allPeaks.length} peaks across ${datasetsToAnalyze.length} datasets:`, allPeaks);
+    }
+    
+    displayAutoDetectedOverlayPeaks(peaks) {
+        if (peaks.length === 0) return;
+        
+        // Clear previous peak markers and redraw graph
+        this.drawOverlayGraph();
+        
+        // Create results summary
+        let resultsText = `🔍 AUTO-DETECTED ${peaks.length} PEAKS ACROSS ALL DATASETS:\n\n`;
+        
+        // Group peaks by dataset
+        const peaksByDataset = {};
+        peaks.forEach(peak => {
+            if (!peaksByDataset[peak.datasetName]) {
+                peaksByDataset[peak.datasetName] = [];
+            }
+            peaksByDataset[peak.datasetName].push(peak);
+        });
+        
+        // Display peaks grouped by dataset
+        Object.keys(peaksByDataset).forEach((datasetName, datasetIndex) => {
+            const datasetPeaks = peaksByDataset[datasetName];
+            resultsText += `📊 ${datasetName} (${datasetPeaks.length} peaks):\n`;
+            
+            datasetPeaks.forEach((peak, index) => {
+                // Draw visual marker for each peak
+                this.drawOverlayPeakMarker(peak.dataset, peak.index);
+                
+                // Identify the peak allocation
+                this.identifyOverlayPeakForFrequencyNoComment(peak.frequencyMHz, peak.amplitude, peak.dataset);
+                
+                // Add to results summary
+                resultsText += `  ${index + 1}. ${this.formatFrequency(peak.frequencyMHz)} @ ${peak.amplitude.toFixed(1)} dB\n`;
+                
+                // Find band for this frequency
+                let bandName = 'Unknown';
+                for (const [band, bandInfo] of Object.entries(this.bandDefinitions)) {
+                    if (peak.frequencyMHz >= bandInfo.startMHz && peak.frequencyMHz <= bandInfo.endMHz) {
+                        bandName = `Band ${band} (${bandInfo.range})`;
+                        break;
+                    }
+                }
+                resultsText += `     ${bandName}\n`;
+                resultsText += `     Prominence: ${peak.prominence.toFixed(1)} dB\n\n`;
+            });
+            resultsText += '\n';
+        });
+        
+        // Add summary statistics
+        resultsText += `\nSUMMARY:\n`;
+        resultsText += `Total peaks detected: ${peaks.length}\n`;
+        resultsText += `Datasets analyzed: ${Object.keys(peaksByDataset).length}\n`;
+        resultsText += `Detection completed at ${new Date().toLocaleTimeString()}\n`;
+        resultsText += `Settings: ${document.getElementById('overlayPeakSensitivity')?.value || 'medium'} sensitivity\n`;
+        resultsText += `Range: ${document.getElementById('overlayFreqRange')?.value || 'full'} spectrum\n`;
+        resultsText += `Dataset selection: ${document.getElementById('overlayDatasetSelection')?.value || 'all'}\n`;
+        resultsText += `========================================\n\n`;
+        
+        this.addToComments(resultsText);
+        
+        // Show success notification
+        const notification = document.createElement('div');
+        notification.className = 'peak-detection-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">✅</span>
+                <span class="notification-text">Auto-detected ${peaks.length} peaks across ${Object.keys(peaksByDataset).length} datasets!</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove notification after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
     }
     
     drawOverlayLegendOutside(ctx, width, height, margin) {
