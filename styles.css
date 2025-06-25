@@ -8,7 +8,7 @@
 
 body {
     font-family: 'Segoe UI', 'Arial', sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #141a25 0%, #171d2b 25%, #1c2535 50%, #222c40 75%, #28334b 100%);
     background-attachment: fixed;
     color: #333;
     line-height: 1.6;
@@ -61,7 +61,7 @@ header {
 .title-section h1 {
     font-size: 2.6rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+    background: linear-gradient(135deg, #334260 0%, #3b4d70 50%, #384a6b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -79,7 +79,7 @@ header {
 
 .company-name {
     font-size: 1.2rem;
-    color: #1e3a8a;
+    color: #334260;
     font-weight: 600;
     margin: 0;
 }
@@ -128,7 +128,7 @@ footer .attribution p {
 header h1 {
     font-size: 2.5rem;
     font-weight: bold;
-    color: #1e3a8a;
+    color: #334260;
     margin-bottom: 10px;
 }
 
@@ -223,9 +223,9 @@ header h1 {
 }
 
 .page-tab.active {
-    background: #1e3a8a;
+    background: #334260;
     color: white;
-    border-color: #1e3a8a;
+    border-color: #334260;
 }
 
 .page-tab:not(.active):hover {
@@ -293,7 +293,7 @@ header h1 {
 .layout-control h2 {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #1e3a8a;
+    color: #334260;
     margin-bottom: 15px;
     border-bottom: 2px solid #e0e0e0;
     padding-bottom: 8px;
@@ -338,7 +338,7 @@ header h1 {
 
 .main-content {
     display: grid;
-    grid-template-columns: 380px 2fr 420px;
+    grid-template-columns: 340px 3fr 380px;
     gap: 25px;
     min-height: 80vh;
     max-height: 90vh;
@@ -414,7 +414,7 @@ header h1 {
 }
 
 .center-panel .info-table th {
-    background-color: #1e3a8a;
+    background-color: #334260;
     color: white;
     font-family: 'Arial', sans-serif;
 }
@@ -811,24 +811,24 @@ header h1 {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+    background: linear-gradient(135deg, #334260 0%, #3b4d70 50%, #384a6b 100%);
     color: white;
-    box-shadow: 0 6px 20px rgba(30, 58, 138, 0.4);
+    box-shadow: 0 6px 20px rgba(51, 66, 96, 0.4);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #3b4d70 0%, #49608b 50%, #5c76a9 100%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(30, 58, 138, 0.5);
+    box-shadow: 0 8px 25px rgba(51, 66, 96, 0.5);
 }
 
 .btn-secondary {
-    background-color: #6c757d;
+    background-color: #49608b;
     color: white;
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background-color: #545b62;
+    background-color: #5c76a9;
 }
 
 .btn:hover {
@@ -1023,7 +1023,7 @@ header h1 {
 .comments-section h3 {
     font-size: 1.1rem;
     font-weight: bold;
-    color: #1e3a8a;
+    color: #334260;
     margin-bottom: 15px;
     border-bottom: 2px solid #e0e0e0;
     padding-bottom: 8px;
@@ -1189,7 +1189,7 @@ header h1 {
 .peak-helper-section h3 {
     font-size: 1.1rem;
     font-weight: bold;
-    color: #1e3a8a;
+    color: #334260;
     margin-bottom: 15px;
     border-bottom: 2px solid #e0e0e0;
     padding-bottom: 8px;
@@ -1257,9 +1257,9 @@ header h1 {
 }
 
 .band-btn.active {
-    background: #1e3a8a;
+    background: #334260;
     color: white;
-    border-color: #1e3a8a;
+    border-color: #334260;
 }
 
 .band-info {
@@ -2298,7 +2298,7 @@ header h1 {
 }
 
 .fullscreen-controls .control-btn {
-    background: #1e3a8a;
+    background: #334260;
     color: white;
     border: none;
     padding: 12px 20px;
@@ -2308,13 +2308,13 @@ header h1 {
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 80px;
-    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
+    box-shadow: 0 2px 8px rgba(51, 66, 96, 0.3);
 }
 
 .fullscreen-controls .control-btn:hover {
-    background: #3b82f6;
+    background: #3b4d70;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+    box-shadow: 0 4px 12px rgba(51, 66, 96, 0.4);
 }
 
 .fullscreen-controls .control-btn:active {
@@ -2457,9 +2457,9 @@ header h1 {
 }
 
 .csv-controls .control-btn {
-    background: #1e3a8a;
+    background: #334260;
     color: white;
-    border: 2px solid #1e3a8a;
+    border: 2px solid #334260;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 14px;
@@ -2474,21 +2474,21 @@ header h1 {
 }
 
 .csv-controls .control-btn:hover:not(:disabled) {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: #3b4d70;
+    border-color: #3b4d70;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
+    box-shadow: 0 2px 8px rgba(51, 66, 96, 0.3);
 }
 
 .csv-controls .control-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(30, 58, 138, 0.3);
+    box-shadow: 0 1px 4px rgba(51, 66, 96, 0.3);
 }
 
 .csv-controls .zoom-level {
     background: white;
-    color: #1e3a8a;
-    border: 2px solid #1e3a8a;
+    color: #334260;
+    border: 2px solid #334260;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 14px;
