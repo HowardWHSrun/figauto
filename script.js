@@ -104,8 +104,8 @@ class FigureExportTool {
         this.nextPageId = 2;
         this.pages = new Map();
         this.currentLayout = 'horizontal';
-        this.currentInputType = 'images'; // 'images' or 'csv'
-        this.currentCsvMode = 'separate'; // 'separate' or 'overlay'
+        this.currentInputType = 'csv'; // 'images' or 'csv'
+        this.currentCsvMode = 'overlay'; // 'separate' or 'overlay'
         
         // CSV overlay state
         this.csvOverlayState = {
@@ -175,6 +175,10 @@ class FigureExportTool {
         this.initializePage(1);
         this.initializeEventListeners();
         this.updateTables();
+        
+        // Set initial display state based on defaults
+        this.setInputType(this.currentInputType);
+        this.setCsvMode(this.currentCsvMode);
         
         // Make tool globally accessible
         window.figureExportTool = this;
@@ -744,6 +748,9 @@ class FigureExportTool {
                 state.image = img;
                 this.setupCanvas(imageNumber);
                 document.getElementById(`instructionOverlay${imageNumber}`).style.display = 'none';
+                
+                // Update dynamic UI after loading image
+                this.updateTables();
             };
             img.src = e.target.result;
         };
@@ -1132,6 +1139,123 @@ class FigureExportTool {
             if (tableRunElement) tableRunElement.textContent = formData.runId;
             if (tableBandElement) tableBandElement.textContent = formData.band;
             if (tableLocationElement) tableLocationElement.textContent = formData.location;
+        }
+        
+        // Update dynamic UI elements based on loaded data
+        this.updateDynamicUI();
+    }
+    
+    updateDynamicUI() {
+        if (this.currentInputType === 'csv') {
+            if (this.currentCsvMode === 'overlay') {
+                this.updateOverlayDynamicUI();
+            } else {
+                this.updateSeparateDynamicUI();
+            }
+        } else {
+            this.updateImageDynamicUI();
+        }
+    }
+    
+    updateOverlayDynamicUI() {
+        const datasetCount = this.csvOverlayState.datasets.length;
+        
+        // Show/hide CSV mode toggle only if datasets exist
+        const csvModeControl = document.querySelector('.csv-mode-control');
+        if (csvModeControl) {
+            csvModeControl.style.display = datasetCount > 0 ? 'block' : 'none';
+        }
+        
+        // Show/hide table headers appropriately
+        const dualInfoTables = document.getElementById('dualInfoTables');
+        if (dualInfoTables) {
+            dualInfoTables.style.display = datasetCount > 1 ? 'block' : 'none';
+        }
+        
+        // Show/hide form section appropriately
+        const dualFormSection = document.getElementById('dualFormSection');
+        if (dualFormSection) {
+            dualFormSection.style.display = datasetCount > 1 ? 'block' : 'none';
+        }
+    }
+    
+    updateSeparateDynamicUI() {
+        const currentPage = this.getCurrentPage();
+        const hasData1 = currentPage && currentPage.csvState1.frequencyData.length > 0;
+        const hasData2 = currentPage && currentPage.csvState2.frequencyData.length > 0;
+        const dataCount = (hasData1 ? 1 : 0) + (hasData2 ? 1 : 0);
+        
+        // Show/hide second form only if both files are loaded
+        const formContainers = document.querySelectorAll('.form-container');
+        if (formContainers.length >= 2) {
+            formContainers[1].style.display = hasData2 ? 'block' : 'none';
+        }
+        
+        // Show/hide second table column
+        const infoTables = document.querySelectorAll('.info-table');
+        if (infoTables.length >= 2) {
+            infoTables[1].style.display = hasData2 ? 'block' : 'none';
+        }
+        
+        // Update labels to remove numbering if only one file
+        if (dataCount === 1) {
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0] && hasData1) {
+                formContainers[0].textContent = 'CSV File Information';
+            }
+            
+            const tableHeaders = document.querySelectorAll('.info-table h4');
+            if (tableHeaders[0] && hasData1) {
+                tableHeaders[0].textContent = 'CSV Data';
+            }
+        } else if (dataCount === 2) {
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0]) formContainers[0].textContent = 'CSV File 1 Information';
+            if (formContainers[1]) formContainers[1].textContent = 'CSV File 2 Information';
+            
+            const tableHeaders = document.querySelectorAll('.info-table h4');
+            if (tableHeaders[0]) tableHeaders[0].textContent = 'CSV Data 1';
+            if (tableHeaders[1]) tableHeaders[1].textContent = 'CSV Data 2';
+        }
+    }
+    
+    updateImageDynamicUI() {
+        const currentPage = this.getCurrentPage();
+        const hasImage1 = currentPage && currentPage.imageState1.image !== null;
+        const hasImage2 = currentPage && currentPage.imageState2.image !== null;
+        const imageCount = (hasImage1 ? 1 : 0) + (hasImage2 ? 1 : 0);
+        
+        // Show/hide second form only if both images are loaded
+        const formContainers = document.querySelectorAll('.form-container');
+        if (formContainers.length >= 2) {
+            formContainers[1].style.display = hasImage2 ? 'block' : 'none';
+        }
+        
+        // Show/hide second table column
+        const infoTables = document.querySelectorAll('.info-table');
+        if (infoTables.length >= 2) {
+            infoTables[1].style.display = hasImage2 ? 'block' : 'none';
+        }
+        
+        // Update labels to remove numbering if only one image
+        if (imageCount === 1) {
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0] && hasImage1) {
+                formContainers[0].textContent = 'Image Information';
+            }
+            
+            const tableHeaders = document.querySelectorAll('.info-table h4');
+            if (tableHeaders[0] && hasImage1) {
+                tableHeaders[0].textContent = 'Image';
+            }
+        } else if (imageCount === 2) {
+            const formContainers = document.querySelectorAll('.form-container h3');
+            if (formContainers[0]) formContainers[0].textContent = 'Image 1 Information';
+            if (formContainers[1]) formContainers[1].textContent = 'Image 2 Information';
+            
+            const tableHeaders = document.querySelectorAll('.info-table h4');
+            if (tableHeaders[0]) tableHeaders[0].textContent = 'Image 1';
+            if (tableHeaders[1]) tableHeaders[1].textContent = 'Image 2';
         }
     }
     
@@ -2670,6 +2794,9 @@ class FigureExportTool {
         // Hide instruction overlay
         document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
         
+        // Update dynamic UI after loading overlay data
+        this.updateTables();
+        
         console.log(`Overlay CSV loaded: ${filename}`, {
             rows: newDataset.rowCount,
             freqRange: `${this.formatFrequency(newDataset.minFreq / 1e6)} - ${this.formatFrequency(newDataset.maxFreq / 1e6)}`,
@@ -2723,6 +2850,9 @@ class FigureExportTool {
         if (this.csvOverlayState.datasets.length === 0) {
             document.getElementById('csvOverlayInstructionOverlay').style.display = 'block';
         }
+        
+        // Update dynamic UI after removing data
+        this.updateTables();
         
         console.log(`Removed overlay file: ${datasetId}`);
     }
@@ -2865,6 +2995,9 @@ class FigureExportTool {
             this.drawOverlayGraph();
             this.updateLegend();
         }
+        
+        // Update dynamic UI after loading data
+        this.updateTables();
         
         console.log(`CSV ${csvNumber} loaded:`, {
             rows: state.rowCount,

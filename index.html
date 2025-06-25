@@ -40,11 +40,11 @@
                     <h2>Data Input Type</h2>
                     <div class="input-type-toggle">
                         <label>
-                            <input type="radio" name="inputType" value="images" checked>
+                            <input type="radio" name="inputType" value="images">
                             <span>📷 Image Files</span>
                         </label>
                         <label>
-                            <input type="radio" name="inputType" value="csv">
+                            <input type="radio" name="inputType" value="csv" checked>
                             <span>📊 CSV Data Files</span>
                         </label>
                     </div>
@@ -65,7 +65,7 @@
                 </div>
 
                 <!-- Image Upload Section -->
-                <div class="upload-section" id="imageUploadSection">
+                <div class="upload-section" id="imageUploadSection" style="display: none;">
                     <h2>Upload Images</h2>
                     <div class="dual-upload" id="dualUpload">
                         <div class="upload-container">
@@ -90,7 +90,7 @@
                 </div>
 
                 <!-- CSV Upload Section -->
-                <div class="upload-section" id="csvUploadSection" style="display: none;">
+                <div class="upload-section" id="csvUploadSection">
                     <h2>Upload CSV Data Files</h2>
                     
                     <!-- CSV Display Mode Toggle -->
@@ -98,18 +98,18 @@
                         <h3>Display Mode</h3>
                         <div class="csv-mode-toggle">
                             <label>
-                                <input type="radio" name="csvMode" value="separate" checked>
+                                <input type="radio" name="csvMode" value="separate">
                                 <span>📊 Separate Graphs</span>
                             </label>
                             <label>
-                                <input type="radio" name="csvMode" value="overlay">
+                                <input type="radio" name="csvMode" value="overlay" checked>
                                 <span>📈 Overlay Comparison</span>
                             </label>
                         </div>
                     </div>
                     
                     <!-- Separate Mode Upload Areas -->
-                    <div class="dual-upload" id="dualCsvUpload">
+                    <div class="dual-upload" id="dualCsvUpload" style="display: none;">
                         <div class="upload-container">
                             <h3>CSV File 1</h3>
                             <div class="upload-area" id="csvUploadArea1">
@@ -141,7 +141,7 @@
                     </div>
                     
                     <!-- Overlay Mode Upload Area -->
-                    <div class="single-upload" id="singleCsvUpload" style="display: none;">
+                    <div class="single-upload" id="singleCsvUpload">
                         <div class="upload-container overlay-upload">
                             <h3>CSV Files for Overlay Comparison</h3>
                             <div class="upload-area" id="csvOverlayUploadArea">
@@ -289,7 +289,7 @@
                 <!-- Dual Data Container (Images or CSV Graphs) -->
                 <div class="dual-data-container" id="dualDataContainer">
                     <!-- Image Display Container -->
-                    <div class="dual-image-container" id="dualImageContainer">
+                    <div class="dual-image-container" id="dualImageContainer" style="display: none;">
                         <div class="image-container">
                             <canvas id="annotationCanvas1"></canvas>
                             <div class="instruction-overlay" id="instructionOverlay1">
@@ -305,9 +305,9 @@
                     </div>
 
                     <!-- CSV Graph Container -->
-                    <div class="dual-csv-container" id="dualCsvContainer" style="display: none;">
+                    <div class="dual-csv-container" id="dualCsvContainer">
                         <!-- Separate Graphs Mode -->
-                        <div class="csv-separate-mode" id="csvSeparateMode">
+                        <div class="csv-separate-mode" id="csvSeparateMode" style="display: none;">
                             <div class="csv-container">
                                 <div class="csv-graph-header">
                                     <h4>CSV Data 1</h4>
@@ -341,7 +341,7 @@
                         </div>
 
                         <!-- Overlay Comparison Mode -->
-                        <div class="csv-overlay-mode" id="csvOverlayMode" style="display: none;">
+                        <div class="csv-overlay-mode" id="csvOverlayMode">
                             <div class="csv-overlay-container">
                                 <div class="csv-graph-header">
                                     <h4>Spectrum Comparison</h4>
