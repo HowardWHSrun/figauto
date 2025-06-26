@@ -1,5 +1,5 @@
 // ========================================================================
-// FIGURE EXPORT TOOL v3.3 - EMC TESTING ANNOTATION SYSTEM
+// FIGURE EXPORT TOOL v4.0 - EMC TESTING ANNOTATION SYSTEM
 // ========================================================================
 // Turner Engineering Corporation - Professional EMC Testing Support
 // 
