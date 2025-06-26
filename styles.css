@@ -8,17 +8,21 @@
 
 body {
     font-family: 'Segoe UI', 'Arial', sans-serif;
-    background: linear-gradient(135deg, #141a25 0%, #171d2b 25%, #1c2535 50%, #222c40 75%, #28334b 100%);
-    background-attachment: fixed;
+    background: #f0f2f5;
     color: #333;
     line-height: 1.6;
     min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: auto;
 }
 
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     padding: 20px;
+    min-height: 100vh;
 }
 
 header {
@@ -61,13 +65,9 @@ header {
 .title-section h1 {
     font-size: 2.6rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #334260 0%, #3b4d70 50%, #384a6b 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #000;
     margin-bottom: 12px;
     line-height: 1.2;
-    text-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
 }
 
 .subtitle {
@@ -228,20 +228,26 @@ header h1 {
     border-color: #334260;
 }
 
+.page-tab.active span {
+    color: white;
+    font-weight: 700;
+}
+
 .page-tab:not(.active):hover {
     background: #e9ecef;
     border-color: #1e3a8a;
 }
 
 .page-tab span {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
+    color: #2d3748;
 }
 
 .close-tab {
     background: none;
     border: none;
-    color: inherit;
+    color: #666;
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
@@ -269,7 +275,7 @@ header h1 {
     color: white;
     border: none;
     border-radius: 6px;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -293,7 +299,7 @@ header h1 {
 .layout-control h2 {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #334260;
+    color: #2d3748;
     margin-bottom: 15px;
     border-bottom: 2px solid #e0e0e0;
     padding-bottom: 8px;
@@ -315,7 +321,8 @@ header h1 {
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-weight: 500;
+    font-weight: 600;
+    color: #2d3748;
 }
 
 .layout-toggle label:hover {
@@ -338,22 +345,24 @@ header h1 {
 
 .main-content {
     display: grid;
-    grid-template-columns: 340px 3fr 380px;
+    grid-template-columns: minmax(320px, 25%) 1fr minmax(350px, 25%);
     gap: 25px;
     min-height: 80vh;
     max-height: 90vh;
+    max-width: 2400px;
+    margin: 0 auto;
 }
 
 /* Left Panel */
 .left-panel {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: white;
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
     padding: 30px;
     height: fit-content;
     max-height: 90vh;
     overflow-y: auto;
-    border: 1px solid rgba(255,255,255,0.8);
+    border: 1px solid #e9ecef;
     backdrop-filter: blur(10px);
 }
 
@@ -441,7 +450,7 @@ header h1 {
 
 .upload-container h3 {
     font-size: 1rem;
-    color: #1e3a8a;
+    color: #2d3748;
     margin-bottom: 10px;
     text-align: center;
     font-weight: bold;
@@ -579,13 +588,14 @@ header h1 {
 }
 
 .upload-placeholder p {
-    color: #666;
+    color: #2d3748;
     font-size: 14px;
     margin-bottom: 5px;
+    font-weight: 600;
 }
 
 .upload-placeholder small {
-    color: #999;
+    color: #718096;
     font-size: 12px;
 }
 
@@ -748,6 +758,33 @@ header h1 {
     margin: 0;
 }
 
+/* Theme-specific zoom preset buttons */
+.csv-theme .zoom-preset-buttons button {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(63, 82, 119, 0.3);
+    font-weight: 500;
+}
+
+.csv-theme .zoom-preset-buttons button:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.image-theme .zoom-preset-buttons button {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(86, 36, 36, 0.3);
+    font-weight: 500;
+}
+
+.image-theme .zoom-preset-buttons button:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
 .zoom-info {
     text-align: center;
     color: #666;
@@ -851,7 +888,7 @@ header h1 {
 
 /* Right Panel */
 .right-panel {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: white;
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
     padding: 30px;
@@ -860,7 +897,7 @@ header h1 {
     gap: 22px;
     max-height: 90vh;
     overflow-y: auto;
-    border: 1px solid rgba(255,255,255,0.8);
+    border: 1px solid #e9ecef;
     backdrop-filter: blur(10px);
 }
 
@@ -1303,6 +1340,33 @@ header h1 {
     font-size: 14px;
 }
 
+/* Theme-specific frequency inputs buttons */
+.csv-theme .frequency-inputs button {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    font-weight: 500;
+}
+
+.csv-theme .frequency-inputs button:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.image-theme .frequency-inputs button {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    font-weight: 500;
+}
+
+.image-theme .frequency-inputs button:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
 .fcc-results-section {
     margin-top: 1rem;
 }
@@ -1324,6 +1388,33 @@ header h1 {
     padding: 4px 8px;
     font-size: 11px;
     margin: 0;
+}
+
+/* Theme-specific small button styling */
+.csv-theme .btn-small {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(63, 82, 119, 0.3);
+    font-weight: 500;
+}
+
+.csv-theme .btn-small:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.image-theme .btn-small {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(86, 36, 36, 0.3);
+    font-weight: 500;
+}
+
+.image-theme .btn-small:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
 }
 
 .fcc-results {
@@ -1642,28 +1733,7 @@ header h1 {
     background: rgba(30, 58, 138, 0.05);
 }
 
-.csv-mode-control h3 {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #1e3a8a;
-    margin-bottom: 15px;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 8px;
-}
 
-.csv-mode-toggle label:hover {
-    border-color: #1e3a8a;
-}
-
-.csv-mode-toggle input[type="radio"]:checked + span {
-    color: #1e3a8a;
-    font-weight: 600;
-}
-
-.csv-mode-toggle label:has(input:checked) {
-    border-color: #1e3a8a;
-    background: rgba(30, 58, 138, 0.05);
-}
 
 .csv-graph-header h4 {
     font-size: 1rem;
@@ -1771,6 +1841,33 @@ header h1 {
     padding: 8px 16px;
     font-size: 14px;
     white-space: nowrap;
+}
+
+/* Theme-specific frequency input group buttons */
+.csv-theme .frequency-input-group button {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    font-weight: 500;
+}
+
+.csv-theme .frequency-input-group button:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.image-theme .frequency-input-group button {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    font-weight: 500;
+}
+
+.image-theme .frequency-input-group button:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
 }
 
 .peak-results {
@@ -1884,36 +1981,10 @@ header h1 {
     transition: all 0.3s ease;
     font-weight: 600;
     font-size: 14px;
+    color: #2d3748;
 }
 
-.csv-mode-control {
-    margin-bottom: 20px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-}
 
-.csv-mode-toggle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.csv-mode-toggle label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px;
-    background: white;
-    border: 2px solid #e9ecef;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    font-size: 13px;
-}
 
 .csv-info {
     margin-top: 10px;
@@ -1945,18 +2016,7 @@ header h1 {
     transition: all 0.3s ease;
 }
 
-.csv-separate-mode {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    height: 100%;
-}
 
-.csv-separate-mode.vertical {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 10px;
-}
 
 .csv-overlay-mode {
     display: flex;
@@ -2072,11 +2132,7 @@ header h1 {
     min-height: 60vh;
 }
 
-.single-upload {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-}
+
 
 .overlay-upload {
     width: 100%;
@@ -2177,7 +2233,19 @@ header h1 {
 }
 
 /* Updated responsive styles for CSV */
+@media (max-width: 1400px) {
+    .main-content {
+        grid-template-columns: minmax(300px, 22%) 1fr minmax(320px, 22%);
+        gap: 20px;
+    }
+}
+
 @media (max-width: 1200px) {
+    .main-content {
+        grid-template-columns: minmax(280px, 20%) 1fr minmax(300px, 20%);
+        gap: 18px;
+    }
+    
     .dual-csv-container {
         min-height: 50vh;
     }
@@ -2187,13 +2255,38 @@ header h1 {
     }
 }
 
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        max-height: none;
+    }
+    
+    .left-panel, .right-panel {
+        max-height: none;
+        height: auto;
+    }
+}
+
 @media (max-width: 768px) {
-    .input-type-toggle, .csv-mode-toggle {
+    .container {
+        padding: 15px;
+    }
+    
+    .main-content {
+        gap: 15px;
+    }
+    
+    .left-panel, .right-panel {
+        padding: 20px;
+    }
+    
+    .input-type-toggle {
         grid-template-columns: 1fr;
         gap: 8px;
     }
     
-    .input-type-toggle label, .csv-mode-toggle label {
+    .input-type-toggle label {
         padding: 10px;
         font-size: 13px;
     }
@@ -2243,6 +2336,36 @@ header h1 {
     .band-btn {
         padding: 0.75rem;
         font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .main-content {
+        gap: 10px;
+    }
+    
+    .left-panel, .right-panel {
+        padding: 15px;
+    }
+    
+    .center-panel {
+        padding: 15px;
+    }
+}
+
+/* Ultra-wide screen optimization */
+@media (min-width: 2400px) {
+    .main-content {
+        max-width: 2800px;
+        grid-template-columns: minmax(400px, 20%) 1fr minmax(400px, 20%);
+    }
+    
+    .container {
+        padding: 30px;
     }
 }
 
@@ -2376,10 +2499,25 @@ header h1 {
     padding: 30px;
     border-radius: 12px;
     text-align: center;
-    pointer-events: none;
+    pointer-events: auto;
     z-index: 10;
     border: 2px dashed #1e3a8a;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+.instruction-overlay:hover {
+    background: rgba(240, 248, 255, 0.98);
+    border-color: #3b82f6;
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 8px 25px rgba(30, 58, 138, 0.2);
+}
+
+.instruction-overlay:active {
+    transform: translate(-50%, -50%) scale(0.98);
+    box-shadow: 0 2px 10px rgba(30, 58, 138, 0.3);
 }
 
 .instruction-overlay p {
@@ -2387,6 +2525,11 @@ header h1 {
     font-size: 18px;
     font-weight: 600;
     color: #1e3a8a;
+    transition: color 0.3s ease;
+}
+
+.instruction-overlay:hover p {
+    color: #3b82f6;
 }
 
 .instruction-overlay small {
@@ -2395,6 +2538,26 @@ header h1 {
     font-size: 14px;
     color: #666;
     font-style: italic;
+    transition: color 0.3s ease;
+}
+
+.instruction-overlay:hover small {
+    color: #555;
+}
+
+/* Add a subtle click indicator */
+.instruction-overlay::before {
+    content: "👆";
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    font-size: 20px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.instruction-overlay:hover::before {
+    opacity: 1;
 }
 
 /* Responsive fullscreen styles */
@@ -2786,4 +2949,1155 @@ header h1 {
 .control-btn:not(.peak-detect-btn):hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ===============================
+   MODE SELECTOR & DUAL THEMES
+   =============================== */
+
+/* Mode Selector in Header */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.mode-selector-section {
+    flex-shrink: 0;
+}
+
+.mode-tabs {
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.mode-tab {
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid transparent;
+    border-radius: 12px;
+    padding: 16px 24px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 140px;
+    font-family: 'Arial', sans-serif;
+    position: relative;
+    overflow: hidden;
+}
+
+.mode-tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.2) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mode-tab:hover::before {
+    opacity: 1;
+}
+
+.mode-icon {
+    font-size: 32px;
+    transition: transform 0.3s ease;
+}
+
+.mode-tab:hover .mode-icon {
+    transform: scale(1.1);
+}
+
+.mode-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: #333;
+    transition: color 0.3s ease;
+}
+
+.mode-subtitle {
+    font-size: 12px;
+    color: #4a5568;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+/* CSV Mode (Navy Theme) */
+.csv-theme .mode-tab.csv-mode {
+    background: linear-gradient(135deg, #3f5277 0%, #2d3a54 100%);
+    border-color: #3f5277;
+    color: white;
+    box-shadow: 0 8px 20px rgba(63, 82, 119, 0.4);
+    transform: translateY(-4px);
+}
+
+.csv-theme .mode-tab.csv-mode .mode-text,
+.csv-theme .mode-tab.csv-mode .mode-subtitle {
+    color: white;
+}
+
+.csv-theme .mode-tab.image-mode:hover {
+    background: linear-gradient(135deg, rgba(86, 36, 36, 0.1) 0%, rgba(109, 54, 54, 0.1) 100%);
+    border-color: rgba(86, 36, 36, 0.3);
+}
+
+/* Image Mode (Maroon Theme) */
+.image-theme .mode-tab.image-mode {
+    background: linear-gradient(135deg, #562424 0%, #6D3636 100%);
+    border-color: #562424;
+    color: white;
+    box-shadow: 0 8px 20px rgba(86, 36, 36, 0.4);
+    transform: translateY(-4px);
+}
+
+.image-theme .mode-tab.image-mode .mode-text,
+.image-theme .mode-tab.image-mode .mode-subtitle {
+    color: white;
+}
+
+.image-theme .mode-tab.csv-mode:hover {
+    background: linear-gradient(135deg, rgba(63, 82, 119, 0.1) 0%, rgba(45, 58, 84, 0.1) 100%);
+    border-color: rgba(63, 82, 119, 0.3);
+}
+
+/* ===============================
+   CSV THEME (NAVY)
+   =============================== */
+
+.csv-theme {
+    --primary-color: #3f5277;
+    --primary-dark: #2d3a54;
+    --primary-light: #5a6b8a;
+    --accent-color: #7a8aaa;
+    --bg-color: #f4f6fa;
+    --bg-secondary: #e8ecf4;
+    --text-color: #3f5277;
+    --border-color: #5a6b8a;
+    background: linear-gradient(135deg, #f4f6fa 0%, #e8ecf4 100%);
+    min-height: 100vh;
+}
+
+.csv-theme header {
+    background: white !important;
+    color: #333 !important;
+}
+
+/* CSV Theme - Text Colors with Proper Contrast */
+.csv-theme {
+    color: #2d3748; /* Darker for better readability on light backgrounds */
+}
+
+.csv-theme h1, .csv-theme h2, .csv-theme h3, .csv-theme h4, .csv-theme h5 {
+    color: var(--primary-color) !important; /* Theme color for headings */
+}
+
+.csv-theme p, .csv-theme label, .csv-theme span, .csv-theme td {
+    color: #2d3748 !important; /* Dark gray for body text */
+}
+
+.csv-theme header h1, .csv-theme header p, .csv-theme header span {
+    color: #333 !important;
+}
+
+/* CSV Theme - Form Elements */
+.csv-theme input[type="text"],
+.csv-theme input[type="number"],
+.csv-theme input[type="file"],
+.csv-theme select,
+.csv-theme textarea {
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    color: #2d3748;
+    border-radius: 8px;
+}
+
+.csv-theme input[type="text"]:focus,
+.csv-theme input[type="number"]:focus,
+.csv-theme select:focus,
+.csv-theme textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(63, 82, 119, 0.15);
+    background: white;
+}
+
+/* CSV Theme - Tables */
+.csv-theme table {
+    border: 1px solid rgba(63, 82, 119, 0.2);
+    background: white;
+}
+
+.csv-theme th {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white !important;
+    border-bottom: 2px solid var(--primary-dark);
+}
+
+.csv-theme td {
+    border-bottom: 1px solid rgba(63, 82, 119, 0.15);
+    color: #2d3748 !important;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.csv-theme tbody tr:hover {
+    background: rgba(63, 82, 119, 0.08);
+}
+
+.csv-theme tbody tr:hover td {
+    background: rgba(63, 82, 119, 0.08);
+}
+
+.csv-theme .left-panel,
+.csv-theme .right-panel {
+    background: white;
+    border: 1px solid #e9ecef;
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(63, 82, 119, 0.1);
+}
+
+.csv-theme .layout-control,
+.csv-theme .upload-section,
+.csv-theme .dual-form-section,
+.csv-theme .actions-section,
+.csv-theme .comments-section,
+.csv-theme .limit-lines-section,
+.csv-theme .peak-helper-section,
+.csv-theme .band-section {
+    background: rgba(255, 255, 255, 0.6);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(63, 82, 119, 0.08);
+    backdrop-filter: blur(5px);
+}
+
+.csv-theme .btn-primary {
+    background: linear-gradient(135deg, #3f5277 0%, #2d3a54 100%);
+    border-color: #3f5277;
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.3);
+}
+
+.csv-theme .btn-primary:hover {
+    background: linear-gradient(135deg, #2d3a54 0%, #5a6b8a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(63, 82, 119, 0.4);
+}
+
+.csv-theme .band-btn {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    font-weight: 600;
+}
+
+.csv-theme .band-btn:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.2);
+}
+
+.csv-theme .band-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 6px 20px rgba(63, 82, 119, 0.3);
+}
+
+/* ===============================
+   IMAGE THEME (MAROON)
+   =============================== */
+
+.image-theme {
+    --primary-color: #562424;
+    --primary-dark: #562424;
+    --primary-light: #6D3636;
+    --accent-color: #924444;
+    --bg-color: #f9f4f4;
+    --bg-secondary: #f5eeee;
+    --text-color: #562424;
+    --border-color: #924444;
+    background: linear-gradient(135deg, #f9f4f4 0%, #f5eeee 100%);
+    min-height: 100vh;
+}
+
+.image-theme header {
+    background: white !important;
+    color: #333 !important;
+}
+
+/* Image Theme - Text Colors with Proper Contrast */
+.image-theme {
+    color: #2d3748; /* Darker for better readability on light backgrounds */
+}
+
+.image-theme h1, .image-theme h2, .image-theme h3, .image-theme h4, .image-theme h5 {
+    color: var(--primary-color) !important; /* Theme color for headings */
+}
+
+.image-theme p, .image-theme label, .image-theme span, .image-theme td {
+    color: #2d3748 !important; /* Dark gray for body text */
+}
+
+.image-theme header h1, .image-theme header p, .image-theme header span {
+    color: #333 !important;
+}
+
+/* Image Theme - Form Elements */
+.image-theme input[type="text"],
+.image-theme input[type="number"],
+.image-theme input[type="file"],
+.image-theme select,
+.image-theme textarea {
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    color: #2d3748;
+    border-radius: 8px;
+}
+
+.image-theme input[type="text"]:focus,
+.image-theme input[type="number"]:focus,
+.image-theme select:focus,
+.image-theme textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(86, 36, 36, 0.15);
+    background: white;
+}
+
+/* Image Theme - Tables */
+.image-theme table {
+    border: 1px solid rgba(86, 36, 36, 0.2);
+    background: white;
+}
+
+.image-theme th {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+    color: white !important;
+    border-bottom: 2px solid var(--primary-dark);
+}
+
+.image-theme td {
+    border-bottom: 1px solid rgba(86, 36, 36, 0.15);
+    color: #2d3748 !important;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.image-theme tbody tr:hover {
+    background: rgba(86, 36, 36, 0.08);
+}
+
+.image-theme tbody tr:hover td {
+    background: rgba(86, 36, 36, 0.08);
+}
+
+.image-theme .left-panel,
+.image-theme .right-panel {
+    background: white;
+    border: 1px solid #e9ecef;
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(86, 36, 36, 0.1);
+}
+
+.image-theme .layout-control,
+.image-theme .upload-section,
+.image-theme .dual-form-section,
+.image-theme .actions-section,
+.image-theme .comments-section,
+.image-theme .limit-lines-section,
+.image-theme .peak-helper-section,
+.image-theme .band-section {
+    background: rgba(255, 255, 255, 0.6);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(86, 36, 36, 0.08);
+    backdrop-filter: blur(5px);
+}
+
+.image-theme .btn-primary {
+    background: linear-gradient(135deg, #562424 0%, #6D3636 100%);
+    border-color: #562424;
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.3);
+}
+
+.image-theme .btn-primary:hover {
+    background: linear-gradient(135deg, #6D3636 0%, #924444 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(86, 36, 36, 0.4);
+}
+
+.image-theme .band-btn {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    font-weight: 600;
+}
+
+.image-theme .band-btn:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.2);
+}
+
+.image-theme .band-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 6px 20px rgba(86, 36, 36, 0.3);
+}
+
+/* CSV Theme - Radio Buttons and Checkboxes */
+.csv-theme input[type="radio"]:checked,
+.csv-theme input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.csv-theme .layout-toggle label:has(input:checked),
+.csv-theme .input-type-toggle label:has(input:checked) {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.csv-theme .layout-toggle label,
+.csv-theme .input-type-toggle label {
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    color: #2d3748;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.csv-theme .layout-toggle label:hover,
+.csv-theme .input-type-toggle label:hover {
+    border-color: var(--primary-color);
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+}
+
+/* CSV Theme - Control Buttons */
+.csv-theme .control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    color: #2d3748;
+}
+
+.csv-theme .control-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+/* CSV Theme - Secondary Elements */
+.csv-theme .btn-secondary {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    color: #2d3748;
+}
+
+.csv-theme .btn-secondary:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+/* CSV Theme - File Items and Lists */
+.csv-theme .file-item,
+.csv-theme .gallery-item {
+    border: 1px solid rgba(63, 82, 119, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.csv-theme .file-item:hover,
+.csv-theme .gallery-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.15);
+    background: white;
+}
+
+.csv-theme .file-item.active,
+.csv-theme .gallery-item.active {
+    border-color: var(--primary-color);
+    background: rgba(63, 82, 119, 0.08);
+    color: #2d3748;
+}
+
+/* Image Theme - Radio Buttons and Checkboxes */
+.image-theme input[type="radio"]:checked,
+.image-theme input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.image-theme .layout-toggle label:has(input:checked),
+.image-theme .input-type-toggle label:has(input:checked) {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.image-theme .layout-toggle label,
+.image-theme .input-type-toggle label {
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    color: #2d3748;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.image-theme .layout-toggle label:hover,
+.image-theme .input-type-toggle label:hover {
+    border-color: var(--primary-color);
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+}
+
+/* Image Theme - Control Buttons */
+.image-theme .control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    color: #2d3748;
+}
+
+.image-theme .control-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+/* Image Theme - Secondary Elements */
+.image-theme .btn-secondary {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    color: #2d3748;
+}
+
+.image-theme .btn-secondary:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+/* Image Theme - File Items and Lists */
+.image-theme .file-item,
+.image-theme .gallery-item {
+    border: 1px solid rgba(86, 36, 36, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.image-theme .file-item:hover,
+.image-theme .gallery-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.15);
+    background: white;
+}
+
+.image-theme .file-item.active,
+.image-theme .gallery-item.active {
+    border-color: var(--primary-color);
+    background: rgba(86, 36, 36, 0.08);
+    color: #2d3748;
+}
+
+/* CSV Theme - Warning and Special Buttons */
+.csv-theme .btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-color: #f59e0b;
+    color: white;
+}
+
+.csv-theme .btn-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+/* CSV Theme - Sliders and Progress */
+.csv-theme input[type="range"] {
+    background: var(--bg-secondary);
+}
+
+.csv-theme input[type="range"]::-webkit-slider-thumb {
+    background: var(--primary-color);
+    border: 2px solid var(--primary-dark);
+}
+
+.csv-theme input[type="range"]::-moz-range-thumb {
+    background: var(--primary-color);
+    border: 2px solid var(--primary-dark);
+}
+
+/* CSV Theme - Zoom and Special Controls */
+.csv-theme .zoom-level,
+.csv-theme .zoom-info {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+/* CSV Theme - Notifications and Alerts */
+.csv-theme .peak-detection-notification,
+.csv-theme .notification-content {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--primary-color);
+    color: var(--text-color);
+}
+
+.csv-theme .peak-settings-panel {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+/* CSV Theme - Allocation Results */
+.csv-theme .allocation-result,
+.csv-theme .fcc-result-item {
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.csv-theme .allocation-result:hover,
+.csv-theme .fcc-result-item:hover {
+    border-color: var(--primary-color);
+    background: rgba(63, 82, 119, 0.05);
+}
+
+.csv-theme .allocation-service {
+    background: rgba(63, 82, 119, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(63, 82, 119, 0.3);
+    font-weight: 500;
+}
+
+.csv-theme .allocation-service:hover {
+    background: rgba(63, 82, 119, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+/* Image Theme - Warning and Special Buttons */
+.image-theme .btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-color: #f59e0b;
+    color: white;
+}
+
+.image-theme .btn-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+/* Image Theme - Sliders and Progress */
+.image-theme input[type="range"] {
+    background: var(--bg-secondary);
+}
+
+.image-theme input[type="range"]::-webkit-slider-thumb {
+    background: var(--primary-color);
+    border: 2px solid var(--primary-dark);
+}
+
+.image-theme input[type="range"]::-moz-range-thumb {
+    background: var(--primary-color);
+    border: 2px solid var(--primary-dark);
+}
+
+/* Image Theme - Zoom and Special Controls */
+.image-theme .zoom-level,
+.image-theme .zoom-info {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+/* Image Theme - Notifications and Alerts */
+.image-theme .peak-detection-notification,
+.image-theme .notification-content {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--primary-color);
+    color: var(--text-color);
+}
+
+.image-theme .peak-settings-panel {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+/* Image Theme - Allocation Results */
+.image-theme .allocation-result,
+.image-theme .fcc-result-item {
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.image-theme .allocation-result:hover,
+.image-theme .fcc-result-item:hover {
+    border-color: var(--primary-color);
+    background: rgba(86, 36, 36, 0.05);
+}
+
+.image-theme .allocation-service {
+    background: rgba(86, 36, 36, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(86, 36, 36, 0.3);
+    font-weight: 500;
+}
+
+.image-theme .allocation-service:hover {
+    background: rgba(86, 36, 36, 0.2);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+/* CSV Theme - Image Containers and Canvas */
+.csv-theme .image-container,
+.csv-theme .canvas-wrapper {
+    border: 2px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.csv-theme .image-container:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.1);
+}
+
+/* CSV Theme - CSV Legend and Graph Elements */
+.csv-theme .csv-legend {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.csv-theme .legend-item {
+    color: var(--text-color);
+}
+
+.csv-theme .csv-graph-header h4 {
+    color: var(--text-color);
+}
+
+/* CSV Theme - CSV Container Borders */
+.csv-theme .csv-container,
+.csv-theme .csv-overlay-container {
+    border: 2px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* CSV Theme - Remove/Close Buttons */
+.csv-theme .close-tab,
+.csv-theme .file-remove,
+.csv-theme .image-item-remove,
+.csv-theme .gallery-item-remove {
+    background: #ef4444;
+    color: white;
+    border: 1px solid #dc2626;
+}
+
+.csv-theme .close-tab:hover,
+.csv-theme .file-remove:hover,
+.csv-theme .image-item-remove:hover,
+.csv-theme .gallery-item-remove:hover {
+    background: #dc2626;
+}
+
+/* CSV Theme - Small Text Elements */
+.csv-theme small,
+.csv-theme .file-details,
+.csv-theme .gallery-item-details {
+    color: #718096 !important; /* Better contrast gray */
+}
+
+/* Image Theme - Image Containers and Canvas */
+.image-theme .image-container,
+.image-theme .canvas-wrapper {
+    border: 2px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.image-theme .image-container:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.1);
+}
+
+/* Image Theme - CSV Legend and Graph Elements */
+.image-theme .csv-legend {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.image-theme .legend-item {
+    color: var(--text-color);
+}
+
+.image-theme .csv-graph-header h4 {
+    color: var(--text-color);
+}
+
+/* Image Theme - CSV Container Borders */
+.image-theme .csv-container,
+.image-theme .csv-overlay-container {
+    border: 2px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* Image Theme - Remove/Close Buttons */
+.image-theme .close-tab,
+.image-theme .file-remove,
+.image-theme .image-item-remove,
+.image-theme .gallery-item-remove {
+    background: #ef4444;
+    color: white;
+    border: 1px solid #dc2626;
+}
+
+.image-theme .close-tab:hover,
+.image-theme .file-remove:hover,
+.image-theme .image-item-remove:hover,
+.image-theme .gallery-item-remove:hover {
+    background: #dc2626;
+}
+
+/* Image Theme - Small Text Elements */
+.image-theme small,
+.image-theme .file-details,
+.image-theme .gallery-item-details {
+    color: #718096 !important; /* Better contrast gray */
+}
+
+/* CSV Theme - Disabled States and Placeholders */
+.csv-theme input:disabled,
+.csv-theme select:disabled,
+.csv-theme textarea:disabled,
+.csv-theme .btn:disabled {
+    background: #f7fafc;
+    border-color: rgba(63, 82, 119, 0.2);
+    color: #a0aec0;
+    cursor: not-allowed;
+}
+
+.csv-theme input::placeholder,
+.csv-theme textarea::placeholder {
+    color: #a0aec0;
+}
+
+/* CSV Theme - Fullscreen and Special Controls */
+.csv-theme .fullscreen-controls .control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.csv-theme .fullscreen-controls .control-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(63, 82, 119, 0.3);
+}
+
+/* CSV Theme - Frequency and Band Info */
+.csv-theme .band-info-display {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.csv-theme .band-info-display.active {
+    border-color: var(--primary-color);
+    background: rgba(63, 82, 119, 0.1);
+}
+
+.csv-theme .frequency-range label {
+    color: var(--text-color);
+}
+
+/* Image Theme - Disabled States and Placeholders */
+.image-theme input:disabled,
+.image-theme select:disabled,
+.image-theme textarea:disabled,
+.image-theme .btn:disabled {
+    background: #f7fafc;
+    border-color: rgba(86, 36, 36, 0.2);
+    color: #a0aec0;
+    cursor: not-allowed;
+}
+
+.image-theme input::placeholder,
+.image-theme textarea::placeholder {
+    color: #a0aec0;
+}
+
+/* Image Theme - Fullscreen and Special Controls */
+.image-theme .fullscreen-controls .control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.image-theme .fullscreen-controls .control-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(86, 36, 36, 0.3);
+}
+
+/* Image Theme - Frequency and Band Info */
+.image-theme .band-info-display {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.image-theme .band-info-display.active {
+    border-color: var(--primary-color);
+    background: rgba(86, 36, 36, 0.1);
+}
+
+.image-theme .frequency-range label {
+    color: var(--text-color);
+}
+
+/* Both Themes - Header Override (keep white) */
+.csv-theme header, .image-theme header,
+.csv-theme header *, .image-theme header * {
+    background: white !important;
+    color: #333 !important;
+}
+
+/* Theme-specific Upload Areas */
+.csv-theme .upload-area {
+    border: 2px dashed rgba(63, 82, 119, 0.6);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(5px);
+}
+
+.csv-theme .upload-area:hover {
+    border-color: rgba(63, 82, 119, 0.8);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 25px rgba(63, 82, 119, 0.15);
+    transform: translateY(-2px);
+}
+
+.image-theme .upload-area {
+    border: 2px dashed rgba(86, 36, 36, 0.6);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(5px);
+}
+
+.image-theme .upload-area:hover {
+    border-color: rgba(86, 36, 36, 0.8);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 25px rgba(86, 36, 36, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Theme-specific Instruction Overlays */
+.csv-theme .instruction-overlay {
+    border: 2px dashed rgba(63, 82, 119, 0.5);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+.csv-theme .instruction-overlay p {
+    color: #3f5277;
+}
+
+.csv-theme .instruction-overlay:hover {
+    border-color: rgba(63, 82, 119, 0.8);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 30px rgba(63, 82, 119, 0.15);
+}
+
+.image-theme .instruction-overlay {
+    border: 2px dashed rgba(86, 36, 36, 0.5);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+.image-theme .instruction-overlay p {
+    color: #562424;
+}
+
+.image-theme .instruction-overlay:hover {
+    border-color: rgba(86, 36, 36, 0.8);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 30px rgba(86, 36, 36, 0.15);
+}
+
+/* Theme-specific Center Panel */
+.csv-theme .center-panel {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 8px 32px rgba(63, 82, 119, 0.05);
+}
+
+.image-theme .center-panel {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 8px 32px rgba(86, 36, 36, 0.05);
+}
+
+.csv-theme .dual-info-tables .info-table {
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.08);
+}
+
+.image-theme .dual-info-tables .info-table {
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.08);
+}
+
+/* Theme Transitions */
+.container {
+    transition: all 0.6s ease;
+}
+
+.container * {
+    transition: background-color 0.6s ease, border-color 0.6s ease, box-shadow 0.6s ease;
+}
+
+/* Page Management Theme Support */
+.csv-theme .page-tab.active {
+    background: linear-gradient(135deg, #3f5277 0%, #2d3a54 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.3);
+}
+
+.image-theme .page-tab.active {
+    background: linear-gradient(135deg, #562424 0%, #6D3636 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.3);
+}
+
+.csv-theme .add-page-btn {
+    background: rgba(63, 82, 119, 0.15);
+    color: var(--primary-color);
+    border: 2px solid rgba(63, 82, 119, 0.3);
+    box-shadow: 0 4px 15px rgba(63, 82, 119, 0.1);
+    font-weight: 600;
+}
+
+.csv-theme .add-page-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 6px 20px rgba(63, 82, 119, 0.3);
+}
+
+.image-theme .add-page-btn {
+    background: rgba(86, 36, 36, 0.15);
+    color: var(--primary-color);
+    border: 2px solid rgba(86, 36, 36, 0.3);
+    box-shadow: 0 4px 15px rgba(86, 36, 36, 0.1);
+    font-weight: 600;
+}
+
+.image-theme .add-page-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-dark);
+    box-shadow: 0 6px 20px rgba(86, 36, 36, 0.3);
+}
+
+/* Responsive Design for Mode Selector */
+@media (max-width: 1024px) {
+    .header-content {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .mode-tabs {
+        order: -1;
+        margin-bottom: 10px;
+    }
+    
+    .mode-tab {
+        min-width: 120px;
+        padding: 14px 20px;
+    }
+    
+    .mode-text {
+        font-size: 15px;
+    }
+    
+    .mode-subtitle {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .mode-tabs {
+        padding: 6px;
+        gap: 6px;
+    }
+    
+    .mode-tab {
+        min-width: 100px;
+        padding: 12px 16px;
+        gap: 6px;
+    }
+    
+    .mode-icon {
+        font-size: 28px;
+    }
+    
+    .mode-text {
+        font-size: 14px;
+    }
+    
+    .mode-subtitle {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .mode-tabs {
+        flex-direction: column;
+        width: 100%;
+        max-width: 250px;
+    }
+    
+    .mode-tab {
+        min-width: auto;
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        padding: 10px 14px;
+        gap: 10px;
+    }
+    
+    .mode-icon {
+        font-size: 24px;
+    }
+    
+    .mode-text {
+        font-size: 13px;
+    }
+    
+    .mode-subtitle {
+        display: none;
+    }
 }

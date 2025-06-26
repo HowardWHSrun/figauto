@@ -176,9 +176,29 @@ class FigureExportTool {
         this.initializeEventListeners();
         this.updateTables();
         
-        // Set initial display state based on defaults
-        this.setInputType(this.currentInputType);
+        // Set initial theme and display state based on defaults
+        this.switchToMode('csv'); // Initialize with CSV mode and navy theme
         this.setCsvMode(this.currentCsvMode);
+        
+        // Set up basic CSV functionality immediately
+        setTimeout(() => {
+            this.enableCsvUploadImmediately();
+        }, 50);
+        
+        // Force immediate UI update for initial load - single reliable initialization
+        setTimeout(() => {
+            console.log('Initializing CSV mode on startup...');
+            this.setInputType('csv'); // Ensure CSV mode is properly set
+            this.updateExportButtonLabels(); // Force update of export buttons
+            this.updateTables(); // Update any table displays
+            
+            // Set up CSV upload listeners immediately after UI is ready
+            setTimeout(() => {
+                console.log('Setting up CSV upload listeners...');
+                this.setupOverlayUploadListeners();
+                this.addCsvUploadFallback();
+            }, 200);
+        }, 100);
         
         // Make tool globally accessible
         window.figureExportTool = this;
@@ -271,7 +291,15 @@ class FigureExportTool {
     }
     
     initializeEventListeners() {
-        // Input type toggle
+        // Mode selector tabs (new prominent buttons)
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const mode = e.currentTarget.dataset.mode;
+                this.switchToMode(mode);
+            });
+        });
+
+        // Input type toggle (hidden for compatibility)
         document.querySelectorAll('input[name="inputType"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.checked) {
@@ -280,14 +308,7 @@ class FigureExportTool {
             });
         });
         
-        // CSV mode toggle
-        document.querySelectorAll('input[name="csvMode"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    this.setCsvMode(e.target.value);
-                }
-            });
-        });
+        // CSV mode is always overlay mode (simplified)
         
         // Layout toggle
         document.querySelectorAll('input[name="layout"]').forEach(radio => {
@@ -302,14 +323,16 @@ class FigureExportTool {
         this.setupUploadListeners(1);
         this.setupUploadListeners(2);
         
-        // CSV file upload
+        // CSV file upload (separate mode - not used in simplified version)
         this.setupCsvUploadListeners(1);
         this.setupCsvUploadListeners(2);
-        this.setupOverlayUploadListeners();
+        // Overlay upload listeners are set up separately during CSV mode initialization
         
         // Form inputs - update tables when values change
         ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
-         'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2', 'comments'].forEach(id => {
+         'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2', 
+         'csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces',
+         'comments'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('input', () => {
@@ -409,6 +432,35 @@ class FigureExportTool {
         }, 300);
     }
     
+    switchToMode(mode) {
+        // Update the container theme
+        const container = document.getElementById('appContainer');
+        container.classList.remove('csv-theme', 'image-theme');
+        
+        if (mode === 'csv') {
+            container.classList.add('csv-theme');
+            this.currentInputType = 'csv';
+            // Update hidden radio for compatibility
+            document.getElementById('hiddenCsvInput').checked = true;
+        } else if (mode === 'images') {
+            container.classList.add('image-theme');
+            this.currentInputType = 'images';
+            // Update hidden radio for compatibility
+            document.getElementById('hiddenImageInput').checked = true;
+        }
+        
+        // Update mode tab active states
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+        
+        // Call existing setInputType method to handle UI updates
+        this.setInputType(this.currentInputType);
+        
+        console.log(`Switched to ${mode} mode with ${mode === 'csv' ? 'navy' : 'maroon'} theme`);
+    }
+
     setInputType(inputType) {
         this.currentInputType = inputType;
         
@@ -427,23 +479,20 @@ class FigureExportTool {
             csvUploadSection.style.display = 'block';
             dualImageContainer.style.display = 'none';
             dualCsvContainer.style.display = 'block';
+            dualInfoTables.style.display = 'none';
+            document.getElementById('dualFormSection').style.display = 'none';
+            document.getElementById('csvFormSection').style.display = 'block';
+            document.getElementById('layoutControl').style.display = 'none';
             
-            // Update table headers
-            document.getElementById('dataType1Header').textContent = 'CSV Data 1';
-            document.getElementById('dataType2Header').textContent = 'CSV Data 2';
-            
-            // Update form labels
-            const formContainers = document.querySelectorAll('.form-container h3');
-            if (formContainers[0]) formContainers[0].textContent = 'CSV File 1 Information';
-            if (formContainers[1]) formContainers[1].textContent = 'CSV File 2 Information';
-            
-            // Setup CSV canvases and apply current CSV mode
+            // Setup CSV overlay mode (simplified) - single setup call
             setTimeout(() => {
-                this.setupCsvCanvas(1);
-                this.setupCsvCanvas(2);
-                this.setCsvMode(this.currentCsvMode);
-                this.applyCsvLayout();
-            }, 100);
+                this.setCsvMode('overlay');
+                // Only set up upload listeners if not already done during initialization
+                if (!document.getElementById('csvOverlayUploadArea')?.hasAttribute('data-listeners-setup')) {
+                    this.setupOverlayUploadListeners();
+                    this.addCsvUploadFallback();
+                }
+            }, 150);
             
         } else {
             // Show image mode
@@ -451,6 +500,10 @@ class FigureExportTool {
             csvUploadSection.style.display = 'none';
             dualImageContainer.style.display = 'block';
             dualCsvContainer.style.display = 'none';
+            dualInfoTables.style.display = 'block';
+            document.getElementById('dualFormSection').style.display = 'block';
+            document.getElementById('csvFormSection').style.display = 'none';
+            document.getElementById('layoutControl').style.display = 'block';
             
             // Update table headers
             document.getElementById('dataType1Header').textContent = 'Image 1';
@@ -484,79 +537,61 @@ class FigureExportTool {
         const exportBtn2 = document.getElementById('exportImage2');
         const exportBothBtn = document.getElementById('exportBoth');
         
+        // Check if elements exist before trying to modify them
+        if (!exportBtn1 || !exportBtn2 || !exportBothBtn) {
+            console.warn('Export button elements not found during label update');
+            return;
+        }
+        
         if (this.currentInputType === 'csv') {
-            if (this.currentCsvMode === 'overlay') {
-                exportBtn1.textContent = 'Export Overlay';
-                exportBtn2.textContent = 'Export Overlay';
-                exportBothBtn.textContent = 'Export Overlay';
-            } else {
-                exportBtn1.textContent = 'Export CSV 1';
-                exportBtn2.textContent = 'Export CSV 2';
-                exportBothBtn.textContent = 'Export Both CSV';
-            }
+            // For CSV mode, show only one export button
+            exportBtn1.textContent = 'Export CSV Overlay';
+            exportBtn1.style.display = 'inline-block';
+            exportBtn2.style.display = 'none';
+            exportBothBtn.style.display = 'none';
+            console.log('Updated export buttons for CSV mode');
         } else {
+            // For image mode, show all three buttons
             exportBtn1.textContent = 'Export Image 1';
             exportBtn2.textContent = 'Export Image 2';
             exportBothBtn.textContent = 'Export Both Images';
+            exportBtn1.style.display = 'inline-block';
+            exportBtn2.style.display = 'inline-block';
+            exportBothBtn.style.display = 'inline-block';
+            console.log('Updated export buttons for Image mode');
         }
     }
     
-    setCsvMode(csvMode) {
-        this.currentCsvMode = csvMode;
+    setCsvMode(csvMode = 'overlay') {
+        this.currentCsvMode = 'overlay'; // Always use overlay mode
         
-        const csvSeparateMode = document.getElementById('csvSeparateMode');
         const csvOverlayMode = document.getElementById('csvOverlayMode');
-        const dualCsvUpload = document.getElementById('dualCsvUpload');
-        const singleCsvUpload = document.getElementById('singleCsvUpload');
         
-        // Update export button labels when changing CSV mode
+        // Update export button labels
         this.updateExportButtonLabels();
         
-        if (csvMode === 'overlay') {
-            // Show overlay mode, hide separate mode
-            csvSeparateMode.style.display = 'none';
+        // Always show overlay mode (simplified)
+        if (csvOverlayMode) {
             csvOverlayMode.style.display = 'block';
-            dualCsvUpload.style.display = 'none';
-            singleCsvUpload.style.display = 'block';
-            
-            // Update datasets array with currently loaded data
-            this.updateOverlayDatasets();
-            
-            // Setup and draw overlay canvas
-            setTimeout(() => {
-                this.setupOverlayCanvas();
-                this.drawOverlayGraph();
-                this.updateLegend();
-                this.updateOverlayFileList();
-            }, 100);
-        } else {
-            // Show separate mode, hide overlay mode
-            csvSeparateMode.style.display = 'block';
-            csvOverlayMode.style.display = 'none';
-            dualCsvUpload.style.display = 'block';
-            singleCsvUpload.style.display = 'none';
-            
-            // Redraw individual graphs
-            setTimeout(() => {
-                this.setupCsvCanvas(1);
-                this.setupCsvCanvas(2);
-                this.drawCsvGraph(1);
-                this.drawCsvGraph(2);
-            }, 100);
         }
         
-        // Apply current layout to the active mode
-        this.applyCsvLayout();
+        // Ensure CSV upload listeners are set up
+        this.setupOverlayUploadListeners();
+        
+        // Update datasets array with currently loaded data
+        this.updateOverlayDatasets();
+        
+        // Setup and draw overlay canvas
+        setTimeout(() => {
+            this.setupOverlayCanvas();
+            this.drawOverlayGraph();
+            this.updateLegend();
+            this.updateOverlayFileList();
+        }, 100);
     }
     
     applyCsvLayout() {
-        const csvSeparateMode = document.getElementById('csvSeparateMode');
-        
-        if (this.currentLayout === 'vertical') {
-            csvSeparateMode.classList.add('vertical');
-        } else {
-            csvSeparateMode.classList.remove('vertical');
-        }
+        // No longer needed for simplified CSV overlay mode
     }
     
     exportBothImages() {
@@ -564,35 +599,8 @@ class FigureExportTool {
         if (!currentPage) return;
         
         if (this.currentInputType === 'csv') {
-            if (this.currentCsvMode === 'overlay') {
-                // Export overlay mode
-                this.exportOverlayData();
-            } else {
-                // Export both CSV data
-                const hasData1 = currentPage.csvState1.frequencyData.length > 0;
-                const hasData2 = currentPage.csvState2.frequencyData.length > 0;
-                
-                if (!hasData1 && !hasData2) {
-                    alert('Please load at least one CSV file first.');
-                    return;
-                }
-                
-                const canvases = [];
-                const formDataArray = [];
-                
-                if (hasData1) {
-                    canvases.push(this.createCsvExportCanvas(1));
-                    formDataArray.push(this.getFormData(1));
-                }
-                
-                if (hasData2) {
-                    canvases.push(this.createCsvExportCanvas(2));
-                    formDataArray.push(this.getFormData(2));
-                }
-                
-                const comments = document.getElementById('comments').value || '-';
-                this.createExport(canvases, formDataArray, comments, `Page ${this.currentPageId} - Both CSV`);
-            }
+            // CSV mode is always overlay mode (simplified)
+            this.exportOverlayData();
         } else {
             // Export both images (existing functionality)
             const hasImage1 = currentPage.imageState1.image !== null;
@@ -624,6 +632,7 @@ class FigureExportTool {
     setupUploadListeners(imageNumber) {
         const uploadArea = document.getElementById(`uploadArea${imageNumber}`);
         const imageInput = document.getElementById(`imageInput${imageNumber}`);
+        const instructionOverlay = document.getElementById(`instructionOverlay${imageNumber}`);
         
         if (!uploadArea || !imageInput) {
             console.error(`Upload elements not found for image ${imageNumber}`);
@@ -634,6 +643,12 @@ class FigureExportTool {
         uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e, imageNumber));
         uploadArea.addEventListener('drop', (e) => this.handleDrop(e, imageNumber));
         uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e, imageNumber));
+        
+        // Add click listener to the center instruction overlay
+        if (instructionOverlay) {
+            instructionOverlay.addEventListener('click', () => imageInput.click());
+            instructionOverlay.style.cursor = 'pointer';
+        }
         
         imageInput.addEventListener('change', (e) => this.handleFileSelect(e, imageNumber));
     }
@@ -664,6 +679,9 @@ class FigureExportTool {
     }
     
     getFormData(imageNumber) {
+        if (this.currentInputType === 'csv') {
+            return this.getCsvFormData();
+        }
         return {
             runId: document.getElementById(`runId${imageNumber}`)?.value || '-',
             band: document.getElementById(`band${imageNumber}`)?.value || '-',
@@ -672,6 +690,18 @@ class FigureExportTool {
             equipmentDescription: document.getElementById(`equipmentDescription${imageNumber}`)?.value || '-',
             operatingCondition: document.getElementById(`operatingCondition${imageNumber}`)?.value || '-',
             traces: document.getElementById(`traces${imageNumber}`)?.value || 'Top - maximum peak hold\nBottom - minimum peak hold'
+        };
+    }
+    
+    getCsvFormData() {
+        return {
+            runId: document.getElementById('csvRunId')?.value || '-',
+            band: document.getElementById('csvBand')?.value || '-',
+            location: document.getElementById('csvLocation')?.value || '-',
+            testType: document.getElementById('csvTestType')?.value || '-',
+            equipmentDescription: document.getElementById('csvEquipmentDescription')?.value || '-',
+            operatingCondition: document.getElementById('csvOperatingCondition')?.value || '-',
+            traces: document.getElementById('csvTraces')?.value || 'Peak hold measurements\nBackground noise floor\nSpecific test conditions'
         };
     }
     
@@ -747,10 +777,19 @@ class FigureExportTool {
             img.onload = () => {
                 state.image = img;
                 this.setupCanvas(imageNumber);
-                document.getElementById(`instructionOverlay${imageNumber}`).style.display = 'none';
+                
+                // The hideInstructionOverlay is now handled in drawImage() method
+                // This ensures the overlay is only hidden after successful image rendering
                 
                 // Update dynamic UI after loading image
                 this.updateTables();
+            };
+            img.onerror = () => {
+                // If image fails to load, keep the instruction overlay visible
+                console.error(`Failed to load image ${imageNumber}: ${file.name}`);
+                // Reset the state if image loading fails
+                state.image = null;
+                state.originalFilename = null;
             };
             img.src = e.target.result;
         };
@@ -807,25 +846,45 @@ class FigureExportTool {
             }
         }
         
-        // Auto-fill detected values for this specific image
-        if (runId) {
-            document.getElementById(`runId${imageNumber}`).value = runId;
-            console.log(`Detected Run ID for Image ${imageNumber}:`, runId);
-        }
-        
-        if (band) {
-            document.getElementById(`band${imageNumber}`).value = band;
-            // Only auto-select band button for first image to avoid conflicts
-            if (imageNumber === 1) {
-                this.autoSelectBandButton(band);
+        // Auto-fill detected values - use CSV fields if in CSV mode, otherwise image fields
+        if (this.currentInputType === 'csv') {
+            if (runId) {
+                document.getElementById('csvRunId').value = runId;
+                console.log(`Detected Run ID for CSV:`, runId);
             }
-            console.log(`Detected Band for Image ${imageNumber}:`, band);
-        }
-        
-        if (location) {
-            if (!document.getElementById(`location${imageNumber}`).value) {
-                document.getElementById(`location${imageNumber}`).value = location;
-                console.log(`Detected Location for Image ${imageNumber}:`, location);
+            
+            if (band) {
+                document.getElementById('csvBand').value = band;
+                this.autoSelectBandButton(band);
+                console.log(`Detected Band for CSV:`, band);
+            }
+            
+            if (location) {
+                if (!document.getElementById('csvLocation').value) {
+                    document.getElementById('csvLocation').value = location;
+                    console.log(`Detected Location for CSV:`, location);
+                }
+            }
+        } else {
+            if (runId) {
+                document.getElementById(`runId${imageNumber}`).value = runId;
+                console.log(`Detected Run ID for Image ${imageNumber}:`, runId);
+            }
+            
+            if (band) {
+                document.getElementById(`band${imageNumber}`).value = band;
+                // Only auto-select band button for first image to avoid conflicts
+                if (imageNumber === 1) {
+                    this.autoSelectBandButton(band);
+                }
+                console.log(`Detected Band for Image ${imageNumber}:`, band);
+            }
+            
+            if (location) {
+                if (!document.getElementById(`location${imageNumber}`).value) {
+                    document.getElementById(`location${imageNumber}`).value = location;
+                    console.log(`Detected Location for Image ${imageNumber}:`, location);
+                }
             }
         }
         
@@ -851,6 +910,8 @@ class FigureExportTool {
         if (!state || !state.image) {
             // Add fullscreen button even when no image is loaded
             this.addBasicImageControls(imageNumber);
+            // Ensure instruction overlay is visible when no image is loaded
+            this.showInstructionOverlay(imageNumber);
             return;
         }
         
@@ -920,7 +981,11 @@ class FigureExportTool {
         const ctx = this.getContext(imageNumber);
         const canvas = this.getCanvas(imageNumber);
         
-        if (!state || !state.image) return;
+        if (!state || !state.image) {
+            // Show instruction overlay if no image is available
+            this.showInstructionOverlay(imageNumber);
+            return;
+        }
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
@@ -936,6 +1001,23 @@ class FigureExportTool {
         ctx.drawImage(state.image, 0, 0, state.baseWidth, state.baseHeight);
         
         ctx.restore();
+        
+        // Hide instruction overlay after successful image drawing
+        this.hideInstructionOverlay(imageNumber);
+    }
+    
+    showInstructionOverlay(imageNumber) {
+        const overlay = document.getElementById(`instructionOverlay${imageNumber}`);
+        if (overlay) {
+            overlay.style.display = 'block';
+        }
+    }
+    
+    hideInstructionOverlay(imageNumber) {
+        const overlay = document.getElementById(`instructionOverlay${imageNumber}`);
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
     }
     
     addBasicImageControls(imageNumber) {
@@ -1128,17 +1210,40 @@ class FigureExportTool {
     }
     
     updateTables() {
-        // Update both tables for current page
-        for (let i = 1; i <= 2; i++) {
-            const formData = this.getFormData(i);
+        if (this.currentInputType === 'csv') {
+            // For CSV mode, use single CSV form data for both table columns
+            const csvFormData = this.getCsvFormData();
             
-            const tableRunElement = document.getElementById(`tableRun${i}`);
-            const tableBandElement = document.getElementById(`tableBand${i}`);
-            const tableLocationElement = document.getElementById(`tableLocation${i}`);
+            // Update first table column with CSV data
+            const tableRunElement1 = document.getElementById('tableRun1');
+            const tableBandElement1 = document.getElementById('tableBand1');
+            const tableLocationElement1 = document.getElementById('tableLocation1');
             
-            if (tableRunElement) tableRunElement.textContent = formData.runId;
-            if (tableBandElement) tableBandElement.textContent = formData.band;
-            if (tableLocationElement) tableLocationElement.textContent = formData.location;
+            if (tableRunElement1) tableRunElement1.textContent = csvFormData.runId;
+            if (tableBandElement1) tableBandElement1.textContent = csvFormData.band;
+            if (tableLocationElement1) tableLocationElement1.textContent = csvFormData.location;
+            
+            // Clear second table column for CSV mode
+            const tableRunElement2 = document.getElementById('tableRun2');
+            const tableBandElement2 = document.getElementById('tableBand2');
+            const tableLocationElement2 = document.getElementById('tableLocation2');
+            
+            if (tableRunElement2) tableRunElement2.textContent = '-';
+            if (tableBandElement2) tableBandElement2.textContent = '-';
+            if (tableLocationElement2) tableLocationElement2.textContent = '-';
+        } else {
+            // Update both tables for image mode
+            for (let i = 1; i <= 2; i++) {
+                const formData = this.getFormData(i);
+                
+                const tableRunElement = document.getElementById(`tableRun${i}`);
+                const tableBandElement = document.getElementById(`tableBand${i}`);
+                const tableLocationElement = document.getElementById(`tableLocation${i}`);
+                
+                if (tableRunElement) tableRunElement.textContent = formData.runId;
+                if (tableBandElement) tableBandElement.textContent = formData.band;
+                if (tableLocationElement) tableLocationElement.textContent = formData.location;
+            }
         }
         
         // Update dynamic UI elements based on loaded data
@@ -1287,14 +1392,19 @@ class FigureExportTool {
                 currentPage.comments = '';
                 
                 // Show instruction overlays for both input types
-                document.getElementById('instructionOverlay1').style.display = 'block';
-                document.getElementById('instructionOverlay2').style.display = 'block';
-                document.getElementById('csvInstructionOverlay1').style.display = 'block';
-                document.getElementById('csvInstructionOverlay2').style.display = 'block';
+                this.showInstructionOverlay(1);
+                this.showInstructionOverlay(2);
                 
-                // Hide CSV info displays
-                document.getElementById('csvInfo1').style.display = 'none';
-                document.getElementById('csvInfo2').style.display = 'none';
+                // Only access CSV elements if they exist (they don't in overlay-only mode)
+                const csvInstructionOverlay1 = document.getElementById('csvInstructionOverlay1');
+                const csvInstructionOverlay2 = document.getElementById('csvInstructionOverlay2');
+                const csvInfo1 = document.getElementById('csvInfo1');
+                const csvInfo2 = document.getElementById('csvInfo2');
+                
+                if (csvInstructionOverlay1) csvInstructionOverlay1.style.display = 'block';
+                if (csvInstructionOverlay2) csvInstructionOverlay2.style.display = 'block';
+                if (csvInfo1) csvInfo1.style.display = 'none';
+                if (csvInfo2) csvInfo2.style.display = 'none';
                 
                 // Clear CSV overlay state
                 this.csvOverlayState.datasets = [];
@@ -1333,12 +1443,39 @@ class FigureExportTool {
                 if (this.currentCsvMode === 'overlay') {
                     this.updateLegend();
                     this.updateOverlayFileList();
-                    document.getElementById('csvOverlayInstructionOverlay').style.display = 'block';
+                    const csvOverlayInstructionOverlay = document.getElementById('csvOverlayInstructionOverlay');
+                    if (csvOverlayInstructionOverlay) {
+                        csvOverlayInstructionOverlay.style.display = 'block';
+                    }
                 }
                 
                 // Remove image controls
                 document.querySelector('#imageControls1')?.remove();
                 document.querySelector('#imageControls2')?.remove();
+                
+                // Clear form fields
+                if (this.currentInputType === 'csv') {
+                    // Clear CSV form fields
+                    const csvFields = ['csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces'];
+                    csvFields.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) element.value = '';
+                    });
+                } else {
+                    // Clear image form fields
+                    const imageFields = [
+                        'runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
+                        'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2'
+                    ];
+                    imageFields.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) element.value = '';
+                    });
+                }
+                
+                // Clear comments
+                const commentsElement = document.getElementById('comments');
+                if (commentsElement) commentsElement.value = '';
             }
             
             // Update tables
@@ -1440,16 +1577,28 @@ class FigureExportTool {
         const currentPage = this.getCurrentPage();
         if (!currentPage) return;
         
-        // Save form data - including new fields
-        ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
-         'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                const imageNum = id.includes('1') ? '1' : '2';
-                const field = id.replace(/[12]$/, '');
-                currentPage[`formData${imageNum}`][field] = element.value;
-            }
-        });
+        if (this.currentInputType === 'csv') {
+            // Save CSV form data
+            ['csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    const fieldName = id.replace('csv', '').charAt(0).toLowerCase() + id.replace('csv', '').slice(1);
+                    if (!currentPage.csvFormData) currentPage.csvFormData = {};
+                    currentPage.csvFormData[fieldName] = element.value;
+                }
+            });
+        } else {
+            // Save image form data
+            ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
+             'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    const imageNum = id.includes('1') ? '1' : '2';
+                    const field = id.replace(/[12]$/, '');
+                    currentPage[`formData${imageNum}`][field] = element.value;
+                }
+            });
+        }
         
         // Save comments
         const commentsElement = document.getElementById('comments');
@@ -1462,28 +1611,59 @@ class FigureExportTool {
         const page = this.pages.get(pageId);
         if (!page) return;
         
-        // Load form data - including new fields
-        document.getElementById('runId1').value = page.formData1.runId || '';
-        document.getElementById('band1').value = page.formData1.band || '';
-        document.getElementById('location1').value = page.formData1.location || '';
-        document.getElementById('testType1').value = page.formData1.testType || '';
-        document.getElementById('equipmentDescription1').value = page.formData1.equipmentDescription || '';
-        document.getElementById('operatingCondition1').value = page.formData1.operatingCondition || '';
-        document.getElementById('traces1').value = page.formData1.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+        if (this.currentInputType === 'csv') {
+            // Load CSV form data with null checks
+            const csvFormData = page.csvFormData || {};
+            const csvRunId = document.getElementById('csvRunId');
+            const csvBand = document.getElementById('csvBand');
+            const csvLocation = document.getElementById('csvLocation');
+            const csvTestType = document.getElementById('csvTestType');
+            const csvEquipmentDescription = document.getElementById('csvEquipmentDescription');
+            const csvOperatingCondition = document.getElementById('csvOperatingCondition');
+            const csvTraces = document.getElementById('csvTraces');
+            
+            if (csvRunId) csvRunId.value = csvFormData.runId || '';
+            if (csvBand) csvBand.value = csvFormData.band || '';
+            if (csvLocation) csvLocation.value = csvFormData.location || '';
+            if (csvTestType) csvTestType.value = csvFormData.testType || '';
+            if (csvEquipmentDescription) csvEquipmentDescription.value = csvFormData.equipmentDescription || '';
+            if (csvOperatingCondition) csvOperatingCondition.value = csvFormData.operatingCondition || '';
+            if (csvTraces) csvTraces.value = csvFormData.traces || 'Peak hold measurements\nBackground noise floor\nSpecific test conditions';
+        } else {
+            // Load image form data
+            document.getElementById('runId1').value = page.formData1.runId || '';
+            document.getElementById('band1').value = page.formData1.band || '';
+            document.getElementById('location1').value = page.formData1.location || '';
+            document.getElementById('testType1').value = page.formData1.testType || '';
+            document.getElementById('equipmentDescription1').value = page.formData1.equipmentDescription || '';
+            document.getElementById('operatingCondition1').value = page.formData1.operatingCondition || '';
+            document.getElementById('traces1').value = page.formData1.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+            
+            document.getElementById('runId2').value = page.formData2.runId || '';
+            document.getElementById('band2').value = page.formData2.band || '';
+            document.getElementById('location2').value = page.formData2.location || '';
+            document.getElementById('testType2').value = page.formData2.testType || '';
+            document.getElementById('equipmentDescription2').value = page.formData2.equipmentDescription || '';
+            document.getElementById('operatingCondition2').value = page.formData2.operatingCondition || '';
+            document.getElementById('traces2').value = page.formData2.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+            
+            // Update instruction overlays for images
+            if (page.imageState1.image) {
+                this.hideInstructionOverlay(1);
+            } else {
+                this.showInstructionOverlay(1);
+            }
+            if (page.imageState2.image) {
+                this.hideInstructionOverlay(2);
+            } else {
+                this.showInstructionOverlay(2);
+            }
+        }
         
-        document.getElementById('runId2').value = page.formData2.runId || '';
-        document.getElementById('band2').value = page.formData2.band || '';
-        document.getElementById('location2').value = page.formData2.location || '';
-        document.getElementById('testType2').value = page.formData2.testType || '';
-        document.getElementById('equipmentDescription2').value = page.formData2.equipmentDescription || '';
-        document.getElementById('operatingCondition2').value = page.formData2.operatingCondition || '';
-        document.getElementById('traces2').value = page.formData2.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
-        
-        document.getElementById('comments').value = page.comments || '';
-        
-        // Update instruction overlays
-        document.getElementById('instructionOverlay1').style.display = page.imageState1.image ? 'none' : 'block';
-        document.getElementById('instructionOverlay2').style.display = page.imageState2.image ? 'none' : 'block';
+        const commentsElement = document.getElementById('comments');
+        if (commentsElement) {
+            commentsElement.value = page.comments || '';
+        }
     }
     
     exportOverlayData() {
@@ -1513,10 +1693,10 @@ class FigureExportTool {
         const exportCanvas = document.createElement('canvas');
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Set very high resolution for better export quality
+        // Set compact size similar to the second image
         const dpr = window.devicePixelRatio || 1;
-        const baseWidth = 1400;
-        const baseHeight = 1000;
+        const baseWidth = 800;  // Much smaller width
+        const baseHeight = 600; // Much smaller height
         const width = baseWidth * dpr;
         const height = baseHeight * dpr;
         
@@ -1526,7 +1706,7 @@ class FigureExportTool {
         // Scale for high DPI
         exportCtx.scale(dpr, dpr);
         
-        const margin = { top: 80, right: 200, bottom: 160, left: 150 };
+        const margin = { top: 50, right: 80, bottom: 100, left: 100 }; // Smaller margins
         
         // Enable highest quality rendering
         exportCtx.imageSmoothingEnabled = true;
@@ -1535,6 +1715,10 @@ class FigureExportTool {
         // Clear canvas
         exportCtx.fillStyle = '#ffffff';
         exportCtx.fillRect(0, 0, baseWidth, baseHeight);
+        
+        // Detect band range and filter data
+        const detectedBand = this.detectBandFromOverlayData();
+        const { filteredDatasets, bandInfo } = this.filterOverlayDataToBand(detectedBand);
         
         // Calculate plot area
         const plotWidth = baseWidth - margin.left - margin.right;
@@ -1562,23 +1746,25 @@ class FigureExportTool {
             exportCtx.stroke();
         }
         
-        // Draw axes with crisp lines
-        exportCtx.strokeStyle = '#333333';
-        exportCtx.lineWidth = 3;
-        exportCtx.beginPath();
-        // X-axis
-        exportCtx.moveTo(margin.left, margin.top + plotHeight + 0.5);
-        exportCtx.lineTo(margin.left + plotWidth, margin.top + plotHeight + 0.5);
-        // Y-axis
-        exportCtx.moveTo(margin.left + 0.5, margin.top);
-        exportCtx.lineTo(margin.left + 0.5, margin.top + plotHeight);
-        exportCtx.stroke();
+        // Remove the black axes - they are annoying as requested
         
-        // Draw all datasets
-        const freqRange = this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq;
-        const ampRange = this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp;
+        // Draw filtered datasets only within the detected band range
+        const freqRange = bandInfo ? (bandInfo.endMHz * 1e6 - bandInfo.startMHz * 1e6) : (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq);
+        const minFreq = bandInfo ? bandInfo.startMHz * 1e6 : this.csvOverlayState.minFreq;
+        const maxFreq = bandInfo ? bandInfo.endMHz * 1e6 : this.csvOverlayState.maxFreq;
         
-        this.csvOverlayState.datasets.forEach((dataset, index) => {
+        // Calculate amplitude range from filtered data
+        let minAmp = Infinity;
+        let maxAmp = -Infinity;
+        filteredDatasets.forEach(dataset => {
+            dataset.amplitudeData.forEach(amp => {
+                if (amp < minAmp) minAmp = amp;
+                if (amp > maxAmp) maxAmp = amp;
+            });
+        });
+        const ampRange = maxAmp - minAmp;
+        
+        filteredDatasets.forEach((dataset, index) => {
             exportCtx.strokeStyle = dataset.color;
             exportCtx.lineWidth = 3;
             exportCtx.lineJoin = 'round';
@@ -1590,8 +1776,8 @@ class FigureExportTool {
                 const freq = dataset.frequencyData[i];
                 const amp = dataset.amplitudeData[i];
                 
-                const x = margin.left + ((freq - this.csvOverlayState.minFreq) / freqRange) * plotWidth;
-                const y = margin.top + plotHeight - ((amp - this.csvOverlayState.minAmp) / ampRange) * plotHeight;
+                const x = margin.left + ((freq - minFreq) / freqRange) * plotWidth;
+                const y = margin.top + plotHeight - ((amp - minAmp) / ampRange) * plotHeight;
                 
                 if (firstPoint) {
                     exportCtx.moveTo(x, y);
@@ -1605,95 +1791,196 @@ class FigureExportTool {
         
         // Draw axis labels with crisp text
         exportCtx.fillStyle = '#333333';
-        exportCtx.font = '20px Arial';
+        exportCtx.font = '14px Arial';  // Smaller font for compact chart
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
         
-        // X-axis labels (frequency)
+        // X-axis labels (frequency) - using filtered range
         for (let i = 0; i <= 5; i++) {
-            const freq = this.csvOverlayState.minFreq + (freqRange * i / 5);
+            const freq = minFreq + (freqRange * i / 5);
             const x = margin.left + (i / 5) * plotWidth;
             const freqMHz = freq / 1e6;
-            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 20);
+            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 15);
         }
         
-        // Y-axis labels (amplitude)
+        // Y-axis labels (amplitude) - using filtered range
         exportCtx.textAlign = 'right';
         exportCtx.textBaseline = 'middle';
         for (let i = 0; i <= 5; i++) {
-            const amp = this.csvOverlayState.minAmp + (ampRange * i / 5);
+            const amp = minAmp + (ampRange * i / 5);
             const y = margin.top + plotHeight - (i / 5) * plotHeight;
-            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 20, y);
+            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
         }
         
         // Axis titles
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'bottom';
-        exportCtx.font = 'bold 24px Arial';
-        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 30);
+        exportCtx.font = 'bold 16px Arial';  // Smaller title font
+        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 20);
         
         exportCtx.save();
-        exportCtx.translate(35, margin.top + plotHeight / 2);
+        exportCtx.translate(25, margin.top + plotHeight / 2);  // Closer to axis
         exportCtx.rotate(-Math.PI / 2);
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
         exportCtx.fillText('Amplitude (dB)', 0, 0);
         exportCtx.restore();
         
-        // Add title
+        // Add title with detected band
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
-        exportCtx.font = 'bold 32px Arial';
-        exportCtx.fillText('Spectrum Analysis Overlay Comparison', margin.left + plotWidth / 2, 15);
+        exportCtx.font = 'bold 18px Arial';  // Smaller title
+        const titleText = bandInfo ? `Spectrum Analysis - ${detectedBand} (${bandInfo.range})` : 'Spectrum Analysis Overlay Comparison';
+        exportCtx.fillText(titleText, margin.left + plotWidth / 2, 10);
         
-        // Draw regulatory limit lines
-        const freqStartMHz = this.csvOverlayState.minFreq / 1e6;
-        const freqEndMHz = this.csvOverlayState.maxFreq / 1e6;
-        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, this.csvOverlayState.minAmp, this.csvOverlayState.maxAmp);
+        // Draw regulatory limit lines for the detected band range
+        const freqStartMHz = minFreq / 1e6;
+        const freqEndMHz = maxFreq / 1e6;
+        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, minAmp, maxAmp);
         
         // Add legend outside the graph area at the bottom
         const legendX = margin.left + plotWidth / 2;
-        const legendY = margin.top + plotHeight + 90; // In the margin area outside graph
+        const legendY = margin.top + plotHeight + 60; // Closer to graph in smaller chart
         
-        // Calculate legend dimensions
-        const itemWidth = 140;
+        // Calculate legend dimensions - smaller for compact chart
+        const itemWidth = 100;  // Smaller item width
         const maxItemsPerRow = Math.floor(plotWidth / itemWidth);
-        const itemsPerRow = Math.min(this.csvOverlayState.datasets.length, maxItemsPerRow);
+        const itemsPerRow = Math.min(filteredDatasets.length, maxItemsPerRow);
         
         // Draw legend items horizontally centered
         const totalItemWidth = itemsPerRow * itemWidth;
         const startX = legendX - totalItemWidth / 2;
         
-        this.csvOverlayState.datasets.forEach((dataset, index) => {
+        filteredDatasets.forEach((dataset, index) => {
             const row = Math.floor(index / itemsPerRow);
             const col = index % itemsPerRow;
             const itemX = startX + col * itemWidth;
-            const itemY = legendY + row * 25;
+            const itemY = legendY + row * 20;  // Smaller row spacing
             
             // Draw color line
             exportCtx.strokeStyle = dataset.color;
-            exportCtx.lineWidth = 3;
+            exportCtx.lineWidth = 2;  // Thinner line
             exportCtx.beginPath();
             exportCtx.moveTo(itemX, itemY);
-            exportCtx.lineTo(itemX + 25, itemY);
+            exportCtx.lineTo(itemX + 20, itemY);  // Shorter line
             exportCtx.stroke();
             
             // Draw dataset name
             exportCtx.fillStyle = '#333';
-            exportCtx.font = 'bold 14px Arial';
+            exportCtx.font = 'bold 12px Arial';  // Smaller font
             exportCtx.textAlign = 'left';
             exportCtx.textBaseline = 'middle';
             
             // Truncate long names for export
             let displayName = dataset.name;
-            if (displayName.length > 12) {
-                displayName = displayName.substring(0, 9) + '...';
+            if (displayName.length > 10) {  // Shorter truncation
+                displayName = displayName.substring(0, 7) + '...';
             }
             
-            exportCtx.fillText(displayName, itemX + 30, itemY);
+            exportCtx.fillText(displayName, itemX + 25, itemY);
         });
         
         return exportCanvas;
+    }
+    
+    detectBandFromOverlayData() {
+        // Analyze all datasets to determine which band they fall into
+        if (!this.csvOverlayState.datasets || this.csvOverlayState.datasets.length === 0) {
+            return null;
+        }
+        
+        // Get frequency range from all datasets
+        let minFreq = Infinity;
+        let maxFreq = -Infinity;
+        
+        this.csvOverlayState.datasets.forEach(dataset => {
+            dataset.frequencyData.forEach(freq => {
+                if (freq < minFreq) minFreq = freq;
+                if (freq > maxFreq) maxFreq = freq;
+            });
+        });
+        
+        // Convert to MHz for band comparison
+        const minFreqMHz = minFreq / 1e6;
+        const maxFreqMHz = maxFreq / 1e6;
+        
+        // Find the band that best encompasses the data
+        const bands = ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7'];
+        
+        for (let band of bands) {
+            const bandInfo = this.bandDefinitions[band];
+            // Check if the data falls mostly within this band range
+            if (minFreqMHz >= bandInfo.startMHz && maxFreqMHz <= bandInfo.endMHz) {
+                console.log(`Detected band: ${band} (${bandInfo.range})`);
+                return band;
+            }
+        }
+        
+        // If no exact match, find the band that contains the most data
+        let bestBand = null;
+        let maxOverlap = 0;
+        
+        for (let band of bands) {
+            const bandInfo = this.bandDefinitions[band];
+            // Calculate overlap between data range and band range
+            const overlapStart = Math.max(minFreqMHz, bandInfo.startMHz);
+            const overlapEnd = Math.min(maxFreqMHz, bandInfo.endMHz);
+            const overlap = Math.max(0, overlapEnd - overlapStart);
+            
+            if (overlap > maxOverlap) {
+                maxOverlap = overlap;
+                bestBand = band;
+            }
+        }
+        
+        if (bestBand) {
+            console.log(`Auto-detected band: ${bestBand} (best overlap)`);
+        }
+        
+        return bestBand;
+    }
+    
+    filterOverlayDataToBand(detectedBand) {
+        if (!detectedBand || !this.bandDefinitions[detectedBand]) {
+            // No band detected, return original data
+            return {
+                filteredDatasets: this.csvOverlayState.datasets,
+                bandInfo: null
+            };
+        }
+        
+        const bandInfo = this.bandDefinitions[detectedBand];
+        const startFreq = bandInfo.startMHz * 1e6; // Convert to Hz
+        const endFreq = bandInfo.endMHz * 1e6;     // Convert to Hz
+        
+        console.log(`Filtering data to ${detectedBand} range: ${this.formatFrequency(bandInfo.startMHz)} - ${this.formatFrequency(bandInfo.endMHz)}`);
+        
+        // Filter each dataset to only include data within the band range
+        const filteredDatasets = this.csvOverlayState.datasets.map(dataset => {
+            const filteredFreqData = [];
+            const filteredAmpData = [];
+            
+            for (let i = 0; i < dataset.frequencyData.length; i++) {
+                const freq = dataset.frequencyData[i];
+                if (freq >= startFreq && freq <= endFreq) {
+                    filteredFreqData.push(freq);
+                    filteredAmpData.push(dataset.amplitudeData[i]);
+                }
+            }
+            
+            return {
+                ...dataset,
+                frequencyData: filteredFreqData,
+                amplitudeData: filteredAmpData
+            };
+        }).filter(dataset => dataset.frequencyData.length > 0); // Remove datasets with no data in the band
+        
+        console.log(`Filtered datasets: ${filteredDatasets.length} datasets with data in ${detectedBand}`);
+        
+        return {
+            filteredDatasets,
+            bandInfo
+        };
     }
     
     exportSingleImage(imageNumber) {
@@ -1701,23 +1988,8 @@ class FigureExportTool {
         if (!currentPage) return;
         
         if (this.currentInputType === 'csv') {
-            if (this.currentCsvMode === 'overlay') {
-                // In overlay mode, both buttons export the same overlay data
-                this.exportOverlayData();
-            } else {
-                // In separate mode, export the specific CSV file
-                const state = this.getCsvState(imageNumber);
-                if (state.frequencyData.length === 0) {
-                    alert(`Please load CSV file ${imageNumber} first.`);
-                    return;
-                }
-                
-                const canvas = this.createCsvExportCanvas(imageNumber);
-                const formData = this.getFormData(imageNumber);
-                const comments = document.getElementById('comments').value || '-';
-                
-                this.createExport([canvas], [formData], comments, `Page ${this.currentPageId} - CSV ${imageNumber}`);
-            }
+            // For CSV mode, always export overlay data (since we simplified to overlay only)
+            this.exportOverlayData();
         } else {
             // Image mode
             const state = this.getImageState(imageNumber);
@@ -1883,17 +2155,7 @@ class FigureExportTool {
             exportCtx.stroke();
         }
         
-        // Draw axes with crisp lines
-        exportCtx.strokeStyle = '#333333';
-        exportCtx.lineWidth = 3;
-        exportCtx.beginPath();
-        // X-axis
-        exportCtx.moveTo(margin.left, margin.top + plotHeight + 0.5);
-        exportCtx.lineTo(margin.left + plotWidth, margin.top + plotHeight + 0.5);
-        // Y-axis
-        exportCtx.moveTo(margin.left + 0.5, margin.top);
-        exportCtx.lineTo(margin.left + 0.5, margin.top + plotHeight);
-        exportCtx.stroke();
+        // Remove the black axes - they are annoying as requested
         
         // Draw data line with high quality anti-aliasing
         exportCtx.strokeStyle = '#cc0000';
@@ -1983,30 +2245,58 @@ class FigureExportTool {
             
             const margin = 40;
             const imagePadding = 30;
-            const commentsWidth = 800;
+            const commentsWidth = 300;  // Much narrower comments section
         
-        // Calculate dimensions based on available images
-        let totalImageWidth = 0;
-        let maxImageHeight = 0;
+        // Calculate target canvas size first to determine image scaling
+        const targetCanvasWidth = 1200;  // Even smaller fixed canvas width (since comments are narrower)
+        const targetCanvasHeight = 1000; // Smaller fixed canvas height (since table is thinner)
+        
+        // Images should take 3/4 of canvas width and 2/3 of canvas height
+        const targetImageWidth = targetCanvasWidth * 0.75;   // 3/4 of canvas width
+        const targetImageHeight = targetCanvasHeight * 0.67;  // 2/3 of canvas height
+        
+        // Calculate scaling factors to fit images into target area
+        let totalOriginalWidth = 0;
+        let maxOriginalHeight = 0;
         
         images.forEach(image => {
-            totalImageWidth += image.width;
-            maxImageHeight = Math.max(maxImageHeight, image.height);
+            totalOriginalWidth += image.width;
+            maxOriginalHeight = Math.max(maxOriginalHeight, image.height);
         });
         
         if (images.length > 1) {
-            totalImageWidth += imagePadding * (images.length - 1);
+            totalOriginalWidth += imagePadding * (images.length - 1);
         }
         
-        // Set table dimensions with larger text and comments section
-        const tableWidth = Math.max(totalImageWidth, 1000);
-        const titleHeight = 150;
-        const headerHeight = 120;
-        const dataHeight = 200;
-        const tableHeight = titleHeight + headerHeight + dataHeight;
+        // Scale factor to fit all images in target area
+        const widthScale = targetImageWidth / totalOriginalWidth;
+        const heightScale = targetImageHeight / maxOriginalHeight;
+        const imageScale = Math.min(widthScale, heightScale); // Use smaller scale to fit both dimensions
         
-        exportCanvas.width = tableWidth + commentsWidth + (3 * margin);
-        exportCanvas.height = tableHeight + maxImageHeight + (3 * margin);
+        // Calculate actual scaled dimensions
+        let totalScaledWidth = 0;
+        let maxScaledHeight = 0;
+        
+        images.forEach(image => {
+            const scaledWidth = image.width * imageScale;
+            const scaledHeight = image.height * imageScale;
+            totalScaledWidth += scaledWidth;
+            maxScaledHeight = Math.max(maxScaledHeight, scaledHeight);
+        });
+        
+        if (images.length > 1) {
+            totalScaledWidth += imagePadding * (images.length - 1);
+        }
+        
+                 // Set very compact table dimensions to make room for larger images
+         const tableWidth = Math.max(totalScaledWidth, 800);  // Smaller minimum width
+         const titleHeight = 70;    // Much thinner
+         const headerHeight = 60;   // Much thinner
+         const dataHeight = 90;     // Much thinner
+         const tableHeight = titleHeight + headerHeight + dataHeight;
+        
+        exportCanvas.width = targetCanvasWidth;
+        exportCanvas.height = targetCanvasHeight;
         
         // Fill background
         exportCtx.fillStyle = 'white';
@@ -2036,9 +2326,9 @@ class FigureExportTool {
         exportCtx.strokeRect(margin, titleY, tableWidth, titleHeight);
         
         exportCtx.fillStyle = 'black';
-        exportCtx.font = 'bold 80px Arial';
+        exportCtx.font = 'bold 22px Arial';  // Even smaller font for thinner table
         exportCtx.textAlign = 'center';
-        exportCtx.fillText(titleText, margin + tableWidth/2, titleY + titleHeight/2 + 30);
+        exportCtx.fillText(titleText, margin + tableWidth/2, titleY + titleHeight/2 + 8);
         
         // Define 4 columns (removing comment from table)
         const columnWidths = [
@@ -2060,7 +2350,7 @@ class FigureExportTool {
         
         // Draw column headers
         exportCtx.fillStyle = 'black';
-        exportCtx.font = 'bold 70px Arial';
+        exportCtx.font = 'bold 18px Arial';  // Smaller font for thinner table
         exportCtx.textAlign = 'center';
         
         let currentX = margin;
@@ -2074,7 +2364,7 @@ class FigureExportTool {
             }
             
             // Draw header text
-            exportCtx.fillText(columnHeaders[i], currentX + columnWidths[i]/2, headerY + headerHeight/2 + 25);
+            exportCtx.fillText(columnHeaders[i], currentX + columnWidths[i]/2, headerY + headerHeight/2 + 6);
             currentX += columnWidths[i];
         }
         
@@ -2110,16 +2400,16 @@ class FigureExportTool {
         
         // Draw data cells
         exportCtx.fillStyle = 'black';
-        exportCtx.font = '70px Arial';
+        exportCtx.font = '16px Arial';  // Smaller font for thinner table
         exportCtx.textAlign = 'center';
         
         currentX = margin;
         for (let i = 0; i < tableData.length; i++) {
-            const cellY = dataY + dataHeight/2 + 25;
+            const cellY = dataY + dataHeight/2 + 6;
             
             if (i === 2 || i === 3) { // Description and Traces columns - use left align
                 exportCtx.textAlign = 'left';
-                this.wrapTextInCell(exportCtx, tableData[i], currentX + 15, cellY - 60, columnWidths[i] - 30, dataHeight - 40, 80);
+                this.wrapTextInCell(exportCtx, tableData[i], currentX + 8, cellY - 15, columnWidths[i] - 16, dataHeight - 20, 18);
             } else {
                 exportCtx.textAlign = 'center';
                 exportCtx.fillText(tableData[i], currentX + columnWidths[i]/2, cellY);
@@ -2131,31 +2421,35 @@ class FigureExportTool {
         // Draw comments section on the right side - connected to table
         const commentsX = margin + tableWidth;
         const commentsY = titleY;
+        const commentsHeight = exportCanvas.height - commentsY - margin; // Full height
         
         exportCtx.fillStyle = 'white';
-        exportCtx.fillRect(commentsX, commentsY, commentsWidth, exportCanvas.height - commentsY - margin);
+        exportCtx.fillRect(commentsX, commentsY, commentsWidth, commentsHeight);
         exportCtx.strokeStyle = 'black';
         exportCtx.lineWidth = 4;
-        exportCtx.strokeRect(commentsX, commentsY, commentsWidth, exportCanvas.height - commentsY - margin);
+        exportCtx.strokeRect(commentsX, commentsY, commentsWidth, commentsHeight);
         
-        // Comments header with large text
+        // Comments header
         exportCtx.fillStyle = 'black';
-        exportCtx.font = 'bold 80px Arial';
+        exportCtx.font = 'bold 16px Arial';  // Even smaller font for very narrow comments section
         exportCtx.textAlign = 'left';
-        exportCtx.fillText('Comment', commentsX + 30, commentsY + 90);
+        exportCtx.fillText('Comment', commentsX + 10, commentsY + 25);
         
-        // Comments content with large text
+        // Comments content
         exportCtx.fillStyle = 'black';
-        exportCtx.font = '60px Arial';
-        this.wrapText(exportCtx, comments, commentsX + 30, commentsY + 180, commentsWidth - 60, 70);
+        exportCtx.font = '14px Arial';  // Smaller font for very narrow comments section
+        const maxCommentsHeight = commentsHeight - 60; // Leave room for header and padding
+        this.wrapTextWithMaxHeight(exportCtx, comments, commentsX + 10, commentsY + 50, commentsWidth - 20, 18, maxCommentsHeight);
         
-        // Draw images below the table
+        // Draw images below the table with calculated scaling to fill 3/4 width, 2/3 height
         let imageX = margin;
         const imageY = titleY + tableHeight + margin;
         
         images.forEach((image, index) => {
-            exportCtx.drawImage(image, imageX, imageY);
-            imageX += image.width + imagePadding;
+            const scaledWidth = image.width * imageScale;   // Use calculated scale
+            const scaledHeight = image.height * imageScale; // Use calculated scale
+            exportCtx.drawImage(image, imageX, imageY, scaledWidth, scaledHeight);
+            imageX += scaledWidth + imagePadding;
         });
         
         // Convert to blob and download
@@ -2197,8 +2491,8 @@ class FigureExportTool {
         let line = '';
         let currentY = y + lineHeight;
         
-        // Set font for measurements - large text
-        ctx.font = '60px Arial';
+        // Set font for measurements - smaller text for thinner table
+        ctx.font = '16px Arial';
         
         for (let n = 0; n < words.length; n++) {
             const testLine = line + words[n] + ' ';
@@ -2228,8 +2522,8 @@ class FigureExportTool {
         let line = '';
         let currentY = y;
         
-        // Ensure font is set for measurements
-        ctx.font = '60px Arial';
+        // Ensure font is set for measurements - smaller text for narrow comments
+        ctx.font = '16px Arial';
         
         for (let n = 0; n < words.length; n++) {
             const testLine = line + words[n] + ' ';
@@ -2245,6 +2539,41 @@ class FigureExportTool {
             }
         }
         ctx.fillText(line, x, currentY);
+    }
+    
+    wrapTextWithMaxHeight(ctx, text, x, y, maxWidth, lineHeight, maxHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y;
+        
+        // Ensure font is set for measurements
+        ctx.font = '14px Arial';
+        
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            
+            if (testWidth > maxWidth && n > 0) {
+                // Check if we have room for another line
+                if (currentY + lineHeight > y + maxHeight) {
+                    // Truncate with ellipsis if we're out of space
+                    const truncatedLine = line.trim() + '...';
+                    ctx.fillText(truncatedLine, x, currentY);
+                    return;
+                }
+                ctx.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        
+        // Draw final line if we have room
+        if (currentY <= y + maxHeight && line.trim()) {
+            ctx.fillText(line, x, currentY);
+        }
     }
     
     identifyPeakForBand(band, bandInfo) {
@@ -2656,6 +2985,12 @@ class FigureExportTool {
         const uploadArea = document.getElementById(`csvUploadArea${csvNumber}`);
         const csvInput = document.getElementById(`csvInput${csvNumber}`);
         
+        // Check if elements exist (they don't in our simplified overlay-only mode)
+        if (!uploadArea || !csvInput) {
+            console.log(`Skipping CSV upload listeners for ${csvNumber} - elements don't exist in overlay-only mode`);
+            return;
+        }
+        
         uploadArea.addEventListener('click', () => csvInput.click());
         uploadArea.addEventListener('dragover', (e) => this.handleCsvDragOver(e, csvNumber));
         uploadArea.addEventListener('drop', (e) => this.handleCsvDrop(e, csvNumber));
@@ -2668,14 +3003,79 @@ class FigureExportTool {
         const uploadArea = document.getElementById('csvOverlayUploadArea');
         const csvInput = document.getElementById('csvOverlayInput');
         
-        if (!uploadArea || !csvInput) return;
+        if (!uploadArea || !csvInput) {
+            console.warn('CSV overlay upload elements not found:', {
+                uploadArea: !!uploadArea,
+                csvInput: !!csvInput
+            });
+            return;
+        }
         
-        uploadArea.addEventListener('click', () => csvInput.click());
-        uploadArea.addEventListener('dragover', (e) => this.handleOverlayDragOver(e));
-        uploadArea.addEventListener('drop', (e) => this.handleOverlayDrop(e));
-        uploadArea.addEventListener('dragleave', (e) => this.handleOverlayDragLeave(e));
+        // Check if listeners are already set up
+        if (uploadArea.hasAttribute('data-listeners-setup')) {
+            console.log('CSV upload listeners already set up, skipping...');
+            return;
+        }
         
-        csvInput.addEventListener('change', (e) => this.handleOverlayFileSelect(e));
+        console.log('Setting up CSV overlay upload listeners');
+        
+        // Simple, direct click handler
+        const clickHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('CSV upload area clicked, triggering file input');
+            csvInput.click();
+        };
+        
+        // Clear any existing listeners by cloning the elements
+        const newUploadArea = uploadArea.cloneNode(true);
+        uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+        
+        // Get references to the new elements
+        const freshUploadArea = document.getElementById('csvOverlayUploadArea');
+        const uploadPlaceholder = freshUploadArea.querySelector('.upload-placeholder');
+        
+        // Set up click handlers
+        freshUploadArea.addEventListener('click', clickHandler);
+        if (uploadPlaceholder) {
+            uploadPlaceholder.addEventListener('click', clickHandler);
+        }
+        
+        // Set up drag and drop
+        freshUploadArea.addEventListener('dragover', (e) => this.handleOverlayDragOver(e));
+        freshUploadArea.addEventListener('drop', (e) => this.handleOverlayDrop(e));
+        freshUploadArea.addEventListener('dragleave', (e) => this.handleOverlayDragLeave(e));
+        
+        // Set up file input change handler (this element wasn't cloned)
+        csvInput.addEventListener('change', (e) => {
+            console.log('CSV file input changed:', e.target.files.length, 'files');
+            this.handleOverlayFileSelect(e);
+        });
+        
+        // Ensure area is clickable
+        freshUploadArea.style.cursor = 'pointer';
+        freshUploadArea.style.pointerEvents = 'auto';
+        freshUploadArea.style.display = 'block';
+        
+        if (uploadPlaceholder) {
+            uploadPlaceholder.style.cursor = 'pointer';
+            uploadPlaceholder.style.pointerEvents = 'auto';
+        }
+        
+        // Mark that listeners have been set up
+        freshUploadArea.setAttribute('data-listeners-setup', 'true');
+        
+        console.log('CSV upload listeners set up successfully');
+        
+        // Test the setup immediately
+        setTimeout(() => {
+            console.log('Testing CSV upload setup...', {
+                uploadArea: !!freshUploadArea,
+                hasListeners: freshUploadArea.hasAttribute('data-listeners-setup'),
+                isVisible: getComputedStyle(freshUploadArea).display !== 'none',
+                isClickable: getComputedStyle(freshUploadArea).pointerEvents !== 'none'
+            });
+        }, 100);
     }
     
     handleOverlayDragOver(e) {
@@ -2859,6 +3259,12 @@ class FigureExportTool {
     
     setupCsvCanvasListeners(csvNumber) {
         const canvas = document.getElementById(`csvGraphCanvas${csvNumber}`);
+        
+        // Check if canvas exists (it doesn't in our simplified overlay-only mode)
+        if (!canvas) {
+            console.log(`Skipping CSV canvas listeners for ${csvNumber} - canvas doesn't exist in overlay-only mode`);
+            return;
+        }
         
         canvas.addEventListener('mousedown', (e) => this.handleCsvMouseDown(e, csvNumber));
         canvas.addEventListener('mousemove', (e) => this.handleCsvMouseMove(e, csvNumber));
@@ -3985,6 +4391,21 @@ class FigureExportTool {
         
         document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
         
+        // Detect band and filter data for cleaner on-screen display
+        const detectedBand = this.detectBandFromOverlayData();
+        const { filteredDatasets, bandInfo } = this.filterOverlayDataToBand(detectedBand);
+        
+        // Update the display title to show detected band
+        if (bandInfo) {
+            const titleElement = document.querySelector('.csv-overlay-title');
+            if (titleElement) {
+                titleElement.textContent = `Spectrum Analysis - ${detectedBand} (${bandInfo.range})`;
+            }
+        }
+        
+        // Use filtered datasets for display
+        const displayDatasets = filteredDatasets.length > 0 ? filteredDatasets : this.csvOverlayState.datasets;
+        
         // Calculate plot area
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
@@ -3995,13 +4416,37 @@ class FigureExportTool {
             top: margin.top + this.csvOverlayState.offsetY
         };
         
-        // Calculate data ranges with zoom and pan
-        const freqRange = (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq) / this.csvOverlayState.scale;
-        const ampRange = (this.csvOverlayState.maxAmp - this.csvOverlayState.minAmp) / this.csvOverlayState.scale;
+        // Calculate data ranges - use band range if detected, otherwise use full data range
+        let baseMinFreq, baseMaxFreq, baseMinAmp, baseMaxAmp;
+        
+        if (bandInfo && filteredDatasets.length > 0) {
+            // Use band frequency range and calculate amplitude range from filtered data
+            baseMinFreq = bandInfo.startMHz * 1e6;
+            baseMaxFreq = bandInfo.endMHz * 1e6;
+            
+            baseMinAmp = Infinity;
+            baseMaxAmp = -Infinity;
+            filteredDatasets.forEach(dataset => {
+                dataset.amplitudeData.forEach(amp => {
+                    if (amp < baseMinAmp) baseMinAmp = amp;
+                    if (amp > baseMaxAmp) baseMaxAmp = amp;
+                });
+            });
+        } else {
+            // Use original full range
+            baseMinFreq = this.csvOverlayState.minFreq;
+            baseMaxFreq = this.csvOverlayState.maxFreq;
+            baseMinAmp = this.csvOverlayState.minAmp;
+            baseMaxAmp = this.csvOverlayState.maxAmp;
+        }
+        
+        // Calculate ranges with zoom and pan
+        const freqRange = (baseMaxFreq - baseMinFreq) / this.csvOverlayState.scale;
+        const ampRange = (baseMaxAmp - baseMinAmp) / this.csvOverlayState.scale;
         
         // Calculate center point based on pan offset
-        const freqCenter = (this.csvOverlayState.minFreq + this.csvOverlayState.maxFreq) / 2 - (this.csvOverlayState.offsetX / plotWidth) * freqRange;
-        const ampCenter = (this.csvOverlayState.minAmp + this.csvOverlayState.maxAmp) / 2 + (this.csvOverlayState.offsetY / plotHeight) * ampRange;
+        const freqCenter = (baseMinFreq + baseMaxFreq) / 2 - (this.csvOverlayState.offsetX / plotWidth) * freqRange;
+        const ampCenter = (baseMinAmp + baseMaxAmp) / 2 + (this.csvOverlayState.offsetY / plotHeight) * ampRange;
         
         const freqStart = freqCenter - freqRange / 2;
         const freqEnd = freqCenter + freqRange / 2;
@@ -4077,8 +4522,8 @@ class FigureExportTool {
         ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
         ctx.stroke();
         
-        // Draw each dataset with high quality
-        this.csvOverlayState.datasets.forEach((dataset, index) => {
+        // Draw each filtered dataset with high quality
+        displayDatasets.forEach((dataset, index) => {
             if (!dataset.visible) return;
             
             // Draw data line with anti-aliasing
@@ -5920,9 +6365,259 @@ class FigureExportTool {
         }
         this.fullScreenOverlayState = null;
     }
+    
+    // Add fallback upload button for CSV if click area isn't working
+    addCsvUploadFallback() {
+        const uploadArea = document.getElementById('csvOverlayUploadArea');
+        const csvInput = document.getElementById('csvOverlayInput');
+        
+        if (!uploadArea || !csvInput) {
+            console.warn('Cannot add CSV upload fallback - elements not found');
+            return;
+        }
+        
+        // Check if fallback button already exists
+        if (uploadArea.querySelector('.fallback-upload-btn')) {
+            console.log('Fallback button already exists');
+            return;
+        }
+        
+        // Create fallback button
+        const fallbackBtn = document.createElement('button');
+        fallbackBtn.className = 'fallback-upload-btn btn btn-primary';
+        fallbackBtn.textContent = 'Browse CSV Files';
+        fallbackBtn.style.marginTop = '10px';
+        fallbackBtn.style.display = 'block';
+        fallbackBtn.style.width = '150px';
+        fallbackBtn.style.margin = '10px auto';
+        
+        fallbackBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Fallback button clicked - opening file dialog');
+            csvInput.click();
+        });
+        
+        // Add button to upload area
+        uploadArea.appendChild(fallbackBtn);
+        
+        console.log('Added fallback CSV upload button');
+    }
+    
+    // Manual function to trigger CSV file dialog
+    openCsvFileDialog() {
+        const csvInput = document.getElementById('csvOverlayInput');
+        if (csvInput) {
+            console.log('Manual CSV file dialog triggered');
+            csvInput.click();
+        } else {
+            console.error('CSV input not found');
+        }
+    }
+    
+    // Manual function to fix CSV mode UI state
+    fixCsvModeUI() {
+        console.log('=== Fixing CSV Mode UI ===');
+        
+        // Force CSV mode
+        this.currentInputType = 'csv';
+        this.setInputType('csv');
+        this.updateExportButtonLabels();
+        
+        // Check and fix export buttons
+        const exportBtn1 = document.getElementById('exportImage1');
+        const exportBtn2 = document.getElementById('exportImage2');
+        const exportBothBtn = document.getElementById('exportBoth');
+        
+        if (exportBtn1) {
+            exportBtn1.textContent = 'Export CSV Overlay';
+            exportBtn1.style.display = 'inline-block';
+        }
+        if (exportBtn2) exportBtn2.style.display = 'none';
+        if (exportBothBtn) exportBothBtn.style.display = 'none';
+        
+        // Check and fix form sections
+        const csvFormSection = document.getElementById('csvFormSection');
+        const dualFormSection = document.getElementById('dualFormSection');
+        
+        if (csvFormSection) csvFormSection.style.display = 'block';
+        if (dualFormSection) dualFormSection.style.display = 'none';
+        
+        // Check and fix upload sections
+        const csvUploadSection = document.getElementById('csvUploadSection');
+        const imageUploadSection = document.getElementById('imageUploadSection');
+        
+        if (csvUploadSection) csvUploadSection.style.display = 'block';
+        if (imageUploadSection) imageUploadSection.style.display = 'none';
+        
+        console.log('CSV mode UI state manually corrected');
+        return {
+            exportBtn1: exportBtn1?.textContent,
+            exportBtn2Visible: exportBtn2?.style.display !== 'none',
+            exportBothVisible: exportBothBtn?.style.display !== 'none',
+            csvFormVisible: csvFormSection?.style.display !== 'none',
+            dualFormVisible: dualFormSection?.style.display !== 'none'
+        };
+    }
+    
+    // Debug function to test CSV upload
+    // Immediate CSV upload setup - called very early in initialization
+    enableCsvUploadImmediately() {
+        console.log('Setting up immediate CSV upload functionality...');
+        
+        const uploadArea = document.getElementById('csvOverlayUploadArea');
+        const csvInput = document.getElementById('csvOverlayInput');
+        
+        if (!uploadArea || !csvInput) {
+            console.log('CSV elements not ready yet, will retry...');
+            // Retry in 100ms
+            setTimeout(() => this.enableCsvUploadImmediately(), 100);
+            return;
+        }
+        
+        // Force visibility and basic styling
+        uploadArea.style.display = 'block';
+        uploadArea.style.pointerEvents = 'auto';
+        uploadArea.style.cursor = 'pointer';
+        
+        // Add immediate click handler
+        const immediateClickHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Immediate CSV click handler triggered');
+            csvInput.click();
+        };
+        
+        uploadArea.addEventListener('click', immediateClickHandler);
+        
+        // Add immediate file change handler
+        const immediateFileHandler = (e) => {
+            console.log('Immediate file handler triggered with', e.target.files.length, 'files');
+            if (e.target.files.length > 0) {
+                this.loadOverlayFiles(e.target.files);
+            }
+        };
+        
+        csvInput.addEventListener('change', immediateFileHandler);
+        
+        console.log('Immediate CSV upload setup complete');
+    }
+    
+    debugCsvUpload() {
+        console.log('=== CSV Upload Debug ===');
+        
+        const uploadArea = document.getElementById('csvOverlayUploadArea');
+        const csvInput = document.getElementById('csvOverlayInput');
+        const csvSection = document.getElementById('csvUploadSection');
+        
+        console.log('Upload area element:', uploadArea);
+        console.log('CSV input element:', csvInput);
+        console.log('CSV section element:', csvSection);
+        console.log('CSV section display:', csvSection ? csvSection.style.display : 'N/A');
+        console.log('Current input type:', this.currentInputType);
+        console.log('Current CSV mode:', this.currentCsvMode);
+        
+        if (uploadArea) {
+            console.log('Upload area bounds:', uploadArea.getBoundingClientRect());
+            console.log('Upload area computed style cursor:', window.getComputedStyle(uploadArea).cursor);
+            console.log('Upload area computed style pointer-events:', window.getComputedStyle(uploadArea).pointerEvents);
+            
+            // Test manual click
+            console.log('Testing manual click...');
+            uploadArea.click();
+        }
+        
+        return {uploadArea, csvInput, csvSection};
+    }
 }
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing Figure Export Tool...');
     window.figureExportTool = new FigureExportTool();
+    
+    // Add debugging helpers to window for easy access
+    window.debugCsvUpload = () => window.figureExportTool.debugCsvUpload();
+    window.openCsvFiles = () => window.figureExportTool.openCsvFileDialog();
+    window.fixCsvMode = () => window.figureExportTool.fixCsvModeUI();
+    
+    // Immediate CSV setup after tool initialization
+    const tool = window.figureExportTool;
+    
+    // Function to ensure CSV upload is working
+    const ensureCsvUploadWorking = () => {
+        console.log('Ensuring CSV upload is working...');
+        
+        // Force CSV mode
+        tool.switchToMode('csv');
+        tool.setInputType('csv');
+        tool.updateExportButtonLabels();
+        
+        // Set up CSV upload listeners multiple times to ensure they work
+        setTimeout(() => {
+            console.log('Setting up CSV upload listeners (attempt 1)...');
+            tool.setupOverlayUploadListeners();
+            tool.addCsvUploadFallback();
+        }, 100);
+        
+        setTimeout(() => {
+            console.log('Setting up CSV upload listeners (attempt 2)...');
+            tool.setupOverlayUploadListeners();
+            tool.addCsvUploadFallback();
+        }, 300);
+        
+        setTimeout(() => {
+            console.log('Setting up CSV upload listeners (attempt 3)...');
+            tool.setupOverlayUploadListeners();
+            tool.addCsvUploadFallback();
+            
+            // Verify everything is working
+            const uploadArea = document.getElementById('csvOverlayUploadArea');
+            const csvInput = document.getElementById('csvOverlayInput');
+            
+            console.log('Final verification:', {
+                uploadArea: !!uploadArea,
+                csvInput: !!csvInput,
+                uploadAreaVisible: uploadArea ? getComputedStyle(uploadArea).display !== 'none' : false,
+                inputWorking: csvInput ? csvInput.type === 'file' : false
+            });
+            
+            // Ensure upload area is clickable
+            if (uploadArea) {
+                uploadArea.style.pointerEvents = 'auto';
+                uploadArea.style.cursor = 'pointer';
+                
+                // Add a direct click handler as extra fallback
+                uploadArea.addEventListener('click', () => {
+                    console.log('Upload area clicked - fallback handler');
+                    if (csvInput) csvInput.click();
+                });
+            }
+        }, 500);
+    };
+    
+    // Run multiple times with different delays to ensure it works
+    ensureCsvUploadWorking();
+    setTimeout(ensureCsvUploadWorking, 500);
+    setTimeout(ensureCsvUploadWorking, 1000);
+    setTimeout(ensureCsvUploadWorking, 2000);
+    
+    // Also add a simple fallback that just makes sure clicking works
+    setTimeout(() => {
+        const uploadArea = document.getElementById('csvOverlayUploadArea');
+        const csvInput = document.getElementById('csvOverlayInput');
+        
+        if (uploadArea && csvInput && !uploadArea.hasAttribute('data-simple-fallback')) {
+            console.log('Adding simple fallback click handler...');
+            uploadArea.addEventListener('click', () => csvInput.click());
+            uploadArea.setAttribute('data-simple-fallback', 'true');
+            uploadArea.style.cursor = 'pointer';
+            uploadArea.style.pointerEvents = 'auto';
+        }
+    }, 100);
+    
+    console.log('Figure Export Tool loaded. Available debug commands:');
+    console.log('- debugCsvUpload() - Debug CSV upload issues');
+    console.log('- openCsvFiles() - Manually open CSV file dialog');
+    console.log('- fixCsvMode() - Fix CSV mode UI state if broken');
 }); 

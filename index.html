@@ -7,16 +7,35 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="container csv-theme" id="appContainer">
+        <!-- Hidden radio inputs for JavaScript compatibility -->
+        <div style="display: none;">
+            <input type="radio" name="inputType" value="images" id="hiddenImageInput">
+            <input type="radio" name="inputType" value="csv" id="hiddenCsvInput" checked>
+        </div>
         <header>
             <div class="header-content">
                 <div class="logo-section">
                     <img src="tenco-logo.png" alt="Turner Engineering Corporation" class="company-logo" onerror="this.style.display='none'">
                 </div>
                 <div class="title-section">
-                    <h1>Figure Export Tool v3.5</h1>
+                    <h1>Figure Export Tool v4.0</h1>
                     <p class="subtitle">Professional EMC Testing Annotation System</p>
                     <p class="company-name">Turner Engineering Corporation</p>
+                </div>
+                <div class="mode-selector-section">
+                    <div class="mode-tabs">
+                        <button class="mode-tab csv-mode active" data-mode="csv">
+                            <span class="mode-icon">📊</span>
+                            <span class="mode-text">CSV Data Files</span>
+                            <span class="mode-subtitle">Spectrum Analysis</span>
+                        </button>
+                        <button class="mode-tab image-mode" data-mode="images">
+                            <span class="mode-icon">📷</span>
+                            <span class="mode-text">Image Files</span>
+                            <span class="mode-subtitle">Visual Documentation</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -35,22 +54,7 @@
         <div class="main-content">
             <!-- Left Panel: Controls -->
             <div class="left-panel">
-                <!-- Data Input Type Selection -->
-                <div class="input-type-control">
-                    <h2>Data Input Type</h2>
-                    <div class="input-type-toggle">
-                        <label>
-                            <input type="radio" name="inputType" value="images">
-                            <span>📷 Image Files</span>
-                        </label>
-                        <label>
-                            <input type="radio" name="inputType" value="csv" checked>
-                            <span>📊 CSV Data Files</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="layout-control">
+                <div class="layout-control" id="layoutControl" style="display: none;">
                     <h2>Layout Options</h2>
                     <div class="layout-toggle">
                         <label>
@@ -93,76 +97,64 @@
                 <div class="upload-section" id="csvUploadSection">
                     <h2>Upload CSV Data Files</h2>
                     
-                    <!-- CSV Display Mode Toggle -->
-                    <div class="csv-mode-control">
-                        <h3>Display Mode</h3>
-                        <div class="csv-mode-toggle">
-                            <label>
-                                <input type="radio" name="csvMode" value="separate">
-                                <span>📊 Separate Graphs</span>
-                            </label>
-                            <label>
-                                <input type="radio" name="csvMode" value="overlay" checked>
-                                <span>📈 Overlay Comparison</span>
-                            </label>
-                        </div>
-                    </div>
+                    <!-- CSV files are always displayed in overlay mode -->
                     
-                    <!-- Separate Mode Upload Areas -->
-                    <div class="dual-upload" id="dualCsvUpload" style="display: none;">
-                        <div class="upload-container">
-                            <h3>CSV File 1</h3>
-                            <div class="upload-area" id="csvUploadArea1">
-                                <input type="file" id="csvInput1" accept=".csv,.txt" style="display: none;">
-                                <div class="upload-placeholder">
-                                    <p>Click to select CSV file</p>
-                                    <small>Frequency vs Amplitude data</small>
-                                </div>
-                            </div>
-                            <div class="csv-info" id="csvInfo1" style="display: none;">
-                                <p><strong>Rows:</strong> <span class="csv-rows">-</span></p>
-                                <p><strong>Frequency Range:</strong> <span class="csv-freq-range">-</span></p>
-                            </div>
-                        </div>
-                        <div class="upload-container">
-                            <h3>CSV File 2</h3>
-                            <div class="upload-area" id="csvUploadArea2">
-                                <input type="file" id="csvInput2" accept=".csv,.txt" style="display: none;">
-                                <div class="upload-placeholder">
-                                    <p>Click to select CSV file</p>
-                                    <small>Frequency vs Amplitude data</small>
-                                </div>
-                            </div>
-                            <div class="csv-info" id="csvInfo2" style="display: none;">
-                                <p><strong>Rows:</strong> <span class="csv-rows">-</span></p>
-                                <p><strong>Frequency Range:</strong> <span class="csv-freq-range">-</span></p>
-                            </div>
-                        </div>
-                    </div>
+
                     
-                    <!-- Overlay Mode Upload Area -->
-                    <div class="single-upload" id="singleCsvUpload">
-                        <div class="upload-container overlay-upload">
-                            <h3>CSV Files for Overlay Comparison</h3>
-                            <div class="upload-area" id="csvOverlayUploadArea">
-                                <input type="file" id="csvOverlayInput" accept=".csv,.txt" multiple style="display: none;">
-                                <div class="upload-placeholder">
-                                    <p>Click to select multiple CSV files</p>
-                                    <small>Hold Ctrl/Cmd to select multiple files</small>
-                                    <small>All files will be overlaid on one graph</small>
-                                </div>
+                    <div class="upload-container overlay-upload">
+                        <div class="upload-area" id="csvOverlayUploadArea">
+                            <input type="file" id="csvOverlayInput" accept=".csv,.txt" multiple style="display: none;">
+                            <div class="upload-placeholder">
+                                <p>Click to select CSV files</p>
+                                <small>Hold Ctrl/Cmd to select multiple files</small>
+                                <small>All files will be overlaid on one graph</small>
                             </div>
-                            <div class="csv-overlay-files" id="csvOverlayFiles">
-                                <h4>Loaded Files:</h4>
-                                <div class="file-list" id="overlayFileList">
-                                    <!-- File list will be populated here -->
-                                </div>
+                        </div>
+                        <div class="csv-overlay-files" id="csvOverlayFiles">
+                            <h4>Loaded Files:</h4>
+                            <div class="file-list" id="overlayFileList">
+                                <!-- File list will be populated here -->
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="dual-form-section" id="dualFormSection">
+                <!-- CSV Data Information Form -->
+                <div class="csv-form-section" id="csvFormSection">
+                    <div class="form-container">
+                        <h3>CSV Data Information</h3>
+                        <div class="form-group">
+                            <label for="csvRunId">Run ID:</label>
+                            <input type="text" id="csvRunId" placeholder="e.g., 127-71">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvBand">Band:</label>
+                            <input type="text" id="csvBand" placeholder="e.g., B6">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvLocation">Location:</label>
+                            <input type="text" id="csvLocation" placeholder="e.g., Ambient">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvTestType">Test Type:</label>
+                            <input type="text" id="csvTestType" placeholder="e.g., Crane Car hybrid">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvEquipmentDescription">Equipment Description:</label>
+                            <input type="text" id="csvEquipmentDescription" placeholder="e.g., diesel loco off, battery high charging">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvOperatingCondition">Operating Condition:</label>
+                            <input type="text" id="csvOperatingCondition" placeholder="e.g., crane operation">
+                        </div>
+                        <div class="form-group">
+                            <label for="csvTraces">Traces:</label>
+                            <textarea id="csvTraces" placeholder="e.g., Peak hold measurements&#10;Background noise floor&#10;Specific test conditions" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dual-form-section" id="dualFormSection" style="display: none;">
                     <div class="form-container">
                         <h3>Image 1 Information</h3>
                         <div class="form-group">
@@ -231,9 +223,9 @@
                 <div class="actions-section">
                     <h2>Actions</h2>
                     <div class="export-buttons">
-                        <button id="exportImage1" class="btn btn-primary">Export Image 1</button>
-                        <button id="exportImage2" class="btn btn-primary">Export Image 2</button>
-                        <button id="exportBoth" class="btn btn-primary">Export Both Images</button>
+                        <button id="exportImage1" class="btn btn-primary">Export CSV Overlay</button>
+                        <button id="exportImage2" class="btn btn-primary" style="display: none;">Export Image 2</button>
+                        <button id="exportBoth" class="btn btn-primary" style="display: none;">Export Both Images</button>
                         <button id="exportAllPages" class="btn btn-secondary">Export All Pages</button>
                     </div>
                     <button id="clearStats" class="btn btn-secondary">Clear Current Page</button>
@@ -244,7 +236,7 @@
             <!-- Center Panel: Dual Images -->
             <div class="center-panel">
                 <!-- Information Tables Above Images -->
-                <div class="dual-info-tables" id="dualInfoTables">
+                <div class="dual-info-tables" id="dualInfoTables" style="display: none;">
                     <div class="info-table">
                         <h4 id="dataType1Header">Image 1</h4>
                         <table>
@@ -306,39 +298,7 @@
 
                     <!-- CSV Graph Container -->
                     <div class="dual-csv-container" id="dualCsvContainer">
-                        <!-- Separate Graphs Mode -->
-                        <div class="csv-separate-mode" id="csvSeparateMode" style="display: none;">
-                            <div class="csv-container">
-                                <div class="csv-graph-header">
-                                    <h4>CSV Data 1</h4>
-                                    <div class="graph-controls">
-                                        <button class="control-btn" onclick="figureExportTool.resetZoomCsv(1)">Reset Zoom</button>
-                                        <button class="control-btn" onclick="figureExportTool.autoScaleCsv(1)">Auto Scale</button>
-                                        <button class="control-btn" onclick="figureExportTool.enterFullScreenCsv(1)" title="Full Screen">⛶</button>
-                                    </div>
-                                </div>
-                                <canvas id="csvGraphCanvas1"></canvas>
-                                <div class="instruction-overlay" id="csvInstructionOverlay1">
-                                    <p>Upload CSV File 1</p>
-                                    <small>Expected format: Frequency, Amplitude</small>
-                                </div>
-                            </div>
-                            <div class="csv-container">
-                                <div class="csv-graph-header">
-                                    <h4>CSV Data 2</h4>
-                                    <div class="graph-controls">
-                                        <button class="control-btn" onclick="figureExportTool.resetZoomCsv(2)">Reset Zoom</button>
-                                        <button class="control-btn" onclick="figureExportTool.autoScaleCsv(2)">Auto Scale</button>
-                                        <button class="control-btn" onclick="figureExportTool.enterFullScreenCsv(2)" title="Full Screen">⛶</button>
-                                    </div>
-                                </div>
-                                <canvas id="csvGraphCanvas2"></canvas>
-                                <div class="instruction-overlay" id="csvInstructionOverlay2">
-                                    <p>Upload CSV File 2</p>
-                                    <small>Expected format: Frequency, Amplitude</small>
-                                </div>
-                            </div>
-                        </div>
+
 
                         <!-- Overlay Comparison Mode -->
                         <div class="csv-overlay-mode" id="csvOverlayMode">
@@ -381,7 +341,7 @@
                 
                 <!-- Limit Lines Configuration -->
                 <div class="limit-lines-section">
-                    <h3>NYCT AC Train Emission Limits</h3>
+                    <h3>Emission Limits</h3>
                     <div class="limit-controls">
                         <label>
                             <input type="checkbox" id="showLimitLines" checked>
