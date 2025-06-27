@@ -435,7 +435,7 @@ class FigureExportTool {
     switchToMode(mode) {
         // Update the container theme
         const container = document.getElementById('appContainer');
-        container.classList.remove('csv-theme', 'image-theme');
+        container.classList.remove('csv-theme', 'image-theme', 'correction-theme');
         
         if (mode === 'csv') {
             container.classList.add('csv-theme');
@@ -447,6 +447,9 @@ class FigureExportTool {
             this.currentInputType = 'images';
             // Update hidden radio for compatibility
             document.getElementById('hiddenImageInput').checked = true;
+        } else if (mode === 'correction') {
+            container.classList.add('correction-theme'); // Use yellow correction theme
+            this.currentInputType = 'correction';
         }
         
         // Update mode tab active states
@@ -458,7 +461,7 @@ class FigureExportTool {
         // Call existing setInputType method to handle UI updates
         this.setInputType(this.currentInputType);
         
-        console.log(`Switched to ${mode} mode with ${mode === 'csv' ? 'navy' : 'maroon'} theme`);
+        console.log(`Switched to ${mode} mode`);
     }
 
     setInputType(inputType) {
@@ -466,8 +469,11 @@ class FigureExportTool {
         
         const imageUploadSection = document.getElementById('imageUploadSection');
         const csvUploadSection = document.getElementById('csvUploadSection');
+        const correctionSection = document.getElementById('correctionSection');
         const dualImageContainer = document.getElementById('dualImageContainer');
         const dualCsvContainer = document.getElementById('dualCsvContainer');
+        const correctionVisualizationMode = document.getElementById('correctionVisualizationMode');
+        const csvOverlayMode = document.getElementById('csvOverlayMode');
         const dualInfoTables = document.getElementById('dualInfoTables');
         
         // Update export button labels
@@ -477,12 +483,24 @@ class FigureExportTool {
             // Show CSV mode
             imageUploadSection.style.display = 'none';
             csvUploadSection.style.display = 'block';
+            if (correctionSection) correctionSection.style.display = 'none';
             dualImageContainer.style.display = 'none';
             dualCsvContainer.style.display = 'block';
+            if (correctionVisualizationMode) correctionVisualizationMode.style.display = 'none';
+            if (csvOverlayMode) csvOverlayMode.style.display = 'block';
             dualInfoTables.style.display = 'none';
             document.getElementById('dualFormSection').style.display = 'none';
             document.getElementById('csvFormSection').style.display = 'block';
             document.getElementById('layoutControl').style.display = 'none';
+            
+            // Restore right panel and center panel layout
+            const rightPanel = document.querySelector('.right-panel');
+            if (rightPanel) rightPanel.style.display = 'block';
+            const centerPanel = document.querySelector('.center-panel');
+            if (centerPanel) {
+                centerPanel.style.gridColumn = '';
+                centerPanel.style.maxWidth = '';
+            }
             
             // Setup CSV overlay mode (simplified) - single setup call
             setTimeout(() => {
@@ -494,16 +512,60 @@ class FigureExportTool {
                 }
             }, 150);
             
+        } else if (inputType === 'correction') {
+            // Show EMI Correction mode
+            imageUploadSection.style.display = 'none';
+            csvUploadSection.style.display = 'none';
+            if (correctionSection) correctionSection.style.display = 'block';
+            dualImageContainer.style.display = 'none';
+            dualCsvContainer.style.display = 'block';
+            if (correctionVisualizationMode) correctionVisualizationMode.style.display = 'block';
+            if (csvOverlayMode) csvOverlayMode.style.display = 'none';
+            dualInfoTables.style.display = 'none';
+            document.getElementById('dualFormSection').style.display = 'none';
+            document.getElementById('csvFormSection').style.display = 'none';
+            document.getElementById('layoutControl').style.display = 'none';
+            
+            // Hide right panel (comments section) for correction mode
+            const rightPanel = document.querySelector('.right-panel');
+            if (rightPanel) rightPanel.style.display = 'none';
+            
+            // Extend center panel to fill the space
+            const centerPanel = document.querySelector('.center-panel');
+            if (centerPanel) {
+                centerPanel.style.gridColumn = 'span 2';
+                centerPanel.style.maxWidth = 'none';
+            }
+            
+            // Initialize EMI correction tool
+            setTimeout(() => {
+                if (window.emiCorrectionTool) {
+                    window.emiCorrectionTool.setupCanvas();
+                }
+            }, 150);
+            
         } else {
             // Show image mode
             imageUploadSection.style.display = 'block';
             csvUploadSection.style.display = 'none';
+            if (correctionSection) correctionSection.style.display = 'none';
             dualImageContainer.style.display = 'block';
             dualCsvContainer.style.display = 'none';
-            dualInfoTables.style.display = 'block';
+            if (correctionVisualizationMode) correctionVisualizationMode.style.display = 'none';
+            if (csvOverlayMode) csvOverlayMode.style.display = 'none';
+            dualInfoTables.style.display = 'none';
             document.getElementById('dualFormSection').style.display = 'block';
             document.getElementById('csvFormSection').style.display = 'none';
             document.getElementById('layoutControl').style.display = 'block';
+            
+            // Restore right panel and center panel layout
+            const rightPanel = document.querySelector('.right-panel');
+            if (rightPanel) rightPanel.style.display = 'block';
+            const centerPanel = document.querySelector('.center-panel');
+            if (centerPanel) {
+                centerPanel.style.gridColumn = '';
+                centerPanel.style.maxWidth = '';
+            }
             
             // Update table headers
             document.getElementById('dataType1Header').textContent = 'Image 1';
@@ -550,6 +612,12 @@ class FigureExportTool {
             exportBtn2.style.display = 'none';
             exportBothBtn.style.display = 'none';
             console.log('Updated export buttons for CSV mode');
+        } else if (this.currentInputType === 'correction') {
+            // For correction mode, hide all export buttons (correction has its own export)
+            exportBtn1.style.display = 'none';
+            exportBtn2.style.display = 'none';
+            exportBothBtn.style.display = 'none';
+            console.log('Updated export buttons for Correction mode');
         } else {
             // For image mode, show all three buttons
             exportBtn1.textContent = 'Export Image 1';
@@ -720,6 +788,11 @@ class FigureExportTool {
         
         // Update peak identification helper for selected band
         this.identifyPeakForBand(band, bandInfo);
+        
+        // Redraw CSV graphs with band filtering when band is selected
+        if (this.currentInputType === 'csv') {
+            this.redrawAllCsvGraphs();
+        }
     }
     
     autoSelectBandButton(detectedBand) {
@@ -1271,10 +1344,10 @@ class FigureExportTool {
             csvModeControl.style.display = datasetCount > 0 ? 'block' : 'none';
         }
         
-        // Show/hide table headers appropriately
+        // Hide table headers (removed per user request)
         const dualInfoTables = document.getElementById('dualInfoTables');
         if (dualInfoTables) {
-            dualInfoTables.style.display = datasetCount > 1 ? 'block' : 'none';
+            dualInfoTables.style.display = 'none';
         }
         
         // Show/hide form section appropriately
@@ -1762,7 +1835,12 @@ class FigureExportTool {
                 if (amp > maxAmp) maxAmp = amp;
             });
         });
-        const ampRange = maxAmp - minAmp;
+        
+        // Use the same 10dB increment logic as display
+        const amplitudeResult = this.generateAmplitudeTicks(minAmp, maxAmp);
+        const actualMinAmp = amplitudeResult.extendedMin;
+        const actualMaxAmp = amplitudeResult.extendedMax;
+        const ampRange = actualMaxAmp - actualMinAmp;
         
         filteredDatasets.forEach((dataset, index) => {
             exportCtx.strokeStyle = dataset.color;
@@ -1777,7 +1855,7 @@ class FigureExportTool {
                 const amp = dataset.amplitudeData[i];
                 
                 const x = margin.left + ((freq - minFreq) / freqRange) * plotWidth;
-                const y = margin.top + plotHeight - ((amp - minAmp) / ampRange) * plotHeight;
+                const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
                 
                 if (firstPoint) {
                     exportCtx.moveTo(x, y);
@@ -1803,13 +1881,13 @@ class FigureExportTool {
             exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 15);
         }
         
-        // Y-axis labels (amplitude) - using filtered range
+        // Y-axis labels (amplitude) - using 10dB increments
         exportCtx.textAlign = 'right';
         exportCtx.textBaseline = 'middle';
-        for (let i = 0; i <= 5; i++) {
-            const amp = minAmp + (ampRange * i / 5);
-            const y = margin.top + plotHeight - (i / 5) * plotHeight;
-            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        for (let i = 0; i < amplitudeResult.ticks.length; i++) {
+            const amp = amplitudeResult.ticks[i];
+            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+            exportCtx.fillText(amp.toFixed(0) + ' dB', margin.left - 15, y);
         }
         
         // Axis titles
@@ -2165,7 +2243,12 @@ class FigureExportTool {
         exportCtx.beginPath();
         
         const freqRange = csvState.maxFreq - csvState.minFreq;
-        const ampRange = csvState.maxAmp - csvState.minAmp;
+        
+        // Use the same 10dB increment logic as display
+        const amplitudeResult = this.generateAmplitudeTicks(csvState.minAmp, csvState.maxAmp);
+        const actualMinAmp = amplitudeResult.extendedMin;
+        const actualMaxAmp = amplitudeResult.extendedMax;
+        const ampRange = actualMaxAmp - actualMinAmp;
         
         let firstPoint = true;
         for (let i = 0; i < csvState.frequencyData.length; i++) {
@@ -2173,7 +2256,7 @@ class FigureExportTool {
             const amp = csvState.amplitudeData[i];
             
             const x = margin.left + ((freq - csvState.minFreq) / freqRange) * plotWidth;
-            const y = margin.top + plotHeight - ((amp - csvState.minAmp) / ampRange) * plotHeight;
+            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
             
             if (firstPoint) {
                 exportCtx.moveTo(x, y);
@@ -2198,13 +2281,13 @@ class FigureExportTool {
             exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 20);
         }
         
-        // Y-axis labels (amplitude)
+        // Y-axis labels (amplitude) - using 10dB increments
         exportCtx.textAlign = 'right';
         exportCtx.textBaseline = 'middle';
-        for (let i = 0; i <= 5; i++) {
-            const amp = csvState.minAmp + (ampRange * i / 5);
-            const y = margin.top + plotHeight - (i / 5) * plotHeight;
-            exportCtx.fillText(amp.toFixed(1) + ' dB', margin.left - 20, y);
+        for (let i = 0; i < amplitudeResult.ticks.length; i++) {
+            const amp = amplitudeResult.ticks[i];
+            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+            exportCtx.fillText(amp.toFixed(0) + ' dB', margin.left - 20, y);
         }
         
         // Axis titles
@@ -2230,7 +2313,7 @@ class FigureExportTool {
         // Draw regulatory limit lines
         const freqStartMHz = csvState.minFreq / 1e6;
         const freqEndMHz = csvState.maxFreq / 1e6;
-        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, csvState.minAmp, csvState.maxAmp);
+        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, actualMinAmp, actualMaxAmp);
         
         return exportCanvas;
     }
@@ -3434,7 +3517,7 @@ class FigureExportTool {
         
         const container = canvas.parentElement;
         const containerWidth = container.clientWidth - 20;
-        const containerHeight = container.clientHeight - 60; // Account for header
+        const containerHeight = (container.clientHeight - 60) * 1.5; // Make chart 1.5x taller
         
         // Use device pixel ratio for very high resolution
         const dpr = window.devicePixelRatio || 1;
@@ -3447,7 +3530,11 @@ class FigureExportTool {
         const ctx = this.getCsvContext(csvNumber);
         ctx.scale(dpr, dpr);
         
-        this.drawCsvGraph(csvNumber);
+        // Auto-scale and center data when first imported
+        setTimeout(() => {
+            this.autoScaleCsvEnhanced(csvNumber);
+        }, 100);
+        
         this.addCsvControls(csvNumber);
     }
     
@@ -3477,13 +3564,32 @@ class FigureExportTool {
             top: margin.top + state.offsetY
         };
         
+        // Get band-filtered data and ranges
+        const filteredData = this.filterCsvDataToBand(csvNumber);
+        
+        // Use filtered data ranges if available, otherwise use original ranges
+        let baseMinFreq, baseMaxFreq, baseMinAmp, baseMaxAmp;
+        if (filteredData.bandInfo && filteredData.frequencyData.length > 0) {
+            // Use band frequency range and filtered amplitude range
+            baseMinFreq = filteredData.bandInfo.startMHz * 1e6;
+            baseMaxFreq = filteredData.bandInfo.endMHz * 1e6;
+            baseMinAmp = filteredData.minAmp;
+            baseMaxAmp = filteredData.maxAmp;
+        } else {
+            // Use original full data range
+            baseMinFreq = state.minFreq;
+            baseMaxFreq = state.maxFreq;
+            baseMinAmp = state.minAmp;
+            baseMaxAmp = state.maxAmp;
+        }
+        
         // Calculate data ranges with zoom and pan
-        const freqRange = (state.maxFreq - state.minFreq) / state.scale;
-        const ampRange = (state.maxAmp - state.minAmp) / state.scale;
+        const freqRange = (baseMaxFreq - baseMinFreq) / state.scale;
+        const ampRange = (baseMaxAmp - baseMinAmp) / state.scale;
         
         // Calculate center point based on pan offset
-        const freqCenter = (state.minFreq + state.maxFreq) / 2 - (state.offsetX / plotWidth) * freqRange;
-        const ampCenter = (state.minAmp + state.maxAmp) / 2 + (state.offsetY / plotHeight) * ampRange;
+        const freqCenter = (baseMinFreq + baseMaxFreq) / 2 - (state.offsetX / plotWidth) * freqRange;
+        const ampCenter = (baseMinAmp + baseMaxAmp) / 2 + (state.offsetY / plotHeight) * ampRange;
         
         const freqStart = freqCenter - freqRange / 2;
         const freqEnd = freqCenter + freqRange / 2;
@@ -3559,23 +3665,42 @@ class FigureExportTool {
         ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
         ctx.stroke();
         
-        // Draw data line with anti-aliasing
+        // Draw data line with anti-aliasing - use filtered data for band display
         ctx.strokeStyle = '#cc0000';
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         ctx.beginPath();
         
+        // Use filtered data if band is selected and has data, otherwise use original data
+        const displayFreqData = (filteredData.bandInfo && filteredData.frequencyData.length > 0) 
+            ? filteredData.frequencyData 
+            : state.frequencyData;
+        const displayAmpData = (filteredData.bandInfo && filteredData.amplitudeData.length > 0) 
+            ? filteredData.amplitudeData 
+            : state.amplitudeData;
+        
+        // Get clean 10dB increment ticks with extended range for drawing calculations
+        const amplitudeResult = this.generateAmplitudeTicks(
+            Math.min(...displayAmpData), 
+            Math.max(...displayAmpData)
+        );
+        
+        // Use extended range for all drawing calculations
+        const actualAmpStart = amplitudeResult.extendedMin;
+        const actualAmpEnd = amplitudeResult.extendedMax;
+        const actualAmpRange = actualAmpEnd - actualAmpStart;
+        
         let firstPoint = true;
-        for (let i = 0; i < state.frequencyData.length; i++) {
-            const freq = state.frequencyData[i];
-            const amp = state.amplitudeData[i];
+        for (let i = 0; i < displayFreqData.length; i++) {
+            const freq = displayFreqData[i];
+            const amp = displayAmpData[i];
             
             // Skip points outside current zoom range
             if (freq < freqStart || freq > freqEnd) continue;
             
             const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
-            const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+            const y = scaledMargin.top + plotHeight - ((amp - actualAmpStart) / actualAmpRange) * plotHeight;
             
             if (firstPoint) {
                 ctx.moveTo(x, y);
@@ -3597,26 +3722,25 @@ class FigureExportTool {
         const minLabels = 4;
         const numLabels = Math.max(minLabels, Math.min(maxLabels, Math.floor(state.scale * 4) + 4));
         
-        // X-axis labels (frequency) - show actual visible range
-        for (let i = 0; i <= numLabels; i++) {
-            const freq = freqStart + (freqRange * i / numLabels);
-            const x = margin.left + (i / numLabels) * plotWidth; // Use fixed margin, not scaled
+        // X-axis labels (frequency) - use 10 divisions with nice round numbers
+        const frequencyTicks = this.generateFrequencyTicks(freqStart, freqEnd);
+        
+        for (let i = 0; i < frequencyTicks.length; i++) {
+            const freq = frequencyTicks[i];
+            const x = margin.left + ((freq - freqStart) / freqRange) * plotWidth;
             const freqMHz = freq / 1e6;
             
             ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 10);
         }
         
-        // Y-axis labels (amplitude) - show actual visible range
+        // Y-axis labels (amplitude) - use enhanced 10dB increments with extended range
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        const maxAmpLabels = Math.floor(plotHeight / 40); // At least 40px between labels
-        const numAmpLabels = Math.max(minLabels, Math.min(maxAmpLabels, Math.floor(state.scale * 3) + 4));
         
-        for (let i = 0; i <= numAmpLabels; i++) {
-            const amp = ampStart + (ampRange * i / numAmpLabels);
-            const y = margin.top + plotHeight - (i / numAmpLabels) * plotHeight; // Use fixed margin
-            
-            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+        for (let i = 0; i < amplitudeResult.ticks.length; i++) {
+            const amp = amplitudeResult.ticks[i];
+            const y = margin.top + plotHeight - ((amp - actualAmpStart) / actualAmpRange) * plotHeight;
+            ctx.fillText(amp.toFixed(0) + ' dB', margin.left - 15, y);
         }
         
         // Axis titles with fixed positioning
@@ -3637,14 +3761,14 @@ class FigureExportTool {
         ctx.fillStyle = '#cc0000';
         const pointSize = Math.min(3, Math.max(1, state.scale * 1.5));
         
-        for (let i = 0; i < state.frequencyData.length; i++) {
-            const freq = state.frequencyData[i];
-            const amp = state.amplitudeData[i];
+        for (let i = 0; i < displayFreqData.length; i++) {
+            const freq = displayFreqData[i];
+            const amp = displayAmpData[i];
             
             if (freq < freqStart || freq > freqEnd) continue;
             
             const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
-            const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
+            const y = scaledMargin.top + plotHeight - ((amp - actualAmpStart) / actualAmpRange) * plotHeight;
             
             ctx.beginPath();
             ctx.arc(x, y, pointSize, 0, 2 * Math.PI);
@@ -3654,7 +3778,7 @@ class FigureExportTool {
         // Draw regulatory limit lines
         const freqStartMHz = freqStart / 1e6;
         const freqEndMHz = freqEnd / 1e6;
-        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, ampStart, ampEnd);
+        this.drawLimitLines(ctx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, actualAmpStart, actualAmpEnd);
     }
     
     handleCsvMouseDown(e, csvNumber) {
@@ -3870,6 +3994,214 @@ class FigureExportTool {
         this.drawCsvGraph(csvNumber);
     }
     
+    // =============================== ENHANCED SPECTRUM FEATURES ===============================
+    
+    /**
+     * Generate amplitude ticks with clean 10dB increments and extended range
+     * @param {number} minAmp - Minimum amplitude value
+     * @param {number} maxAmp - Maximum amplitude value
+     * @returns {Object} Object with extended range and tick values
+     */
+    generateAmplitudeTicks(minAmp, maxAmp) {
+        // Extend the range beyond the signal for better visualization
+        const range = maxAmp - minAmp;
+        const extension = Math.max(10, range * 0.15); // At least 10dB extension
+        
+        const extendedMin = minAmp - extension;
+        const extendedMax = maxAmp + extension;
+        
+        // Round to nice 10dB boundaries
+        const minTick = Math.floor(extendedMin / 10) * 10;
+        const maxTick = Math.ceil(extendedMax / 10) * 10;
+        
+        const ticks = [];
+        for (let amp = minTick; amp <= maxTick; amp += 10) {
+            ticks.push(amp);
+        }
+        
+        return {
+            ticks: ticks,
+            extendedMin: minTick,
+            extendedMax: maxTick
+        };
+    }
+    
+    /**
+     * Generate frequency ticks with exactly 10 divisions
+     * @param {number} minFreq - Minimum frequency in Hz
+     * @param {number} maxFreq - Maximum frequency in Hz
+     * @returns {Array} Array of frequency tick values in Hz
+     */
+    generateFrequencyTicks(minFreq, maxFreq) {
+        const minFreqMHz = minFreq / 1e6;
+        const maxFreqMHz = maxFreq / 1e6;
+        const rangeMHz = maxFreqMHz - minFreqMHz;
+        
+        // Calculate nice step size for exactly 10 divisions
+        const rawStep = rangeMHz / 10;
+        
+        // Round to nice numbers
+        let step;
+        if (rawStep >= 1000) {
+            step = Math.ceil(rawStep / 1000) * 1000; // Round to nearest 1000 MHz
+        } else if (rawStep >= 500) {
+            step = Math.ceil(rawStep / 500) * 500; // Round to nearest 500 MHz
+        } else if (rawStep >= 100) {
+            step = Math.ceil(rawStep / 100) * 100; // Round to nearest 100 MHz
+        } else if (rawStep >= 50) {
+            step = Math.ceil(rawStep / 50) * 50; // Round to nearest 50 MHz
+        } else if (rawStep >= 10) {
+            step = Math.ceil(rawStep / 10) * 10; // Round to nearest 10 MHz
+        } else if (rawStep >= 1) {
+            step = Math.ceil(rawStep); // Round to nearest 1 MHz
+        } else {
+            step = Math.ceil(rawStep * 10) / 10; // Round to nearest 0.1 MHz
+        }
+        
+        // Find nice starting point
+        const startMHz = Math.floor(minFreqMHz / step) * step;
+        
+        const ticks = [];
+        for (let i = 0; i <= 12; i++) { // Generate a few extra to ensure coverage
+            const freqMHz = startMHz + (i * step);
+            if (freqMHz >= minFreqMHz && freqMHz <= maxFreqMHz) {
+                ticks.push(freqMHz * 1e6); // Convert back to Hz
+            }
+        }
+        
+        // Ensure we have at least the start and end points
+        if (!ticks.includes(minFreq)) {
+            ticks.unshift(minFreq);
+        }
+        if (!ticks.includes(maxFreq)) {
+            ticks.push(maxFreq);
+        }
+        
+        return ticks.sort((a, b) => a - b);
+    }
+    
+    /**
+     * Auto-scale and center the CSV data intelligently
+     * @param {number} csvNumber - CSV graph number
+     */
+    autoScaleCsvEnhanced(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state.frequencyData.length) return;
+        
+        // Get current band selection for filtering
+        const selectedBand = this.getSelectedBand();
+        let filteredFreqData = state.frequencyData;
+        let filteredAmpData = state.amplitudeData;
+        
+        // Filter to band range if a band is selected
+        if (selectedBand && this.bandDefinitions[selectedBand]) {
+            const bandInfo = this.bandDefinitions[selectedBand];
+            const startFreq = bandInfo.startMHz * 1e6;
+            const endFreq = bandInfo.endMHz * 1e6;
+            
+            const tempFreq = [];
+            const tempAmp = [];
+            
+            for (let i = 0; i < state.frequencyData.length; i++) {
+                const freq = state.frequencyData[i];
+                if (freq >= startFreq && freq <= endFreq) {
+                    tempFreq.push(freq);
+                    tempAmp.push(state.amplitudeData[i]);
+                }
+            }
+            
+            if (tempFreq.length > 0) {
+                filteredFreqData = tempFreq;
+                filteredAmpData = tempAmp;
+            }
+        }
+        
+        // Find data range from filtered data
+        const minFreq = Math.min(...filteredFreqData);
+        const maxFreq = Math.max(...filteredFreqData);
+        const minAmp = Math.min(...filteredAmpData);
+        const maxAmp = Math.max(...filteredAmpData);
+        
+        // Calculate center points
+        const freqCenter = (minFreq + maxFreq) / 2;
+        const ampCenter = (minAmp + maxAmp) / 2;
+        
+        // Reset zoom and center on the data
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        
+        // Store the centered range for drawing
+        state.centeredMinFreq = minFreq;
+        state.centeredMaxFreq = maxFreq;
+        state.centeredMinAmp = minAmp;
+        state.centeredMaxAmp = maxAmp;
+        state.autoScaled = true;
+        
+        this.drawCsvGraph(csvNumber);
+    }
+    
+    /**
+     * Get currently selected band from UI
+     * @returns {string|null} Selected band identifier
+     */
+    getSelectedBand() {
+        const selectedButton = document.querySelector('.band-btn.active');
+        return selectedButton ? selectedButton.dataset.band : null;
+    }
+    
+    /**
+     * Filter CSV data to selected band range
+     * @param {number} csvNumber - CSV graph number
+     * @returns {Object} Filtered frequency and amplitude data
+     */
+    filterCsvDataToBand(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        const selectedBand = this.getSelectedBand();
+        
+        if (!selectedBand || !this.bandDefinitions[selectedBand]) {
+            return {
+                frequencyData: state.frequencyData,
+                amplitudeData: state.amplitudeData,
+                minFreq: state.minFreq,
+                maxFreq: state.maxFreq,
+                minAmp: state.minAmp,
+                maxAmp: state.maxAmp,
+                bandInfo: null
+            };
+        }
+        
+        const bandInfo = this.bandDefinitions[selectedBand];
+        const startFreq = bandInfo.startMHz * 1e6;
+        const endFreq = bandInfo.endMHz * 1e6;
+        
+        const filteredFreqData = [];
+        const filteredAmpData = [];
+        
+        for (let i = 0; i < state.frequencyData.length; i++) {
+            const freq = state.frequencyData[i];
+            if (freq >= startFreq && freq <= endFreq) {
+                filteredFreqData.push(freq);
+                filteredAmpData.push(state.amplitudeData[i]);
+            }
+        }
+        
+        const minFreq = filteredFreqData.length > 0 ? Math.min(...filteredFreqData) : startFreq;
+        const maxFreq = filteredFreqData.length > 0 ? Math.max(...filteredFreqData) : endFreq;
+        const minAmp = filteredAmpData.length > 0 ? Math.min(...filteredAmpData) : state.minAmp;
+        const maxAmp = filteredAmpData.length > 0 ? Math.max(...filteredAmpData) : state.maxAmp;
+        
+        return {
+            frequencyData: filteredFreqData,
+            amplitudeData: filteredAmpData,
+            minFreq,
+            maxFreq,
+            minAmp,
+            maxAmp,
+            bandInfo
+        };
+    }
+    
     addCsvControls(csvNumber) {
         // Remove existing controls if any
         const existingControls = document.querySelector(`#csvControls${csvNumber}`);
@@ -3949,7 +4281,7 @@ class FigureExportTool {
         });
         
         document.getElementById(`csvAutoScale${csvNumber}`).addEventListener('click', () => {
-            this.autoScaleCsv(csvNumber);
+            this.autoScaleCsvEnhanced(csvNumber);
             this.updateCsvZoomDisplay(csvNumber);
         });
         
@@ -4347,7 +4679,7 @@ class FigureExportTool {
         
         const container = canvas.parentElement;
         const containerWidth = container.clientWidth - 30;
-        const containerHeight = container.clientHeight - 100; // Account for header and legend
+        const containerHeight = (container.clientHeight - 100) * 1.5; // Make chart 1.5x taller
         
         // Use device pixel ratio for very high resolution
         const dpr = window.devicePixelRatio || 1;
@@ -5204,20 +5536,39 @@ class FigureExportTool {
         const legendX = margin.left + (width - margin.left - margin.right) / 2;
         const legendY = margin.top + (height - margin.top - margin.bottom) + 65; // In the margin area
         
-        // Calculate legend dimensions
-        const itemWidth = 120;
-        const maxItemsPerRow = Math.floor((width - margin.left - margin.right) / itemWidth);
+        // Calculate dynamic item width based on longest filename
+        ctx.font = 'bold 11px Arial';
+        let maxTextWidth = 0;
+        this.csvOverlayState.datasets.forEach(dataset => {
+            const textWidth = ctx.measureText(dataset.name).width;
+            maxTextWidth = Math.max(maxTextWidth, textWidth);
+        });
+        
+        // Add padding for color line and spacing
+        const itemWidth = Math.max(140, maxTextWidth + 35);
+        const availableWidth = width - margin.left - margin.right;
+        const maxItemsPerRow = Math.floor(availableWidth / itemWidth);
         const itemsPerRow = Math.min(this.csvOverlayState.datasets.length, maxItemsPerRow);
         
+        // Calculate legend background
+        const totalWidth = itemsPerRow * itemWidth;
+        const legendHeight = Math.ceil(this.csvOverlayState.datasets.length / itemsPerRow) * 22 + 10;
+        
+        // Draw legend background with border
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fillRect(legendX - totalWidth/2 - 5, legendY - 15, totalWidth + 10, legendHeight);
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(legendX - totalWidth/2 - 5, legendY - 15, totalWidth + 10, legendHeight);
+        
         // Draw legend items horizontally centered
-        const totalItemWidth = itemsPerRow * itemWidth;
-        const startX = legendX - totalItemWidth / 2;
+        const startX = legendX - totalWidth / 2;
         
         this.csvOverlayState.datasets.forEach((dataset, index) => {
             const row = Math.floor(index / itemsPerRow);
             const col = index % itemsPerRow;
             const itemX = startX + col * itemWidth;
-            const itemY = legendY + row * 20;
+            const itemY = legendY + row * 22;
             
             // Draw color line
             ctx.strokeStyle = dataset.color;
@@ -5227,16 +5578,34 @@ class FigureExportTool {
             ctx.lineTo(itemX + 20, itemY);
             ctx.stroke();
             
-            // Draw dataset name
+            // Draw dataset name (full filename, no truncation)
             ctx.fillStyle = '#333';
             ctx.font = 'bold 11px Arial';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             
-            // Truncate long names
+            // Measure text to ensure it fits
+            const textWidth = ctx.measureText(dataset.name).width;
+            const availableSpace = itemWidth - 30;
+            
             let displayName = dataset.name;
-            if (displayName.length > 12) {
-                displayName = displayName.substring(0, 9) + '...';
+            if (textWidth > availableSpace) {
+                // If text is too long, use a smaller font
+                ctx.font = 'bold 9px Arial';
+                const smallerTextWidth = ctx.measureText(dataset.name).width;
+                if (smallerTextWidth > availableSpace) {
+                    // If still too long, truncate smartly (keep extension)
+                    const parts = dataset.name.split('.');
+                    if (parts.length > 1) {
+                        const extension = '.' + parts[parts.length - 1];
+                        const baseName = parts.slice(0, -1).join('.');
+                        const maxBaseLength = Math.floor((availableSpace - ctx.measureText(extension + '...').width) / ctx.measureText('M').width);
+                        displayName = baseName.substring(0, maxBaseLength) + '...' + extension;
+                    } else {
+                        const maxLength = Math.floor(availableSpace / ctx.measureText('M').width) - 3;
+                        displayName = dataset.name.substring(0, maxLength) + '...';
+                    }
+                }
             }
             
             ctx.fillText(displayName, itemX + 25, itemY);
@@ -6111,7 +6480,7 @@ class FigureExportTool {
         
         // Major horizontal grid lines (amplitude) - align with axis labels
         for (let i = 0; i <= numLabels; i++) {
-            const y = margin.top + (i / numLabels) * plotHeight;
+            const y = margin.top + plotHeight - (i / numLabels) * plotHeight;
             ctx.beginPath();
             ctx.moveTo(margin.left, y + 0.5);
             ctx.lineTo(margin.left + plotWidth, y + 0.5);

@@ -35,21 +35,17 @@
                             <span class="mode-text">Image Files</span>
                             <span class="mode-subtitle">Visual Documentation</span>
                         </button>
+                        <button class="mode-tab correction-mode" data-mode="correction">
+                            <span class="mode-icon">⚡</span>
+                            <span class="mode-text">EMI Correction</span>
+                            <span class="mode-subtitle">Data Correction</span>
+                        </button>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Page Management -->
-        <div class="page-management">
-            <div class="page-tabs" id="pageTabs">
-                <div class="page-tab active" data-page="1">
-                    <span>Page 1</span>
-                    <button class="close-tab" onclick="figureExportTool.removePage(1)" title="Close Page">×</button>
-                </div>
-            </div>
-            <button class="add-page-btn" id="addPageBtn" onclick="figureExportTool.addNewPage()">+ Add Page</button>
-        </div>
+
 
         <div class="main-content">
             <!-- Left Panel: Controls -->
@@ -154,6 +150,64 @@
                     </div>
                 </div>
 
+                <!-- EMI Correction Section -->
+                <div class="correction-section" id="correctionSection" style="display: none;">
+                    <h2>EMI Measurement Correction</h2>
+                    
+                    <!-- Measurement File Upload -->
+                    <div class="correction-upload-group">
+                        <h3>Measurement File</h3>
+                        <div class="upload-area" id="measurementUploadArea">
+                            <input type="file" id="measurementFileInput" accept=".csv,.txt" style="display: none;">
+                            <div class="upload-placeholder">
+                                <p>Click to select measurement file</p>
+                                <small>CSV format with frequency and amplitude data</small>
+                            </div>
+                        </div>
+                        <div id="measurementStatus" class="file-status">No file selected</div>
+                    </div>
+
+                    <!-- Add Correction File Upload -->
+                    <div class="correction-upload-group">
+                        <h3>Correction to Add</h3>
+                        <div class="upload-area" id="addCorrectionUploadArea">
+                            <input type="file" id="addCorrectionFileInput" accept=".csv,.txt" style="display: none;">
+                            <div class="upload-placeholder">
+                                <p>Click to select correction file</p>
+                                <small>PCEP correction data to add</small>
+                            </div>
+                        </div>
+                        <div id="addCorrectionStatus" class="file-status">No file selected</div>
+                    </div>
+
+                    <!-- Subtract Correction File Upload -->
+                    <div class="correction-upload-group">
+                        <h3>Correction to Subtract</h3>
+                        <div class="upload-area" id="subtractCorrectionUploadArea">
+                            <input type="file" id="subtractCorrectionFileInput" accept=".csv,.txt" style="display: none;">
+                            <div class="upload-placeholder">
+                                <p>Click to select correction file</p>
+                                <small>PCEP correction data to subtract</small>
+                            </div>
+                        </div>
+                        <div id="subtractCorrectionStatus" class="file-status">No file selected</div>
+                    </div>
+
+                    <!-- Correction Controls -->
+                    <div class="correction-controls">
+                        <button id="applyCorrectionBtn" class="btn btn-primary" disabled>Apply Correction</button>
+                        <button id="exportCorrectedBtn" class="btn btn-secondary" disabled>Export Corrected Data</button>
+                        <button id="resetCorrectionBtn" class="btn btn-warning">Reset</button>
+                    </div>
+
+                    <!-- Correction Statistics -->
+                    <div class="correction-statistics">
+                        <div id="correctionStatistics">
+                            <p class="helper-hint">Upload files and apply correction to see statistics</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="dual-form-section" id="dualFormSection" style="display: none;">
                     <div class="form-container">
                         <h3>Image 1 Information</h3>
@@ -226,10 +280,8 @@
                         <button id="exportImage1" class="btn btn-primary">Export CSV Overlay</button>
                         <button id="exportImage2" class="btn btn-primary" style="display: none;">Export Image 2</button>
                         <button id="exportBoth" class="btn btn-primary" style="display: none;">Export Both Images</button>
-                        <button id="exportAllPages" class="btn btn-secondary">Export All Pages</button>
                     </div>
-                    <button id="clearStats" class="btn btn-secondary">Clear Current Page</button>
-                    <button id="clearAllPages" class="btn btn-warning">Clear All Pages</button>
+                    <button id="clearStats" class="btn btn-secondary">Clear</button>
                 </div>
             </div>
 
@@ -325,6 +377,21 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- EMI Correction Visualization Mode -->
+                        <div class="correction-visualization-mode" id="correctionVisualizationMode" style="display: none;">
+                            <div class="correction-visualization-container">
+                                <div class="csv-graph-header">
+                                    <h4>EMI Correction Visualization</h4>
+                                    <div class="graph-controls">
+                                        <button class="control-btn" id="correctionResetZoom">Reset Zoom</button>
+                                        <button class="control-btn" id="correctionZoomIn">Zoom In</button>
+                                        <button class="control-btn" id="correctionZoomOut">Zoom Out</button>
+                                    </div>
+                                </div>
+                                <canvas id="correctionCanvas"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -338,6 +405,45 @@
                         <textarea id="comments" placeholder="Additional notes, observations, test conditions, anomalies, or other relevant information..."></textarea>
                     </div>
                 </div>
+
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer>
+            <div class="footer-content">
+                <p>&copy; 2025 Turner Engineering Corporation. All rights reserved.</p>
+                <p>Professional EMC Testing Tools | Enhanced Export with Large Text & Connected Layout v3.5</p>
+                <div class="attribution">
+                    <p>Developed by Howard Wang | Supervised by Temba Mateke</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Band Database Scripts (B0-B7) -->
+    <script src="peak-identification-database-band0.js"></script>
+    <script src="peak-identification-database-band1.js"></script>
+    <script src="peak-identification-database-band2.js"></script>
+    <script src="peak-identification-database-band3.js"></script>
+    <script src="peak-identification-database-band4.js"></script>
+    <script src="peak-identification-database-band5.js"></script>
+    <script src="peak-identification-database-band6.js"></script>
+    <script src="peak-identification-database-band7.js"></script>
+    <script src="emi-correction.js"></script>
+    <script src="script.js"></script>
+
+    <!-- ========================================
+         BACKUP SECTIONS - TEMPORARILY REMOVED
+         ========================================
+         
+         TO RESTORE EMISSION LIMITS & PEAK IDENTIFICATION:
+         1. Copy the sections below
+         2. Paste them back in the right-panel after the comments-section
+         3. Remove the HTML comment tags around them
+         4. Delete this backup section
+         
+    <!--
                 
                 <!-- Limit Lines Configuration -->
                 <div class="limit-lines-section">
@@ -440,30 +546,9 @@
                         <input type="text" id="frequencyRange" readonly placeholder="Select a band to see frequency range">
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <footer>
-            <div class="footer-content">
-                <p>&copy; 2025 Turner Engineering Corporation. All rights reserved.</p>
-                <p>Professional EMC Testing Tools | Enhanced Export with Large Text & Connected Layout v3.5</p>
-                <div class="attribution">
-                    <p>Developed by Howard Wang | Supervised by Temba Mateke</p>
-                </div>
-            </div>
-        </footer>
-    </div>
+                
+    -->
+    <!-- END OF BACKUP SECTIONS -->
 
-    <!-- Band Database Scripts (B0-B7) -->
-    <script src="peak-identification-database-band0.js"></script>
-    <script src="peak-identification-database-band1.js"></script>
-    <script src="peak-identification-database-band2.js"></script>
-    <script src="peak-identification-database-band3.js"></script>
-    <script src="peak-identification-database-band4.js"></script>
-    <script src="peak-identification-database-band5.js"></script>
-    <script src="peak-identification-database-band6.js"></script>
-    <script src="peak-identification-database-band7.js"></script>
-    <script src="script.js"></script>
 </body>
 </html> 
