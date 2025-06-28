@@ -326,7 +326,9 @@ class FigureExportTool {
         // CSV file upload (separate mode - not used in simplified version)
         this.setupCsvUploadListeners(1);
         this.setupCsvUploadListeners(2);
-        // Overlay upload listeners are set up separately during CSV mode initialization
+        // Set up overlay upload listeners immediately to prevent timing issues
+        this.setupOverlayUploadListeners();
+        this.enableCsvUploadImmediately();
         
         // Form inputs - update tables when values change
         ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
@@ -351,28 +353,36 @@ class FigureExportTool {
         this.setupCsvCanvasListeners(2);
         this.setupOverlayCanvasListeners();
         
-        // Band selection buttons
-        document.querySelectorAll('.band-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.handleBandSelection(e.target.dataset.band);
-            });
-        });
+        // Band selection buttons - TEMPORARILY COMMENTED OUT
+        // document.querySelectorAll('.band-btn').forEach(btn => {
+        //     btn.addEventListener('click', (e) => {
+        //         this.handleBandSelection(e.target.dataset.band);
+        //     });
+        // });
         
-        // Export buttons
-        document.getElementById('exportImage1').addEventListener('click', () => this.exportSingleImage(1));
-        document.getElementById('exportImage2').addEventListener('click', () => this.exportSingleImage(2));
-        document.getElementById('exportBoth').addEventListener('click', () => this.exportBothImages());
-        document.getElementById('exportAllPages').addEventListener('click', () => this.exportAllPages());
+        // Export buttons - Add null checks to prevent errors
+        const exportBtn1 = document.getElementById('exportImage1');
+        const exportBtn2 = document.getElementById('exportImage2');
+        const exportBothBtn = document.getElementById('exportBoth');
+        const exportAllBtn = document.getElementById('exportAllPages');
         
-        // Clear buttons
-        document.getElementById('clearStats').addEventListener('click', () => this.clearCurrentPage());
-        document.getElementById('clearAllPages').addEventListener('click', () => this.clearAllPages());
+        if (exportBtn1) exportBtn1.addEventListener('click', () => this.exportSingleImage(1));
+        if (exportBtn2) exportBtn2.addEventListener('click', () => this.exportSingleImage(2));
+        if (exportBothBtn) exportBothBtn.addEventListener('click', () => this.exportBothImages());
+        if (exportAllBtn) exportAllBtn.addEventListener('click', () => this.exportAllPages());
+        
+        // Clear buttons - Add null checks to prevent errors
+        const clearStatsBtn = document.getElementById('clearStats');
+        const clearAllBtn = document.getElementById('clearAllPages');
+        
+        if (clearStatsBtn) clearStatsBtn.addEventListener('click', () => this.clearCurrentPage());
+        if (clearAllBtn) clearAllBtn.addEventListener('click', () => this.clearAllPages());
         
         // Page tab clicks
         this.setupPageTabListeners();
         
-        // Limit lines controls
-        this.setupLimitLinesListeners();
+        // Limit lines controls - TEMPORARILY COMMENTED OUT
+        // this.setupLimitLinesListeners();
     }
     
     setupPageTabListeners() {
@@ -505,11 +515,16 @@ class FigureExportTool {
             // Setup CSV overlay mode (simplified) - single setup call
             setTimeout(() => {
                 this.setCsvMode('overlay');
-                // Only set up upload listeners if not already done during initialization
-                if (!document.getElementById('csvOverlayUploadArea')?.hasAttribute('data-listeners-setup')) {
-                    this.setupOverlayUploadListeners();
-                    this.addCsvUploadFallback();
-                }
+                // Force setup of upload listeners to ensure they work
+                console.log('Setting up CSV upload listeners...');
+                this.setupOverlayUploadListeners();
+                this.addCsvUploadFallback();
+                this.enableCsvUploadImmediately();
+                
+                // Verify setup after a short delay
+                setTimeout(() => {
+                    this.debugCsvUpload();
+                }, 200);
             }, 150);
             
         } else if (inputType === 'correction') {
@@ -541,6 +556,8 @@ class FigureExportTool {
             setTimeout(() => {
                 if (window.emiCorrectionTool) {
                     window.emiCorrectionTool.setupCanvas();
+                    // Force re-setup event listeners to ensure they work after mode switch
+                    window.emiCorrectionTool.setupEventListeners(true);
                 }
             }, 150);
             
@@ -773,42 +790,45 @@ class FigureExportTool {
         };
     }
     
-    handleBandSelection(band) {
-        // Update frequency range display
-        const bandInfo = this.bandDefinitions[band];
-        if (bandInfo) {
-            document.getElementById('frequencyRange').value = bandInfo.range;
-        }
-        
-        // Visual feedback - highlight selected band
-        document.querySelectorAll('.band-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-band="${band}"]`).classList.add('active');
-        
-        // Update peak identification helper for selected band
-        this.identifyPeakForBand(band, bandInfo);
-        
-        // Redraw CSV graphs with band filtering when band is selected
-        if (this.currentInputType === 'csv') {
-            this.redrawAllCsvGraphs();
-        }
-    }
+    // TEMPORARILY COMMENTED OUT - Band Selection Feature
+    // handleBandSelection(band) {
+    //     // Update frequency range display
+    //     const bandInfo = this.bandDefinitions[band];
+    //     if (bandInfo) {
+    //         document.getElementById('frequencyRange').value = bandInfo.range;
+    //     }
+    //     
+    //     // Visual feedback - highlight selected band
+    //     document.querySelectorAll('.band-btn').forEach(btn => {
+    //         btn.classList.remove('active');
+    //     });
+    //     document.querySelector(`[data-band="${band}"]`).classList.add('active');
+    //     
+    //     // Update peak identification helper for selected band
+    //     this.identifyPeakForBand(band, bandInfo);
+    //     
+    //     // Redraw CSV graphs with band filtering when band is selected
+    //     if (this.currentInputType === 'csv') {
+    //         this.redrawAllCsvGraphs();
+    //     }
+    // }
     
-    autoSelectBandButton(detectedBand) {
-        if (this.bandDefinitions[detectedBand]) {
-            this.handleBandSelection(detectedBand);
-        }
-    }
+    // TEMPORARILY COMMENTED OUT - Auto Band Selection
+    // autoSelectBandButton(detectedBand) {
+    //     if (this.bandDefinitions[detectedBand]) {
+    //         this.handleBandSelection(detectedBand);
+    //     }
+    // }
     
-    clearPeakIdentification() {
-        const resultsContainer = document.getElementById('peakResults');
-        const bandInfoDisplay = document.querySelector('.band-info-display');
-        
-        bandInfoDisplay.classList.remove('active');
-        bandInfoDisplay.innerHTML = '<p class="helper-hint">Select an EMC band above to see frequency allocations for that range.</p>';
-        resultsContainer.innerHTML = '<p class="helper-hint">Choose a band (B0-B7) to view all services allocated in that frequency range.</p>';
-    }
+    // TEMPORARILY COMMENTED OUT - Peak Identification Feature
+    // clearPeakIdentification() {
+    //     const resultsContainer = document.getElementById('peakResults');
+    //     const bandInfoDisplay = document.querySelector('.band-info-display');
+    //     
+    //     bandInfoDisplay.classList.remove('active');
+    //     bandInfoDisplay.innerHTML = '<p class="helper-hint">Select an EMC band above to see frequency allocations for that range.</p>';
+    //     resultsContainer.innerHTML = '<p class="helper-hint">Choose a band (B0-B7) to view all services allocated in that frequency range.</p>';
+    // }
     
     handleDragOver(e, imageNumber) {
         e.preventDefault();
@@ -928,7 +948,7 @@ class FigureExportTool {
             
             if (band) {
                 document.getElementById('csvBand').value = band;
-                this.autoSelectBandButton(band);
+                // this.autoSelectBandButton(band); // TEMPORARILY COMMENTED OUT
                 console.log(`Detected Band for CSV:`, band);
             }
             
@@ -948,7 +968,7 @@ class FigureExportTool {
                 document.getElementById(`band${imageNumber}`).value = band;
                 // Only auto-select band button for first image to avoid conflicts
                 if (imageNumber === 1) {
-                    this.autoSelectBandButton(band);
+                    // this.autoSelectBandButton(band); // TEMPORARILY COMMENTED OUT
                 }
                 console.log(`Detected Band for Image ${imageNumber}:`, band);
             }
@@ -3083,62 +3103,78 @@ class FigureExportTool {
     }
     
     setupOverlayUploadListeners() {
+        console.log('🔧 Setting up CSV overlay upload listeners...');
+        
         const uploadArea = document.getElementById('csvOverlayUploadArea');
         const csvInput = document.getElementById('csvOverlayInput');
         
-        if (!uploadArea || !csvInput) {
-            console.warn('CSV overlay upload elements not found:', {
-                uploadArea: !!uploadArea,
-                csvInput: !!csvInput
-            });
+        if (!uploadArea) {
+            console.error('❌ csvOverlayUploadArea element not found!');
+            return;
+        }
+        if (!csvInput) {
+            console.error('❌ csvOverlayInput element not found!');
             return;
         }
         
-        // Check if listeners are already set up
-        if (uploadArea.hasAttribute('data-listeners-setup')) {
-            console.log('CSV upload listeners already set up, skipping...');
-            return;
-        }
+        console.log('✅ Found CSV upload elements');
         
-        console.log('Setting up CSV overlay upload listeners');
+        // Remove existing listeners by removing the data attribute and re-adding
+        uploadArea.removeAttribute('data-listeners-setup');
         
         // Simple, direct click handler
         const clickHandler = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('CSV upload area clicked, triggering file input');
+            console.log('🖱️ CSV upload area clicked, triggering file input');
             csvInput.click();
         };
         
-        // Clear any existing listeners by cloning the elements
-        const newUploadArea = uploadArea.cloneNode(true);
-        uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+        // Remove any existing event listeners by cloning only if necessary
+        let freshUploadArea = uploadArea;
+        if (uploadArea.hasAttribute('data-cloned')) {
+            console.log('ℹ️ Using existing upload area element');
+        } else {
+            console.log('🔄 Cloning upload area to clear old listeners');
+            const newUploadArea = uploadArea.cloneNode(true);
+            uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+            freshUploadArea = document.getElementById('csvOverlayUploadArea');
+            freshUploadArea.setAttribute('data-cloned', 'true');
+        }
         
-        // Get references to the new elements
-        const freshUploadArea = document.getElementById('csvOverlayUploadArea');
         const uploadPlaceholder = freshUploadArea.querySelector('.upload-placeholder');
         
         // Set up click handlers
         freshUploadArea.addEventListener('click', clickHandler);
+        console.log('✅ Main upload area click handler attached');
+        
         if (uploadPlaceholder) {
             uploadPlaceholder.addEventListener('click', clickHandler);
+            console.log('✅ Upload placeholder click handler attached');
+        } else {
+            console.warn('⚠️ Upload placeholder not found');
         }
         
         // Set up drag and drop
         freshUploadArea.addEventListener('dragover', (e) => this.handleOverlayDragOver(e));
         freshUploadArea.addEventListener('drop', (e) => this.handleOverlayDrop(e));
         freshUploadArea.addEventListener('dragleave', (e) => this.handleOverlayDragLeave(e));
+        console.log('✅ Drag and drop handlers attached');
         
-        // Set up file input change handler (this element wasn't cloned)
+        // Set up file input change handler
         csvInput.addEventListener('change', (e) => {
-            console.log('CSV file input changed:', e.target.files.length, 'files');
+            console.log('📁 CSV file input changed:', e.target.files.length, 'files');
             this.handleOverlayFileSelect(e);
         });
+        console.log('✅ File input change handler attached');
         
-        // Ensure area is clickable
+        // Ensure area is clickable and visible
         freshUploadArea.style.cursor = 'pointer';
         freshUploadArea.style.pointerEvents = 'auto';
         freshUploadArea.style.display = 'block';
+        freshUploadArea.style.opacity = '1';
+        freshUploadArea.style.position = 'relative';
+        freshUploadArea.style.zIndex = '1';
         
         if (uploadPlaceholder) {
             uploadPlaceholder.style.cursor = 'pointer';
@@ -3148,15 +3184,20 @@ class FigureExportTool {
         // Mark that listeners have been set up
         freshUploadArea.setAttribute('data-listeners-setup', 'true');
         
-        console.log('CSV upload listeners set up successfully');
+        console.log('✅ CSV upload listeners set up successfully');
         
         // Test the setup immediately
         setTimeout(() => {
-            console.log('Testing CSV upload setup...', {
-                uploadArea: !!freshUploadArea,
+            const computedStyle = getComputedStyle(freshUploadArea);
+            console.log('🧪 Testing CSV upload setup...', {
+                element: !!freshUploadArea,
                 hasListeners: freshUploadArea.hasAttribute('data-listeners-setup'),
-                isVisible: getComputedStyle(freshUploadArea).display !== 'none',
-                isClickable: getComputedStyle(freshUploadArea).pointerEvents !== 'none'
+                isVisible: computedStyle.display !== 'none',
+                isClickable: computedStyle.pointerEvents !== 'none',
+                opacity: computedStyle.opacity,
+                zIndex: computedStyle.zIndex,
+                position: computedStyle.position,
+                dimensions: `${computedStyle.width} x ${computedStyle.height}`
             });
         }, 100);
     }
@@ -3974,7 +4015,7 @@ class FigureExportTool {
         
         if (detectedBand) {
             // Auto-select the band and show allocations (but don't add to comments)
-            this.autoSelectBandButton(detectedBand);
+            // this.autoSelectBandButton(detectedBand); // TEMPORARILY COMMENTED OUT
             
             console.log(`CSV ${csvNumber} Peak identified:`, {
                 frequency: this.formatFrequency(frequencyMHz),
@@ -5861,7 +5902,7 @@ class FigureExportTool {
         
         if (detectedBand) {
             // Auto-select the band and show allocations (but don't add to comments)
-            this.autoSelectBandButton(detectedBand);
+            // this.autoSelectBandButton(detectedBand); // TEMPORARILY COMMENTED OUT
             
             console.log(`Overlay Peak identified:`, {
                 dataset: dataset.name,

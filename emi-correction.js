@@ -28,22 +28,51 @@ class EMICorrectionTool {
         this.lastMouseX = 0;
         this.lastMouseY = 0;
         
+        // Event listener setup flag
+        this.listenersSetup = false;
+        
         this.setupEventListeners();
     }
     
-    setupEventListeners() {
+    setupEventListeners(force = false) {
+        // Prevent duplicate listener setup unless forced
+        if (this.listenersSetup && !force) return;
+        
+        console.log('Setting up EMI correction event listeners...');
+        
         // File upload listeners
-        document.getElementById('measurementFileInput')?.addEventListener('change', (e) => {
-            this.handleMeasurementFileUpload(e);
-        });
+        const measurementInput = document.getElementById('measurementFileInput');
+        if (measurementInput) {
+            measurementInput.addEventListener('change', (e) => {
+                console.log('Measurement file input changed');
+                this.handleMeasurementFileUpload(e);
+            });
+            console.log('Measurement file input listener attached');
+        } else {
+            console.warn('measurementFileInput element not found');
+        }
         
-        document.getElementById('addCorrectionFileInput')?.addEventListener('change', (e) => {
-            this.handleAddCorrectionFileUpload(e);
-        });
+        const addCorrectionInput = document.getElementById('addCorrectionFileInput');
+        if (addCorrectionInput) {
+            addCorrectionInput.addEventListener('change', (e) => {
+                console.log('Add correction file input changed');
+                this.handleAddCorrectionFileUpload(e);
+            });
+            console.log('Add correction file input listener attached');
+        } else {
+            console.warn('addCorrectionFileInput element not found');
+        }
         
-        document.getElementById('subtractCorrectionFileInput')?.addEventListener('change', (e) => {
-            this.handleSubtractCorrectionFileUpload(e);
-        });
+        const subtractCorrectionInput = document.getElementById('subtractCorrectionFileInput');
+        if (subtractCorrectionInput) {
+            subtractCorrectionInput.addEventListener('change', (e) => {
+                console.log('Subtract correction file input changed');
+                this.handleSubtractCorrectionFileUpload(e);
+            });
+            console.log('Subtract correction file input listener attached');
+        } else {
+            console.warn('subtractCorrectionFileInput element not found');
+        }
         
         // Control buttons
         document.getElementById('applyCorrectionBtn')?.addEventListener('click', () => {
@@ -89,6 +118,10 @@ class EMICorrectionTool {
         this.setupClickHandler('measurementUploadArea', 'measurementFileInput');
         this.setupClickHandler('addCorrectionUploadArea', 'addCorrectionFileInput');
         this.setupClickHandler('subtractCorrectionUploadArea', 'subtractCorrectionFileInput');
+        
+        // Mark listeners as set up
+        this.listenersSetup = true;
+        console.log('EMI correction event listeners setup complete');
     }
     
     setupDragAndDrop(elementId, onFilesDropped) {
@@ -118,11 +151,22 @@ class EMICorrectionTool {
     setupClickHandler(uploadAreaId, fileInputId) {
         const uploadArea = document.getElementById(uploadAreaId);
         const fileInput = document.getElementById(fileInputId);
-        if (!uploadArea || !fileInput) return;
+        
+        if (!uploadArea) {
+            console.warn(`Upload area element not found: ${uploadAreaId}`);
+            return;
+        }
+        if (!fileInput) {
+            console.warn(`File input element not found: ${fileInputId}`);
+            return;
+        }
         
         uploadArea.addEventListener('click', () => {
+            console.log(`Upload area clicked: ${uploadAreaId}`);
             fileInput.click();
         });
+        
+        console.log(`Click handler set up for ${uploadAreaId} -> ${fileInputId}`);
     }
     
     // File handling methods

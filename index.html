@@ -433,7 +433,7 @@
     <script src="emi-correction.js"></script>
     <script src="script.js"></script>
 
-    <!-- ========================================
+    <!--========================================
          BACKUP SECTIONS - TEMPORARILY REMOVED
          ========================================
          
@@ -443,9 +443,8 @@
          3. Remove the HTML comment tags around them
          4. Delete this backup section
          
-    <!--
                 
-                <!-- Limit Lines Configuration -->
+                Limit Lines Configuration
                 <div class="limit-lines-section">
                     <h3>Emission Limits</h3>
                     <div class="limit-controls">
@@ -517,7 +516,7 @@
                     </div>
                 </div>
                 
-                <!-- Peak Identification Helper -->
+                Peak Identification Helper
                 <div class="peak-helper-section">
                     <h3>Peak Identification Helper</h3>
                     <div class="band-info-display">
@@ -528,7 +527,7 @@
                     </div>
                 </div>
                 
-                <!-- Enhanced Band Selection -->
+                Enhanced Band Selection
                 <div class="band-section">
                     <h2>EMC Band Selection</h2>
                     <div class="band-buttons">
@@ -549,6 +548,24 @@
                 
     -->
     <!-- END OF BACKUP SECTIONS -->
+    
+    <!-- Extra safeguard: Hide any accidentally visible sections -->
+    <style>
+    .limit-lines-section, 
+    .peak-helper-section, 
+    .band-section, 
+    .band-buttons,
+    #limitTable,
+    #peakResults,
+    .band-info-display,
+    .frequency-range {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    </style>
 
 </body>
 </html> 
