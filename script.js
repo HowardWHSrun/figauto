@@ -4680,14 +4680,20 @@ class FigureExportTool {
     }
     
     calculateOverlayRanges() {
-        if (this.csvOverlayState.datasets.length === 0) return;
-        
+        if (this.csvOverlayState.datasets.length === 0) {
+            this.csvOverlayState.minFreq = 0;
+            this.csvOverlayState.maxFreq = 0;
+            this.csvOverlayState.minAmp = 0;
+            this.csvOverlayState.maxAmp = 0;
+            return;
+        }
+
         let minFreq = Infinity, maxFreq = -Infinity;
         let minAmp = Infinity, maxAmp = -Infinity;
-        
+
         this.csvOverlayState.datasets.forEach(dataset => {
             if (!dataset.visible) return;
-            
+
             dataset.frequencyData.forEach((freq, i) => {
                 const amp = dataset.amplitudeData[i];
                 minFreq = Math.min(minFreq, freq);
@@ -4696,7 +4702,16 @@ class FigureExportTool {
                 maxAmp = Math.max(maxAmp, amp);
             });
         });
-        
+
+        if (minFreq === Infinity || maxFreq === -Infinity) {
+            // All datasets were invisible; reset ranges
+            this.csvOverlayState.minFreq = 0;
+            this.csvOverlayState.maxFreq = 0;
+            this.csvOverlayState.minAmp = 0;
+            this.csvOverlayState.maxAmp = 0;
+            return;
+        }
+
         this.csvOverlayState.minFreq = minFreq;
         this.csvOverlayState.maxFreq = maxFreq;
         this.csvOverlayState.minAmp = minAmp;
