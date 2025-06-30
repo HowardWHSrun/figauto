@@ -1,17 +1,17 @@
-# Figure Export Tool v4.0
+# Figure Export Tool v4.1
 
 **Turner Engineering Corporation** - Professional EMC Testing Annotation System  
 *Developed by Howard Wang | Supervised by Temba Mateke*
 
-🚀 **Major v4.0 Update**: Revolutionary smart band detection with automatic data filtering, streamlined CSV workflow, and enhanced export templates for professional EMC testing documentation.
+🚀 **Latest v4.1 Update**: Corrected EMC band frequency ranges with revolutionary smart band detection, automatic data filtering, streamlined CSV workflow, and enhanced export templates for professional EMC testing documentation.
 
 ## 🏢 Corporate Information
 
 **Company**: Turner Engineering Corporation (Tenco)  
 **Developer**: Howard Wang  
 **Supervisor**: Temba Mateke  
-**Version**: 4.0 (Smart Band Detection & Enhanced UX)  
-**Copyright**: © 2024 Turner Engineering Corporation. All rights reserved.
+**Version**: 4.1 (Corrected Band Ranges & Smart Detection)  
+**Copyright**: © 2025 Turner Engineering Corporation. All rights reserved.
 
 ## Quick Setup
 
@@ -19,7 +19,7 @@
 2. **Open**: Launch `index.html` in any modern web browser
 3. **Ready**: No additional installation required - fully client-side application
 
-## 🚀 What's New in v4.0 - Major Overhaul
+## 🚀 What's New in v4.1 - Corrected Band Ranges
 
 ### **🎯 Revolutionary Smart Band Detection**
 - **Automatic EMC Band Recognition**: Intelligently detects B0-B7 frequency bands from CSV data
@@ -105,7 +105,7 @@
 
 ## Quick Usage Guide
 
-### **Streamlined v4.0 Workflow**
+### **Streamlined v4.1 Workflow**
 1. **Open Tool**: Launch `index.html` - CSV upload ready immediately
 2. **Upload CSV Files**: Drag & drop multiple CSV files for overlay comparison
 3. **Automatic Analysis**: Tool detects EMC band and filters to relevant frequency ranges
@@ -121,7 +121,7 @@
 
 ## Professional Export Features
 
-### **v4.0 Enhanced Export Templates**
+### **v4.1 Enhanced Export Templates**
 - **Chart-Dominant Layout**: Images/charts take 75% width and 67% height of export
 - **Compact Professional Tables**: Streamlined metadata with optimized font sizes
 - **Narrow Comments Section**: 300px wide to maximize chart prominence
@@ -153,7 +153,7 @@
 
 ## EMC Testing Applications
 
-### **Perfect For v4.0**
+### **Perfect For v4.1**
 - **EMC Compliance Testing**: Streamlined workflow for B0-B7 frequency analysis
 - **Professional Documentation**: Chart-focused reports for regulatory submissions
 - **Multi-Dataset Comparison**: Overlay analysis with automatic band detection
@@ -169,7 +169,7 @@
 
 ## Technical Architecture
 
-### **v4.0 Smart Detection Engine**
+### **v4.1 Smart Detection Engine**
 - **Band Detection Algorithm**: Analyzes frequency ranges to identify EMC bands
 - **Data Filtering System**: Removes irrelevant frequency information
 - **Professional Export Engine**: Generates chart-focused documentation
@@ -193,7 +193,7 @@
 ## Support & Documentation
 
 - **Repository**: [https://github.com/HowardWHSrun/figauto.git](https://github.com/HowardWHSrun/figauto.git)
-- **Version**: 4.0 (Smart Band Detection & Enhanced UX)
+- **Version**: 4.1 (Corrected Band Ranges & Smart Detection)
 - **Developer**: Howard Wang
 - **Supervisor**: Temba Mateke  
 - **Company**: Turner Engineering Corporation
@@ -202,7 +202,20 @@
 
 ## 📋 Changelog
 
-### v4.0 - Smart Band Detection & Enhanced UX (Current)
+### v4.1 - Corrected Band Ranges & Smart Detection (Current)
+- 🔧 **Corrected EMC Band Frequency Ranges**: Updated all bands to match official specifications
+  - **B2**: 500 kHz to 3 MHz (was 0.65-2.5 MHz)
+  - **B3**: 2.5 to 7.5 MHz (was 2.5-11 MHz)
+  - **B4**: 5 to 30 MHz (was 11-40 MHz)
+  - **B5**: 25 to 325 MHz (was 40-300 MHz)
+  - **B6**: 0.3 to 1.3 GHz (was 300-3000 MHz)
+  - **B7**: 1.0 to 6.0 GHz (was 3-30 GHz)
+- ✅ **Enhanced Band Detection**: All detection algorithms updated with correct frequency ranges
+- ✅ **Improved Filename Parsing**: Enhanced frequency-based band identification patterns
+- ✅ **Updated UI Elements**: Band filter dropdown and all displays show correct ranges
+- ✅ **Consistent Documentation**: All references updated to match official band specifications
+
+### v4.0 - Smart Band Detection & Enhanced UX (Previous)
 - 🚀 **Smart EMC Band Detection**: Automatic B0-B7 band recognition with data filtering
 - 🎯 **Streamlined CSV Workflow**: Simplified overlay-focused interface
 - 📊 **Enhanced Export Templates**: Chart-dominant layouts (3/4 width, 2/3 height)
@@ -231,9 +244,9 @@
 **Turner Engineering Corporation** - Professional EMC testing tools for regulatory compliance and spectrum management.  
 *Developed by Howard Wang | Supervised by Temba Mateke*
 
-## 🎯 v4.0 Summary
+## 🎯 v4.1 Summary
 
-**Figure Export Tool v4.0** represents a complete transformation into a professional, streamlined EMC testing system. With revolutionary **smart band detection**, **enhanced export templates**, and a **simplified workflow**, this version delivers the most efficient and professional EMC documentation experience ever created for Turner Engineering Corporation.
+**Figure Export Tool v4.1** represents the most accurate and professional EMC testing system with **corrected band frequency ranges** matching official specifications. Building on the revolutionary **smart band detection**, **enhanced export templates**, and **simplified workflow**, this version delivers the most precise and professional EMC documentation experience ever created for Turner Engineering Corporation.
 
 **Key Achievements:**
 - ✅ **Automatic EMC band detection** eliminates manual configuration

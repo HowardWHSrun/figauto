@@ -1,5 +1,5 @@
 // ========================================================================
-// FIGURE EXPORT TOOL v4.0 - EMC TESTING ANNOTATION SYSTEM
+// FIGURE EXPORT TOOL v4.1 - EMC TESTING ANNOTATION SYSTEM
 // ========================================================================
 // Turner Engineering Corporation - Professional EMC Testing Support
 // 
@@ -329,18 +329,28 @@ class FigureExportTool {
         // Set up overlay upload listeners immediately to prevent timing issues
         this.setupOverlayUploadListeners();
         this.enableCsvUploadImmediately();
+        this.setupClickableOverlay();
+        
+        // Initialize enhanced folder-based CSV selection
+        this.setupFolderBasedSelection();
         
         // Form inputs - update tables when values change
         ['runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
          'runId2', 'band2', 'location2', 'testType2', 'equipmentDescription2', 'operatingCondition2', 'traces2', 
-         'csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces',
+         'csvRunId', 'csvBand', 'csvDescription', 'csvTraces',
          'comments'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
-                element.addEventListener('input', () => {
-                    this.saveCurrentPageData();
-                    this.updateTables();
-                });
+                                    element.addEventListener('input', () => {
+                        this.saveCurrentPageData();
+                        this.updateTables();
+                        
+                        // Update CSV title display when CSV form fields or comments change
+                        if ((id.startsWith('csv') || id === 'comments') && this.currentInputType === 'csv') {
+                            const csvFormData = this.getCsvFormData();
+                            this.updateCsvTitle(csvFormData);
+                        }
+                    });
             }
         });
         
@@ -521,6 +531,13 @@ class FigureExportTool {
                 this.addCsvUploadFallback();
                 this.enableCsvUploadImmediately();
                 
+                // Initialize CSV title display
+                const csvFormData = this.getCsvFormData();
+                this.updateCsvTitle(csvFormData);
+                
+                // Setup clickable overlay functionality
+                this.setupClickableOverlay();
+                
                 // Verify setup after a short delay
                 setTimeout(() => {
                     this.debugCsvUpload();
@@ -672,6 +689,7 @@ class FigureExportTool {
             this.drawOverlayGraph();
             this.updateLegend();
             this.updateOverlayFileList();
+            this.setupClickableOverlay();
         }, 100);
     }
     
@@ -782,11 +800,8 @@ class FigureExportTool {
         return {
             runId: document.getElementById('csvRunId')?.value || '-',
             band: document.getElementById('csvBand')?.value || '-',
-            location: document.getElementById('csvLocation')?.value || '-',
-            testType: document.getElementById('csvTestType')?.value || '-',
-            equipmentDescription: document.getElementById('csvEquipmentDescription')?.value || '-',
-            operatingCondition: document.getElementById('csvOperatingCondition')?.value || '-',
-            traces: document.getElementById('csvTraces')?.value || 'Peak hold measurements\nBackground noise floor\nSpecific test conditions'
+            description: document.getElementById('csvDescription')?.value || '-',
+            traces: document.getElementById('csvTraces')?.value || ''
         };
     }
     
@@ -953,9 +968,9 @@ class FigureExportTool {
             }
             
             if (location) {
-                if (!document.getElementById('csvLocation').value) {
-                    document.getElementById('csvLocation').value = location;
-                    console.log(`Detected Location for CSV:`, location);
+                if (!document.getElementById('csvDescription').value) {
+                    document.getElementById('csvDescription').value = location;
+                    console.log(`Detected Location for CSV Description:`, location);
                 }
             }
         } else {
@@ -1324,6 +1339,9 @@ class FigureExportTool {
             if (tableRunElement2) tableRunElement2.textContent = '-';
             if (tableBandElement2) tableBandElement2.textContent = '-';
             if (tableLocationElement2) tableLocationElement2.textContent = '-';
+            
+            // Update CSV title display
+            this.updateCsvTitle(csvFormData);
         } else {
             // Update both tables for image mode
             for (let i = 1; i <= 2; i++) {
@@ -1341,6 +1359,26 @@ class FigureExportTool {
         
         // Update dynamic UI elements based on loaded data
         this.updateDynamicUI();
+    }
+    
+    updateCsvTitle(csvFormData) {
+        // Update the CSV title area with form data - matching export format
+        const titleRunId = document.getElementById('titleRunId');
+        const titleBand = document.getElementById('titleBand');
+        const titleDescription = document.getElementById('titleDescription');
+        const titleTraces = document.getElementById('titleTraces');
+        const titleComment = document.getElementById('titleComment');
+        
+        // Get comment from the comments field
+        const commentsElement = document.getElementById('comments');
+        const commentText = commentsElement ? commentsElement.value : '';
+        
+        // Update display elements with direct field values
+        if (titleRunId) titleRunId.textContent = csvFormData.runId || '-';
+        if (titleBand) titleBand.textContent = csvFormData.band || '-';
+        if (titleDescription) titleDescription.textContent = csvFormData.description || '-';
+        if (titleTraces) titleTraces.textContent = csvFormData.traces || '-';
+        if (titleComment) titleComment.textContent = commentText || '-';
     }
     
     updateDynamicUI() {
@@ -1370,10 +1408,10 @@ class FigureExportTool {
             dualInfoTables.style.display = 'none';
         }
         
-        // Show/hide form section appropriately
+        // NEVER show dual form section in CSV mode - we use the clean single form
         const dualFormSection = document.getElementById('dualFormSection');
         if (dualFormSection) {
-            dualFormSection.style.display = datasetCount > 1 ? 'block' : 'none';
+            dualFormSection.style.display = 'none';
         }
     }
     
@@ -1547,14 +1585,14 @@ class FigureExportTool {
                 document.querySelector('#imageControls2')?.remove();
                 
                 // Clear form fields
-                if (this.currentInputType === 'csv') {
-                    // Clear CSV form fields
-                    const csvFields = ['csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces'];
-                    csvFields.forEach(id => {
-                        const element = document.getElementById(id);
-                        if (element) element.value = '';
-                    });
-                } else {
+                            if (this.currentInputType === 'csv') {
+                // Clear CSV form fields
+                const csvFields = ['csvRunId', 'csvBand', 'csvDescription', 'csvTraces'];
+                csvFields.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = '';
+                });
+            } else {
                     // Clear image form fields
                     const imageFields = [
                         'runId1', 'band1', 'location1', 'testType1', 'equipmentDescription1', 'operatingCondition1', 'traces1',
@@ -1672,7 +1710,7 @@ class FigureExportTool {
         
         if (this.currentInputType === 'csv') {
             // Save CSV form data
-            ['csvRunId', 'csvBand', 'csvLocation', 'csvTestType', 'csvEquipmentDescription', 'csvOperatingCondition', 'csvTraces'].forEach(id => {
+            ['csvRunId', 'csvBand', 'csvDescription', 'csvTraces'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
                     const fieldName = id.replace('csv', '').charAt(0).toLowerCase() + id.replace('csv', '').slice(1);
@@ -1709,19 +1747,16 @@ class FigureExportTool {
             const csvFormData = page.csvFormData || {};
             const csvRunId = document.getElementById('csvRunId');
             const csvBand = document.getElementById('csvBand');
-            const csvLocation = document.getElementById('csvLocation');
-            const csvTestType = document.getElementById('csvTestType');
-            const csvEquipmentDescription = document.getElementById('csvEquipmentDescription');
-            const csvOperatingCondition = document.getElementById('csvOperatingCondition');
+            const csvDescription = document.getElementById('csvDescription');
             const csvTraces = document.getElementById('csvTraces');
             
             if (csvRunId) csvRunId.value = csvFormData.runId || '';
             if (csvBand) csvBand.value = csvFormData.band || '';
-            if (csvLocation) csvLocation.value = csvFormData.location || '';
-            if (csvTestType) csvTestType.value = csvFormData.testType || '';
-            if (csvEquipmentDescription) csvEquipmentDescription.value = csvFormData.equipmentDescription || '';
-            if (csvOperatingCondition) csvOperatingCondition.value = csvFormData.operatingCondition || '';
-            if (csvTraces) csvTraces.value = csvFormData.traces || 'Peak hold measurements\nBackground noise floor\nSpecific test conditions';
+            if (csvDescription) csvDescription.value = csvFormData.description || '';
+            if (csvTraces) csvTraces.value = csvFormData.traces || '';
+            
+            // Update CSV title display
+            this.updateCsvTitle(csvFormData);
         } else {
             // Load image form data
             document.getElementById('runId1').value = page.formData1.runId || '';
@@ -1770,36 +1805,45 @@ class FigureExportTool {
         // Create high-resolution overlay export canvas
         const overlayCanvas = this.createOverlayExportCanvas();
         
-        // Use form data from the first file, or create default data
-        const formData = this.getFormData(1);
+        // Use CSV form data (not image form data)
+        const csvFormData = this.getCsvFormData();
         const exportFormData = {
-            runId: formData.runId || 'Overlay',
-            band: formData.band || 'Multi-Band', 
-            location: formData.location || 'Comparison'
+            runId: csvFormData.runId || 'Overlay',
+            band: csvFormData.band || 'Multi-Band', 
+            description: csvFormData.description || 'CSV Overlay Comparison',
+            traces: csvFormData.traces || ''
         };
         
         this.createExport([overlayCanvas], [exportFormData], comments, `Page ${this.currentPageId} - Overlay Comparison`);
     }
     
     createOverlayExportCanvas() {
-        // Create a high-resolution canvas for overlay export
+        // Create export canvas with company's exact template dimensions
         const exportCanvas = document.createElement('canvas');
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Set compact size similar to the second image
-        const dpr = window.devicePixelRatio || 1;
-        const baseWidth = 800;  // Much smaller width
-        const baseHeight = 600; // Much smaller height
-        const width = baseWidth * dpr;
-        const height = baseHeight * dpr;
+        // Company template dimensions: 1554×1038
+        const baseWidth = 1554;
+        const baseHeight = 1038;
         
-        exportCanvas.width = width;
-        exportCanvas.height = height;
+        exportCanvas.width = baseWidth;
+        exportCanvas.height = baseHeight;
         
-        // Scale for high DPI
-        exportCtx.scale(dpr, dpr);
+        // Company template layout coordinates
+        // Main Graph Area: (80, 160) with 1400×700 size
+        const graphArea = {
+            x: 80,
+            y: 160,
+            width: 1400,
+            height: 700
+        };
         
-        const margin = { top: 50, right: 80, bottom: 100, left: 100 }; // Smaller margins
+        const margin = { 
+            top: graphArea.y, 
+            right: baseWidth - (graphArea.x + graphArea.width), 
+            bottom: baseHeight - (graphArea.y + graphArea.height), 
+            left: graphArea.x 
+        };
         
         // Enable highest quality rendering
         exportCtx.imageSmoothingEnabled = true;
@@ -1813,35 +1857,43 @@ class FigureExportTool {
         const detectedBand = this.detectBandFromOverlayData();
         const { filteredDatasets, bandInfo } = this.filterOverlayDataToBand(detectedBand);
         
-        // Calculate plot area
-        const plotWidth = baseWidth - margin.left - margin.right;
-        const plotHeight = baseHeight - margin.top - margin.bottom;
+        // Calculate plot area using graph area dimensions
+        const plotWidth = graphArea.width;
+        const plotHeight = graphArea.height;
         
-        // Draw grid with crisp lines
+        // Draw grid with company specifications: 150px vertical, 100px horizontal
         exportCtx.strokeStyle = '#e0e0e0';
         exportCtx.lineWidth = 1;
         
-        // Vertical grid lines (frequency)
-        for (let i = 0; i <= 10; i++) {
-            const x = margin.left + (i / 10) * plotWidth;
-            exportCtx.beginPath();
-            exportCtx.moveTo(x + 0.5, margin.top);
-            exportCtx.lineTo(x + 0.5, margin.top + plotHeight);
-            exportCtx.stroke();
+        // Vertical grid lines (frequency) - every 150px
+        const verticalSpacing = 150;
+        const numVerticalLines = Math.floor(plotWidth / verticalSpacing) + 1;
+        for (let i = 0; i <= numVerticalLines; i++) {
+            const x = graphArea.x + (i * verticalSpacing);
+            if (x <= graphArea.x + plotWidth) {
+                exportCtx.beginPath();
+                exportCtx.moveTo(x + 0.5, graphArea.y);
+                exportCtx.lineTo(x + 0.5, graphArea.y + plotHeight);
+                exportCtx.stroke();
+            }
         }
         
-        // Horizontal grid lines (amplitude)
-        for (let i = 0; i <= 10; i++) {
-            const y = margin.top + (i / 10) * plotHeight;
-            exportCtx.beginPath();
-            exportCtx.moveTo(margin.left, y + 0.5);
-            exportCtx.lineTo(margin.left + plotWidth, y + 0.5);
-            exportCtx.stroke();
+        // Horizontal grid lines (amplitude) - every 100px  
+        const horizontalSpacing = 100;
+        const numHorizontalLines = Math.floor(plotHeight / horizontalSpacing) + 1;
+        for (let i = 0; i <= numHorizontalLines; i++) {
+            const y = graphArea.y + (i * horizontalSpacing);
+            if (y <= graphArea.y + plotHeight) {
+                exportCtx.beginPath();
+                exportCtx.moveTo(graphArea.x, y + 0.5);
+                exportCtx.lineTo(graphArea.x + plotWidth, y + 0.5);
+                exportCtx.stroke();
+            }
         }
         
         // Remove the black axes - they are annoying as requested
         
-        // Draw filtered datasets only within the detected band range
+        // Draw filtered datasets within graph area using company template coordinates
         const freqRange = bandInfo ? (bandInfo.endMHz * 1e6 - bandInfo.startMHz * 1e6) : (this.csvOverlayState.maxFreq - this.csvOverlayState.minFreq);
         const minFreq = bandInfo ? bandInfo.startMHz * 1e6 : this.csvOverlayState.minFreq;
         const maxFreq = bandInfo ? bandInfo.endMHz * 1e6 : this.csvOverlayState.maxFreq;
@@ -1874,8 +1926,8 @@ class FigureExportTool {
                 const freq = dataset.frequencyData[i];
                 const amp = dataset.amplitudeData[i];
                 
-                const x = margin.left + ((freq - minFreq) / freqRange) * plotWidth;
-                const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+                const x = graphArea.x + ((freq - minFreq) / freqRange) * plotWidth;
+                const y = graphArea.y + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
                 
                 if (firstPoint) {
                     exportCtx.moveTo(x, y);
@@ -1887,18 +1939,31 @@ class FigureExportTool {
             exportCtx.stroke();
         });
         
-        // Draw axis labels with crisp text
+        // Get dynamic title from user input
+        const csvFormData = this.getCsvFormData();
+        const dynamicTitle = csvFormData.runId && csvFormData.band ? 
+            `Run ${csvFormData.runId} ${csvFormData.band}` : 
+            (bandInfo ? `Spectrum Analysis - ${detectedBand} (${bandInfo.range})` : 'Spectrum Analysis Overlay Comparison');
+        
+        // Company template positioning
+        // 1. Title: Centered horizontally at y=50, font ~24-28px
         exportCtx.fillStyle = '#333333';
-        exportCtx.font = '14px Arial';  // Smaller font for compact chart
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 26px Arial';
+        exportCtx.fillText(dynamicTitle, baseWidth / 2, 50);
+        
+        // Draw axis labels using company template coordinates
+        exportCtx.font = '14px Arial';
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
         
         // X-axis labels (frequency) - using filtered range
         for (let i = 0; i <= 5; i++) {
             const freq = minFreq + (freqRange * i / 5);
-            const x = margin.left + (i / 5) * plotWidth;
+            const x = graphArea.x + (i / 5) * plotWidth;
             const freqMHz = freq / 1e6;
-            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 15);
+            exportCtx.fillText(this.formatFrequency(freqMHz), x, graphArea.y + plotHeight + 15);
         }
         
         // Y-axis labels (amplitude) - using 10dB increments
@@ -1906,76 +1971,93 @@ class FigureExportTool {
         exportCtx.textBaseline = 'middle';
         for (let i = 0; i < amplitudeResult.ticks.length; i++) {
             const amp = amplitudeResult.ticks[i];
-            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
-            exportCtx.fillText(amp.toFixed(0) + ' dB', margin.left - 15, y);
+            const y = graphArea.y + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+            exportCtx.fillText(amp.toFixed(0) + ' dB', graphArea.x - 15, y);
         }
         
-        // Axis titles
+        // 3. X-Axis Label: Centered horizontally at y=900
         exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'bottom';
-        exportCtx.font = 'bold 16px Arial';  // Smaller title font
-        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 20);
+        exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 16px Arial';
+        exportCtx.fillText('Frequency', baseWidth / 2, 900);
         
+        // 2. Y-Axis Label: x=30, rotated 90° counter-clockwise
         exportCtx.save();
-        exportCtx.translate(25, margin.top + plotHeight / 2);  // Closer to axis
+        exportCtx.translate(30, baseHeight / 2);
         exportCtx.rotate(-Math.PI / 2);
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 16px Arial';
         exportCtx.fillText('Amplitude (dB)', 0, 0);
         exportCtx.restore();
         
-        // Add title with detected band
-        exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'top';
-        exportCtx.font = 'bold 18px Arial';  // Smaller title
-        const titleText = bandInfo ? `Spectrum Analysis - ${detectedBand} (${bandInfo.range})` : 'Spectrum Analysis Overlay Comparison';
-        exportCtx.fillText(titleText, margin.left + plotWidth / 2, 10);
-        
-        // Draw regulatory limit lines for the detected band range
+        // Draw regulatory limit lines for the detected band range using graph area coordinates
         const freqStartMHz = minFreq / 1e6;
         const freqEndMHz = maxFreq / 1e6;
-        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, minAmp, maxAmp);
+        this.drawLimitLines(exportCtx, { 
+            top: graphArea.y, 
+            left: graphArea.x, 
+            right: baseWidth - (graphArea.x + graphArea.width), 
+            bottom: baseHeight - (graphArea.y + graphArea.height) 
+        }, plotWidth, plotHeight, freqStartMHz, freqEndMHz, minAmp, maxAmp);
         
-        // Add legend outside the graph area at the bottom
-        const legendX = margin.left + plotWidth / 2;
-        const legendY = margin.top + plotHeight + 60; // Closer to graph in smaller chart
+        // 5. Legend Box: (1220, 180) with 250×120 size
+        const legendArea = {
+            x: 1220,
+            y: 180,
+            width: 250,
+            height: 120
+        };
         
-        // Calculate legend dimensions - smaller for compact chart
-        const itemWidth = 100;  // Smaller item width
-        const maxItemsPerRow = Math.floor(plotWidth / itemWidth);
-        const itemsPerRow = Math.min(filteredDatasets.length, maxItemsPerRow);
+        // Draw legend background
+        exportCtx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        exportCtx.fillRect(legendArea.x, legendArea.y, legendArea.width, legendArea.height);
+        exportCtx.strokeStyle = '#333';
+        exportCtx.lineWidth = 1;
+        exportCtx.strokeRect(legendArea.x, legendArea.y, legendArea.width, legendArea.height);
         
-        // Draw legend items horizontally centered
-        const totalItemWidth = itemsPerRow * itemWidth;
-        const startX = legendX - totalItemWidth / 2;
+        // Draw legend title
+        exportCtx.fillStyle = '#333';
+        exportCtx.font = 'bold 14px Arial';
+        exportCtx.textAlign = 'left';
+        exportCtx.textBaseline = 'top';
+        exportCtx.fillText('Legend', legendArea.x + 10, legendArea.y + 10);
+        
+        // Draw legend items
+        const itemHeight = 20;
+        const startY = legendArea.y + 35;
         
         filteredDatasets.forEach((dataset, index) => {
-            const row = Math.floor(index / itemsPerRow);
-            const col = index % itemsPerRow;
-            const itemX = startX + col * itemWidth;
-            const itemY = legendY + row * 20;  // Smaller row spacing
+            const itemY = startY + (index * itemHeight);
             
-            // Draw color line
-            exportCtx.strokeStyle = dataset.color;
-            exportCtx.lineWidth = 2;  // Thinner line
-            exportCtx.beginPath();
-            exportCtx.moveTo(itemX, itemY);
-            exportCtx.lineTo(itemX + 20, itemY);  // Shorter line
-            exportCtx.stroke();
-            
-            // Draw dataset name
-            exportCtx.fillStyle = '#333';
-            exportCtx.font = 'bold 12px Arial';  // Smaller font
-            exportCtx.textAlign = 'left';
-            exportCtx.textBaseline = 'middle';
-            
-            // Truncate long names for export
-            let displayName = dataset.name;
-            if (displayName.length > 10) {  // Shorter truncation
-                displayName = displayName.substring(0, 7) + '...';
+            // Only draw if within legend area
+            if (itemY + itemHeight <= legendArea.y + legendArea.height) {
+                // Draw color line
+                exportCtx.strokeStyle = dataset.color;
+                exportCtx.lineWidth = 3;
+                exportCtx.beginPath();
+                exportCtx.moveTo(legendArea.x + 15, itemY + itemHeight/2);
+                exportCtx.lineTo(legendArea.x + 40, itemY + itemHeight/2);
+                exportCtx.stroke();
+                
+                // Draw dataset name
+                exportCtx.fillStyle = '#333';
+                exportCtx.font = '12px Arial';
+                exportCtx.textAlign = 'left';
+                exportCtx.textBaseline = 'middle';
+                
+                // Truncate long names to fit in legend box
+                let displayName = dataset.name;
+                const maxWidth = legendArea.width - 60;
+                const textWidth = exportCtx.measureText(displayName).width;
+                if (textWidth > maxWidth) {
+                    const avgCharWidth = textWidth / displayName.length;
+                    const maxChars = Math.floor(maxWidth / avgCharWidth) - 3;
+                    displayName = displayName.substring(0, maxChars) + '...';
+                }
+                
+                exportCtx.fillText(displayName, legendArea.x + 50, itemY + itemHeight/2);
             }
-            
-            exportCtx.fillText(displayName, itemX + 25, itemY);
         });
         
         return exportCanvas;
@@ -2200,24 +2282,32 @@ class FigureExportTool {
     }
     
     createCsvExportCanvasFromState(csvState) {
-        // Create a high-resolution canvas for export
+        // Create export canvas with company's exact template dimensions
         const exportCanvas = document.createElement('canvas');
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Set very high resolution for better export quality
-        const dpr = window.devicePixelRatio || 1;
-        const baseWidth = 1200;
-        const baseHeight = 900;
-        const width = baseWidth * dpr;
-        const height = baseHeight * dpr;
+        // Company template dimensions: 1554×1038
+        const baseWidth = 1554;
+        const baseHeight = 1038;
         
-        exportCanvas.width = width;
-        exportCanvas.height = height;
+        exportCanvas.width = baseWidth;
+        exportCanvas.height = baseHeight;
         
-        // Scale for high DPI
-        exportCtx.scale(dpr, dpr);
+        // Company template layout coordinates
+        // Main Graph Area: (80, 160) with 1400×700 size
+        const graphArea = {
+            x: 80,
+            y: 160,
+            width: 1400,
+            height: 700
+        };
         
-        const margin = { top: 60, right: 100, bottom: 120, left: 150 };
+        const margin = { 
+            top: graphArea.y, 
+            right: baseWidth - (graphArea.x + graphArea.width), 
+            bottom: baseHeight - (graphArea.y + graphArea.height), 
+            left: graphArea.x 
+        };
         
         // Enable highest quality rendering
         exportCtx.imageSmoothingEnabled = true;
@@ -2227,30 +2317,38 @@ class FigureExportTool {
         exportCtx.fillStyle = '#ffffff';
         exportCtx.fillRect(0, 0, baseWidth, baseHeight);
         
-        // Calculate plot area
-        const plotWidth = baseWidth - margin.left - margin.right;
-        const plotHeight = baseHeight - margin.top - margin.bottom;
+        // Calculate plot area using graph area dimensions
+        const plotWidth = graphArea.width;
+        const plotHeight = graphArea.height;
         
-        // Draw grid with crisp lines
+        // Draw grid with company specifications: 150px vertical, 100px horizontal
         exportCtx.strokeStyle = '#e0e0e0';
         exportCtx.lineWidth = 1;
         
-        // Vertical grid lines (frequency)
-        for (let i = 0; i <= 10; i++) {
-            const x = margin.left + (i / 10) * plotWidth;
-            exportCtx.beginPath();
-            exportCtx.moveTo(x + 0.5, margin.top);
-            exportCtx.lineTo(x + 0.5, margin.top + plotHeight);
-            exportCtx.stroke();
+        // Vertical grid lines (frequency) - every 150px
+        const verticalSpacing = 150;
+        const numVerticalLines = Math.floor(plotWidth / verticalSpacing) + 1;
+        for (let i = 0; i <= numVerticalLines; i++) {
+            const x = graphArea.x + (i * verticalSpacing);
+            if (x <= graphArea.x + plotWidth) {
+                exportCtx.beginPath();
+                exportCtx.moveTo(x + 0.5, graphArea.y);
+                exportCtx.lineTo(x + 0.5, graphArea.y + plotHeight);
+                exportCtx.stroke();
+            }
         }
         
-        // Horizontal grid lines (amplitude)
-        for (let i = 0; i <= 10; i++) {
-            const y = margin.top + (i / 10) * plotHeight;
-            exportCtx.beginPath();
-            exportCtx.moveTo(margin.left, y + 0.5);
-            exportCtx.lineTo(margin.left + plotWidth, y + 0.5);
-            exportCtx.stroke();
+        // Horizontal grid lines (amplitude) - every 100px  
+        const horizontalSpacing = 100;
+        const numHorizontalLines = Math.floor(plotHeight / horizontalSpacing) + 1;
+        for (let i = 0; i <= numHorizontalLines; i++) {
+            const y = graphArea.y + (i * horizontalSpacing);
+            if (y <= graphArea.y + plotHeight) {
+                exportCtx.beginPath();
+                exportCtx.moveTo(graphArea.x, y + 0.5);
+                exportCtx.lineTo(graphArea.x + plotWidth, y + 0.5);
+                exportCtx.stroke();
+            }
         }
         
         // Remove the black axes - they are annoying as requested
@@ -2275,8 +2373,8 @@ class FigureExportTool {
             const freq = csvState.frequencyData[i];
             const amp = csvState.amplitudeData[i];
             
-            const x = margin.left + ((freq - csvState.minFreq) / freqRange) * plotWidth;
-            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+            const x = graphArea.x + ((freq - csvState.minFreq) / freqRange) * plotWidth;
+            const y = graphArea.y + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
             
             if (firstPoint) {
                 exportCtx.moveTo(x, y);
@@ -2287,18 +2385,31 @@ class FigureExportTool {
         }
         exportCtx.stroke();
         
-        // Draw axis labels with crisp text
+        // Get dynamic title from user input
+        const csvFormData = this.getCsvFormData();
+        const dynamicTitle = csvFormData.runId && csvFormData.band ? 
+            `Run ${csvFormData.runId} ${csvFormData.band}` : 
+            'Spectrum Analysis - High Resolution Export';
+        
+        // Company template positioning
+        // 1. Title: Centered horizontally at y=50, font ~24-28px
         exportCtx.fillStyle = '#333333';
-        exportCtx.font = '20px Arial';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 26px Arial';
+        exportCtx.fillText(dynamicTitle, baseWidth / 2, 50);
+        
+        // Draw axis labels using company template coordinates
+        exportCtx.font = '14px Arial';
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'top';
         
         // X-axis labels (frequency)
         for (let i = 0; i <= 5; i++) {
             const freq = csvState.minFreq + (freqRange * i / 5);
-            const x = margin.left + (i / 5) * plotWidth;
+            const x = graphArea.x + (i / 5) * plotWidth;
             const freqMHz = freq / 1e6;
-            exportCtx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 20);
+            exportCtx.fillText(this.formatFrequency(freqMHz), x, graphArea.y + plotHeight + 15);
         }
         
         // Y-axis labels (amplitude) - using 10dB increments
@@ -2306,34 +2417,35 @@ class FigureExportTool {
         exportCtx.textBaseline = 'middle';
         for (let i = 0; i < amplitudeResult.ticks.length; i++) {
             const amp = amplitudeResult.ticks[i];
-            const y = margin.top + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
-            exportCtx.fillText(amp.toFixed(0) + ' dB', margin.left - 20, y);
+            const y = graphArea.y + plotHeight - ((amp - actualMinAmp) / ampRange) * plotHeight;
+            exportCtx.fillText(amp.toFixed(0) + ' dB', graphArea.x - 15, y);
         }
         
-        // Axis titles
+        // 3. X-Axis Label: Centered horizontally at y=900
         exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'bottom';
-        exportCtx.font = 'bold 24px Arial';
-        exportCtx.fillText('Frequency', margin.left + plotWidth / 2, baseHeight - 30);
+        exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 16px Arial';
+        exportCtx.fillText('Frequency', baseWidth / 2, 900);
         
+        // 2. Y-Axis Label: x=30, rotated 90° counter-clockwise
         exportCtx.save();
-        exportCtx.translate(35, margin.top + plotHeight / 2);
+        exportCtx.translate(30, baseHeight / 2);
         exportCtx.rotate(-Math.PI / 2);
         exportCtx.textAlign = 'center';
         exportCtx.textBaseline = 'middle';
+        exportCtx.font = 'bold 16px Arial';
         exportCtx.fillText('Amplitude (dB)', 0, 0);
         exportCtx.restore();
         
-        // Add title
-        exportCtx.textAlign = 'center';
-        exportCtx.textBaseline = 'top';
-        exportCtx.font = 'bold 28px Arial';
-        exportCtx.fillText('Spectrum Analysis - High Resolution Export', margin.left + plotWidth / 2, 15);
-        
-        // Draw regulatory limit lines
+        // Draw regulatory limit lines using graph area coordinates
         const freqStartMHz = csvState.minFreq / 1e6;
         const freqEndMHz = csvState.maxFreq / 1e6;
-        this.drawLimitLines(exportCtx, margin, plotWidth, plotHeight, freqStartMHz, freqEndMHz, actualMinAmp, actualMaxAmp);
+        this.drawLimitLines(exportCtx, { 
+            top: graphArea.y, 
+            left: graphArea.x, 
+            right: baseWidth - (graphArea.x + graphArea.width), 
+            bottom: baseHeight - (graphArea.y + graphArea.height) 
+        }, plotWidth, plotHeight, freqStartMHz, freqEndMHz, actualMinAmp, actualMaxAmp);
         
         return exportCanvas;
     }
@@ -2350,9 +2462,9 @@ class FigureExportTool {
             const imagePadding = 30;
             const commentsWidth = 300;  // Much narrower comments section
         
-        // Calculate target canvas size first to determine image scaling
-        const targetCanvasWidth = 1200;  // Even smaller fixed canvas width (since comments are narrower)
-        const targetCanvasHeight = 1000; // Smaller fixed canvas height (since table is thinner)
+        // Use company's exact template dimensions
+        const targetCanvasWidth = 1554;  // Company template width
+        const targetCanvasHeight = 1038; // Company template height
         
         // Images should take 3/4 of canvas width and 2/3 of canvas height
         const targetImageWidth = targetCanvasWidth * 0.75;   // 3/4 of canvas width
@@ -2477,27 +2589,13 @@ class FigureExportTool {
         exportCtx.lineTo(margin + tableWidth, dataY);
         exportCtx.stroke();
         
-        // Prepare all data content with safe defaults
-        let description = '';
-        if (primaryFormData.testType && primaryFormData.testType !== '-' && primaryFormData.testType !== '') {
-            description += primaryFormData.testType;
-        }
-        if (primaryFormData.equipmentDescription && primaryFormData.equipmentDescription !== '-' && primaryFormData.equipmentDescription !== '') {
-            if (description) description += ', ';
-            description += primaryFormData.equipmentDescription;
-        }
-        if (primaryFormData.operatingCondition && primaryFormData.operatingCondition !== '-' && primaryFormData.operatingCondition !== '') {
-            if (description) description += ', ';
-            description += primaryFormData.operatingCondition;
-        }
-        
-        // Use traces from form data with safe default
-        const tracesText = primaryFormData.traces || 'Top - maximum peak hold\nBottom - minimum peak hold';
+        // Use form data directly - no need to build description from parts anymore
+        const tracesText = primaryFormData.traces || '';
         
         const tableData = [
             primaryFormData.runId,
             primaryFormData.band,
-            description || 'EMC test measurement',
+            primaryFormData.description || '-',
             tracesText
         ];
         
@@ -3315,6 +3413,11 @@ class FigureExportTool {
         this.updateLegend();
         this.updateOverlayFileList();
         
+        // Add modern overlay controls (only once when first file is loaded)
+        if (this.csvOverlayState.datasets.length === 1) {
+            this.addOverlayControls();
+        }
+        
         // Hide instruction overlay
         document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
         
@@ -3441,6 +3544,8 @@ class FigureExportTool {
     }
     
     loadCsvFile(file, csvNumber) {
+        console.log(`DEBUG: loadCsvFile called for CSV ${csvNumber}, file:`, file.name);
+        
         const state = this.getCsvState(csvNumber);
         state.originalFilename = file.name;
         
@@ -3449,15 +3554,24 @@ class FigureExportTool {
         
         const reader = new FileReader();
         reader.onload = (e) => {
+            console.log(`DEBUG: File read successfully for CSV ${csvNumber}`);
             const csvText = e.target.result;
+            console.log(`DEBUG: CSV text length:`, csvText.length);
             this.parseCsvData(csvText, csvNumber);
         };
+        reader.onerror = (e) => {
+            console.error(`DEBUG: File read error for CSV ${csvNumber}:`, e);
+        };
         reader.readAsText(file);
+        console.log(`DEBUG: FileReader started for CSV ${csvNumber}`);
     }
     
     parseCsvData(csvText, csvNumber) {
+        console.log(`DEBUG: parseCsvData called for CSV ${csvNumber}`);
+        
         const state = this.getCsvState(csvNumber);
         const lines = csvText.split('\n').filter(line => line.trim());
+        console.log(`DEBUG: Found ${lines.length} non-empty lines`);
         
         const frequencyData = [];
         const amplitudeData = [];
@@ -3488,9 +3602,12 @@ class FigureExportTool {
         }
         
         if (frequencyData.length === 0) {
+            console.log(`DEBUG: No valid data found in CSV ${csvNumber}`);
             alert('No valid frequency/amplitude data found in CSV file. Expected format: frequency, amplitude');
             return;
         }
+        
+        console.log(`DEBUG: Parsed ${frequencyData.length} data points for CSV ${csvNumber}`);
         
         // Store parsed data
         state.frequencyData = frequencyData;
@@ -3512,7 +3629,9 @@ class FigureExportTool {
         this.updateCsvInfo(csvNumber);
         
         // Setup and draw graph
+        console.log(`DEBUG: About to call setupCsvCanvas for CSV ${csvNumber}`);
         this.setupCsvCanvas(csvNumber);
+        console.log(`DEBUG: About to call drawCsvGraph for CSV ${csvNumber}`);
         this.drawCsvGraph(csvNumber);
         
         // Hide instruction overlay
@@ -3589,7 +3708,13 @@ class FigureExportTool {
         // Use logical pixel dimensions for calculations
         const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
         const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Updated margins to match overlay graph for consistency
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: 100, 
+            left: 120 
+        };
         
         // Clear canvas
         ctx.fillStyle = '#ffffff';
@@ -3608,18 +3733,33 @@ class FigureExportTool {
         // Get band-filtered data and ranges
         const filteredData = this.filterCsvDataToBand(csvNumber);
         
-        // Use filtered data ranges if available, otherwise use original ranges
+        // Prioritize custom view ranges, then filtered data, then original ranges
         let baseMinFreq, baseMaxFreq, baseMinAmp, baseMaxAmp;
-        if (filteredData.bandInfo && filteredData.frequencyData.length > 0) {
-            // Use band frequency range and filtered amplitude range
+        
+        // Check for custom view ranges first (from manual range controls)
+        if (state.viewMinFreq !== undefined && state.viewMaxFreq !== undefined) {
+            baseMinFreq = state.viewMinFreq;
+            baseMaxFreq = state.viewMaxFreq;
+        } else if (filteredData.bandInfo && filteredData.frequencyData.length > 0) {
+            // Use band frequency range
             baseMinFreq = filteredData.bandInfo.startMHz * 1e6;
             baseMaxFreq = filteredData.bandInfo.endMHz * 1e6;
-            baseMinAmp = filteredData.minAmp;
-            baseMaxAmp = filteredData.maxAmp;
         } else {
             // Use original full data range
             baseMinFreq = state.minFreq;
             baseMaxFreq = state.maxFreq;
+        }
+        
+        // Check for custom amplitude ranges
+        if (state.viewMinAmp !== undefined && state.viewMaxAmp !== undefined) {
+            baseMinAmp = state.viewMinAmp;
+            baseMaxAmp = state.viewMaxAmp;
+        } else if (filteredData.bandInfo && filteredData.amplitudeData.length > 0) {
+            // Use filtered amplitude range
+            baseMinAmp = filteredData.minAmp;
+            baseMaxAmp = filteredData.maxAmp;
+        } else {
+            // Use original full data range
             baseMinAmp = state.minAmp;
             baseMaxAmp = state.maxAmp;
         }
@@ -3889,8 +4029,13 @@ class FigureExportTool {
         const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
         const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
         
-        // Convert click coordinates to frequency/amplitude values
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Convert click coordinates to frequency/amplitude values - use same margins as drawCsvGraph
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: 100, 
+            left: 120 
+        };
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
         
@@ -3959,7 +4104,13 @@ class FigureExportTool {
         const freq = state.frequencyData[dataIndex];
         const amp = state.amplitudeData[dataIndex];
         
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Use same margins as drawCsvGraph for consistency
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: 100, 
+            left: 120 
+        };
         const plotWidth = canvas.width - margin.left - margin.right;
         const plotHeight = canvas.height - margin.top - margin.bottom;
         
@@ -4027,11 +4178,99 @@ class FigureExportTool {
         }
     }
     
+    /**
+     * Calculate nice rounded frequency and amplitude ranges for clean scaling
+     * @param {number} minFreq - Minimum frequency in Hz
+     * @param {number} maxFreq - Maximum frequency in Hz  
+     * @param {number} minAmp - Minimum amplitude in dB
+     * @param {number} maxAmp - Maximum amplitude in dB
+     * @returns {Object} Object with nice rounded ranges
+     */
+    calculateNiceRanges(minFreq, maxFreq, minAmp, maxAmp) {
+        // Convert frequencies to MHz for easier calculation
+        const minFreqMHz = minFreq / 1e6;
+        const maxFreqMHz = maxFreq / 1e6;
+        const freqRangeMHz = maxFreqMHz - minFreqMHz;
+        
+        // Calculate nice frequency step size
+        let freqStep;
+        if (freqRangeMHz >= 2000) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 500) * 500; // 500 MHz steps
+        } else if (freqRangeMHz >= 1000) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 100) * 100; // 100 MHz steps
+        } else if (freqRangeMHz >= 200) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 50) * 50; // 50 MHz steps
+        } else if (freqRangeMHz >= 100) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 10) * 10; // 10 MHz steps
+        } else if (freqRangeMHz >= 20) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 5) * 5; // 5 MHz steps
+        } else if (freqRangeMHz >= 10) {
+            freqStep = Math.ceil(freqRangeMHz / 10 / 2) * 2; // 2 MHz steps
+        } else if (freqRangeMHz >= 2) {
+            freqStep = Math.ceil(freqRangeMHz / 10); // 1 MHz steps
+        } else {
+            freqStep = Math.ceil(freqRangeMHz / 10 * 10) / 10; // 0.1 MHz steps
+        }
+        
+        // Calculate nice frequency bounds
+        const niceMinFreqMHz = Math.floor(minFreqMHz / freqStep) * freqStep;
+        const niceMaxFreqMHz = Math.ceil(maxFreqMHz / freqStep) * freqStep;
+        
+        // Calculate nice amplitude step size (prefer 10 dB increments)
+        const ampRange = maxAmp - minAmp;
+        let ampStep;
+        if (ampRange >= 100) {
+            ampStep = 20; // 20 dB steps for very large ranges
+        } else if (ampRange >= 50) {
+            ampStep = 10; // 10 dB steps 
+        } else if (ampRange >= 20) {
+            ampStep = 5; // 5 dB steps
+        } else {
+            ampStep = Math.max(1, Math.ceil(ampRange / 10)); // At least 1 dB steps
+        }
+        
+        // Calculate nice amplitude bounds with some padding
+        const padding = Math.max(5, ampRange * 0.1); // At least 5 dB padding
+        const niceMinAmp = Math.floor((minAmp - padding) / ampStep) * ampStep;
+        const niceMaxAmp = Math.ceil((maxAmp + padding) / ampStep) * ampStep;
+        
+        return {
+            freqMin: niceMinFreqMHz * 1e6, // Convert back to Hz
+            freqMax: niceMaxFreqMHz * 1e6,
+            freqStep: freqStep,
+            ampMin: niceMinAmp,
+            ampMax: niceMaxAmp,
+            ampStep: ampStep
+        };
+    }
+
     resetZoomCsv(csvNumber) {
         const state = this.getCsvState(csvNumber);
+        if (!state.frequencyData.length) return;
+        
+        // Get data bounds
+        const minFreq = Math.min(...state.frequencyData);
+        const maxFreq = Math.max(...state.frequencyData);
+        const minAmp = Math.min(...state.amplitudeData);
+        const maxAmp = Math.max(...state.amplitudeData);
+        
+        // Calculate nice rounded ranges
+        const niceRanges = this.calculateNiceRanges(minFreq, maxFreq, minAmp, maxAmp);
+        
+        // Set nice view boundaries
+        state.viewMinFreq = niceRanges.freqMin;
+        state.viewMaxFreq = niceRanges.freqMax;
+        state.viewMinAmp = niceRanges.ampMin;
+        state.viewMaxAmp = niceRanges.ampMax;
+        
+        // Reset zoom parameters
         state.scale = 1;
         state.offsetX = 0;
         state.offsetY = 0;
+        
+        // Mark as using nice scaling
+        state.useNiceScaling = true;
+        
         this.drawCsvGraph(csvNumber);
     }
     
@@ -4244,108 +4483,313 @@ class FigureExportTool {
     }
     
     addCsvControls(csvNumber) {
+        console.log(`DEBUG: addCsvControls called for CSV ${csvNumber}`);
+        
         // Remove existing controls if any
         const existingControls = document.querySelector(`#csvControls${csvNumber}`);
         if (existingControls) {
+            console.log(`DEBUG: Removing existing controls for CSV ${csvNumber}`);
             existingControls.remove();
         }
-        
+
         const canvas = this.getCsvCanvas(csvNumber);
         const state = this.getCsvState(csvNumber);
-        
-        if (!state || !state.frequencyData.length) return;
-        
-        // Create CSV controls
+
+        if (!state || !state.frequencyData.length) {
+            console.log(`DEBUG: No state or frequency data for CSV ${csvNumber}`);
+            return;
+        }
+
+        console.log(`DEBUG: Creating modern controls for CSV ${csvNumber}`);
+
+        // Create modern CSV controls with manual range inputs
         const controls = document.createElement('div');
-        controls.className = 'csv-controls';
+        controls.className = 'csv-controls-modern';
         controls.id = `csvControls${csvNumber}`;
         controls.innerHTML = `
-            <div class="zoom-controls">
-                <button class="control-btn" id="csvZoomOut${csvNumber}">−</button>
-                <span class="zoom-level" id="csvZoomLevel${csvNumber}">${Math.round(state.scale * 100)}%</span>
-                <button class="control-btn" id="csvZoomIn${csvNumber}">+</button>
-                <button class="control-btn" id="csvResetZoom${csvNumber}">Reset</button>
-                <button class="control-btn" id="csvAutoScale${csvNumber}">Auto</button>
-                <button class="control-btn" id="csvFullScreen${csvNumber}" title="Full Screen">⛶ Full Screen</button>
+            <div class="control-panel-header">
+                <span class="panel-title">📊 Plot Controls</span>
+                <button class="panel-collapse-btn" id="togglePanel${csvNumber}">−</button>
             </div>
-            <div class="peak-detection-controls">
-                <button class="control-btn peak-detect-btn" id="csvAutoPeaks${csvNumber}" title="Automatically detect peaks">🔍 Auto Detect Peaks</button>
-                <button class="control-btn" id="csvPeakSettings${csvNumber}" title="Peak detection settings">⚙️</button>
+            
+            <div class="control-panel-content" id="panelContent${csvNumber}">
+                <!-- Primary Controls Row -->
+                <div class="control-row primary-controls">
+                    <div class="control-group zoom-group">
+                        <button class="modern-btn zoom-btn" id="csvZoomOut${csvNumber}" title="Zoom Out">
+                            <span class="btn-icon">🔍</span>−
+                        </button>
+                        <div class="zoom-display" id="csvZoomLevel${csvNumber}">${Math.round(state.scale * 100)}%</div>
+                        <button class="modern-btn zoom-btn" id="csvZoomIn${csvNumber}" title="Zoom In">
+                            <span class="btn-icon">🔍</span>+
+                        </button>
+                    </div>
+                    
+                    <div class="control-group action-group">
+                        <button class="modern-btn reset-btn" id="csvResetZoom${csvNumber}" title="Reset to Nice View">
+                            <span class="btn-icon">🎯</span>Reset Zoom
+                        </button>
+                        <button class="modern-btn auto-btn" id="csvAutoScale${csvNumber}" title="Auto Scale to Data">
+                            <span class="btn-icon">📏</span>Auto Scale
+                        </button>
+                        <button class="modern-btn fullscreen-btn" id="csvFullScreen${csvNumber}" title="Full Screen View">
+                            <span class="btn-icon">⛶</span>Full Screen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manual Range Controls -->
+                <div class="control-row range-controls">
+                    <div class="range-group frequency-range">
+                        <label class="range-label">📶 Frequency Range (MHz)</label>
+                        <div class="input-pair">
+                            <input type="number" class="range-input" id="csvFreqMin${csvNumber}" 
+                                   placeholder="Min" step="0.1" title="Minimum Frequency">
+                            <span class="input-separator">to</span>
+                            <input type="number" class="range-input" id="csvFreqMax${csvNumber}" 
+                                   placeholder="Max" step="0.1" title="Maximum Frequency">
+                            <button class="apply-btn" id="csvApplyFreq${csvNumber}" title="Apply Frequency Range">Apply</button>
+                        </div>
+                    </div>
+                    
+                    <div class="range-group amplitude-range">
+                        <label class="range-label">📈 Amplitude Range (dB)</label>
+                        <div class="input-pair">
+                            <input type="number" class="range-input" id="csvAmpMin${csvNumber}" 
+                                   placeholder="Min" step="1" title="Minimum Amplitude">
+                            <span class="input-separator">to</span>
+                            <input type="number" class="range-input" id="csvAmpMax${csvNumber}" 
+                                   placeholder="Max" step="1" title="Maximum Amplitude">
+                            <button class="apply-btn" id="csvApplyAmp${csvNumber}" title="Apply Amplitude Range">Apply</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peak Detection Controls -->
+                <div class="control-row peak-controls">
+                    <button class="modern-btn peak-detect-btn" id="csvAutoPeaks${csvNumber}" title="Automatically detect peaks">
+                        <span class="btn-icon">🔍</span>Auto Detect Peaks
+                    </button>
+                    <button class="modern-btn settings-btn" id="csvPeakSettings${csvNumber}" title="Peak detection settings">
+                        <span class="btn-icon">⚙️</span>Settings
+                    </button>
+                </div>
             </div>
-            <div class="peak-settings-panel" id="csvPeakSettings${csvNumber}Panel" style="display: none;">
-                <div class="setting-group">
-                    <label>Sensitivity:</label>
-                    <select id="csvPeakSensitivity${csvNumber}">
-                        <option value="low">Low (Major peaks only)</option>
-                        <option value="medium" selected>Medium (Balanced)</option>
-                        <option value="high">High (More sensitive)</option>
-                        <option value="custom">Custom</option>
-                    </select>
+
+            <!-- Collapsible Peak Settings Panel -->
+            <div class="peak-settings-panel-modern" id="csvPeakSettings${csvNumber}Panel" style="display: none;">
+                <div class="settings-header">
+                    <span class="settings-title">🎯 Peak Detection Settings</span>
                 </div>
-                <div class="setting-group" id="csvCustomSettings${csvNumber}" style="display: none;">
-                    <label>Min Height (dB):</label>
-                    <input type="number" id="csvMinHeight${csvNumber}" value="10" step="1">
-                    <label>Min Distance (%):</label>
-                    <input type="number" id="csvMinDistance${csvNumber}" value="2" step="0.5" min="0.1" max="10">
-                </div>
-                <div class="setting-group">
-                    <label>Frequency Range:</label>
-                    <select id="csvFreqRange${csvNumber}">
-                        <option value="full">Full spectrum</option>
-                        <option value="current">Current view only</option>
-                        <option value="band">Current band only</option>
-                    </select>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label>Sensitivity Level</label>
+                        <select id="csvPeakSensitivity${csvNumber}">
+                            <option value="low">Low (Major peaks only)</option>
+                            <option value="medium" selected>Medium (Balanced)</option>
+                            <option value="high">High (More sensitive)</option>
+                            <option value="custom">Custom Parameters</option>
+                        </select>
+                    </div>
+                    <div class="setting-item custom-settings" id="csvCustomSettings${csvNumber}" style="display: none;">
+                        <label>Min Height (dB)</label>
+                        <input type="number" id="csvMinHeight${csvNumber}" value="10" step="1" min="1" max="50">
+                    </div>
+                    <div class="setting-item custom-settings" id="csvCustomSettings2${csvNumber}" style="display: none;">
+                        <label>Min Distance (%)</label>
+                        <input type="number" id="csvMinDistance${csvNumber}" value="2" step="0.5" min="0.1" max="10">
+                    </div>
+                    <div class="setting-item">
+                        <label>Detection Range</label>
+                        <select id="csvFreqRange${csvNumber}">
+                            <option value="full">Full spectrum</option>
+                            <option value="current">Current view only</option>
+                            <option value="band">Current band only</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         `;
+
+        // Find where to append - use document.body as fallback
+        const parentElement = canvas.parentElement || document.body;
+        parentElement.appendChild(controls);
         
-        canvas.parentElement.appendChild(controls);
+        console.log(`DEBUG: Controls created and appended to:`, parentElement);
+        console.log(`DEBUG: Controls element:`, controls);
+
+        // Add event listeners for the new controls
+        this.setupModernControlListeners(csvNumber);
         
-        // Add event listeners
+        // Initialize range inputs with current view
+        this.updateRangeInputs(csvNumber);
+        
+        // Update zoom display
+        this.updateCsvZoomDisplay(csvNumber);
+        
+        console.log(`DEBUG: Modern controls setup complete for CSV ${csvNumber}`);
+    }
+
+    setupModernControlListeners(csvNumber) {
+        // Panel collapse/expand
+        document.getElementById(`togglePanel${csvNumber}`).addEventListener('click', () => {
+            const content = document.getElementById(`panelContent${csvNumber}`);
+            const btn = document.getElementById(`togglePanel${csvNumber}`);
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                btn.textContent = '−';
+            } else {
+                content.style.display = 'none';
+                btn.textContent = '+';
+            }
+        });
+
+        // Zoom controls
         document.getElementById(`csvZoomIn${csvNumber}`).addEventListener('click', () => {
             const state = this.getCsvState(csvNumber);
             state.scale = Math.min(state.scale * 1.2, 10);
             this.drawCsvGraph(csvNumber);
             this.updateCsvZoomDisplay(csvNumber);
         });
-        
+
         document.getElementById(`csvZoomOut${csvNumber}`).addEventListener('click', () => {
             const state = this.getCsvState(csvNumber);
             state.scale = Math.max(state.scale / 1.2, 0.1);
             this.drawCsvGraph(csvNumber);
             this.updateCsvZoomDisplay(csvNumber);
         });
-        
+
         document.getElementById(`csvResetZoom${csvNumber}`).addEventListener('click', () => {
             this.resetZoomCsv(csvNumber);
             this.updateCsvZoomDisplay(csvNumber);
+            this.updateRangeInputs(csvNumber);
         });
-        
+
         document.getElementById(`csvAutoScale${csvNumber}`).addEventListener('click', () => {
             this.autoScaleCsvEnhanced(csvNumber);
             this.updateCsvZoomDisplay(csvNumber);
+            this.updateRangeInputs(csvNumber);
         });
-        
+
         document.getElementById(`csvFullScreen${csvNumber}`).addEventListener('click', () => {
             this.enterFullScreenCsv(csvNumber);
         });
-        
+
+        // Manual range controls
+        document.getElementById(`csvApplyFreq${csvNumber}`).addEventListener('click', () => {
+            this.applyFrequencyRange(csvNumber);
+        });
+
+        document.getElementById(`csvApplyAmp${csvNumber}`).addEventListener('click', () => {
+            this.applyAmplitudeRange(csvNumber);
+        });
+
         // Peak detection controls
         document.getElementById(`csvAutoPeaks${csvNumber}`).addEventListener('click', () => {
             this.autoDetectPeaks(csvNumber);
         });
-        
+
         document.getElementById(`csvPeakSettings${csvNumber}`).addEventListener('click', () => {
             const panel = document.getElementById(`csvPeakSettings${csvNumber}Panel`);
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         });
-        
+
         document.getElementById(`csvPeakSensitivity${csvNumber}`).addEventListener('change', (e) => {
-            const customSettings = document.getElementById(`csvCustomSettings${csvNumber}`);
-            customSettings.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            const customSettings = document.querySelectorAll(`#csvCustomSettings${csvNumber}, #csvCustomSettings2${csvNumber}`);
+            customSettings.forEach(setting => {
+                setting.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            });
         });
+
+        // Enter key support for range inputs
+        [
+            `csvFreqMin${csvNumber}`, `csvFreqMax${csvNumber}`,
+            `csvAmpMin${csvNumber}`, `csvAmpMax${csvNumber}`
+        ].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    if (id.includes('Freq')) {
+                        this.applyFrequencyRange(csvNumber);
+                    } else {
+                        this.applyAmplitudeRange(csvNumber);
+                    }
+                }
+            });
+        });
+    }
+
+    updateRangeInputs(csvNumber) {
+        const state = this.getCsvState(csvNumber);
+        if (!state.frequencyData.length) return;
+
+        // Get current view bounds (either nice scaling or data bounds)
+        let minFreq = state.viewMinFreq || Math.min(...state.frequencyData);
+        let maxFreq = state.viewMaxFreq || Math.max(...state.frequencyData);
+        let minAmp = state.viewMinAmp || Math.min(...state.amplitudeData);
+        let maxAmp = state.viewMaxAmp || Math.max(...state.amplitudeData);
+
+        // Convert frequency to MHz for display
+        document.getElementById(`csvFreqMin${csvNumber}`).value = (minFreq / 1e6).toFixed(1);
+        document.getElementById(`csvFreqMax${csvNumber}`).value = (maxFreq / 1e6).toFixed(1);
+        document.getElementById(`csvAmpMin${csvNumber}`).value = Math.round(minAmp);
+        document.getElementById(`csvAmpMax${csvNumber}`).value = Math.round(maxAmp);
+    }
+
+    applyFrequencyRange(csvNumber) {
+        const minInput = document.getElementById(`csvFreqMin${csvNumber}`);
+        const maxInput = document.getElementById(`csvFreqMax${csvNumber}`);
         
-        // Update zoom display
+        const minFreqMHz = parseFloat(minInput.value);
+        const maxFreqMHz = parseFloat(maxInput.value);
+        
+        if (isNaN(minFreqMHz) || isNaN(maxFreqMHz) || minFreqMHz >= maxFreqMHz) {
+            alert('Please enter valid frequency range (Min < Max)');
+            return;
+        }
+
+        const state = this.getCsvState(csvNumber);
+        state.viewMinFreq = minFreqMHz * 1e6; // Convert to Hz
+        state.viewMaxFreq = maxFreqMHz * 1e6;
+        state.useNiceScaling = true;
+        
+        // Reset zoom parameters to show the full custom range
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        
+        // Clear any existing pan/zoom to ensure we see the exact specified range
+        state.isDragging = false;
+        
+        this.drawCsvGraph(csvNumber);
+        this.updateCsvZoomDisplay(csvNumber);
+    }
+
+    applyAmplitudeRange(csvNumber) {
+        const minInput = document.getElementById(`csvAmpMin${csvNumber}`);
+        const maxInput = document.getElementById(`csvAmpMax${csvNumber}`);
+        
+        const minAmp = parseFloat(minInput.value);
+        const maxAmp = parseFloat(maxInput.value);
+        
+        if (isNaN(minAmp) || isNaN(maxAmp) || minAmp >= maxAmp) {
+            alert('Please enter valid amplitude range (Min < Max)');
+            return;
+        }
+
+        const state = this.getCsvState(csvNumber);
+        state.viewMinAmp = minAmp;
+        state.viewMaxAmp = maxAmp;
+        state.useNiceScaling = true;
+        
+        // Reset zoom parameters to show the full custom range
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        
+        // Clear any existing pan/zoom to ensure we see the exact specified range
+        state.isDragging = false;
+        
+        this.drawCsvGraph(csvNumber);
         this.updateCsvZoomDisplay(csvNumber);
     }
     
@@ -4719,8 +5163,11 @@ class FigureExportTool {
         if (!canvas) return;
         
         const container = canvas.parentElement;
-        const containerWidth = container.clientWidth - 30;
-        const containerHeight = (container.clientHeight - 100) * 1.5; // Make chart 1.5x taller
+        const containerWidth = container.clientWidth - 40; // More padding for margins
+        
+        // Implement 1:2 aspect ratio (height:width)
+        const targetHeight = containerWidth / 2;  // 1:2 ratio
+        const containerHeight = Math.max(300, Math.min(targetHeight, container.clientHeight - 150));
         
         // Use device pixel ratio for very high resolution
         const dpr = window.devicePixelRatio || 1;
@@ -4733,7 +5180,7 @@ class FigureExportTool {
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
         
-        // Overlay controls removed - cleaner interface
+        console.log(`Canvas set to ${containerWidth}x${containerHeight} (${(containerWidth/containerHeight).toFixed(2)}:1 ratio)`);
     }
     
     drawOverlayGraph() {
@@ -4744,8 +5191,13 @@ class FigureExportTool {
         // Use logical pixel dimensions for calculations
         const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
         const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
-        // Increase bottom margin to make space for legend outside graph area
-        const margin = { top: 20, right: 40, bottom: this.csvOverlayState.datasets.length > 0 ? 100 : 60, left: 80 };
+        // Increased margins to ensure axes are fully visible
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: this.csvOverlayState.datasets.length > 0 ? 140 : 100, 
+            left: 120 
+        };
         
         // Clear canvas
         ctx.fillStyle = '#ffffff';
@@ -4764,20 +5216,56 @@ class FigureExportTool {
         
         document.getElementById('csvOverlayInstructionOverlay').style.display = 'none';
         
-        // Detect band and filter data for cleaner on-screen display
-        const detectedBand = this.detectBandFromOverlayData();
-        const { filteredDatasets, bandInfo } = this.filterOverlayDataToBand(detectedBand);
+        // For folder-based selection, skip filtering since we already ensure same-band files
+        // For old CSV upload method, detect band and filter data for cleaner on-screen display
+        const usingFolderSelection = this.folderSelectionState && this.folderSelectionState.plottedFiles.length > 0;
         
-        // Update the display title to show detected band
-        if (bandInfo) {
-            const titleElement = document.querySelector('.csv-overlay-title');
-            if (titleElement) {
-                titleElement.textContent = `Spectrum Analysis - ${detectedBand} (${bandInfo.range})`;
-            }
+        let displayDatasets, detectedBand, bandInfo;
+        
+        if (usingFolderSelection) {
+            // Use all datasets directly - no filtering needed since folder selection ensures same band
+            displayDatasets = this.csvOverlayState.datasets;
+            detectedBand = this.csvOverlayState.datasets.length > 0 ? 
+                this.detectBandFromFilename(this.csvOverlayState.datasets[0].name) : 'Unknown';
+            bandInfo = null; // We'll get this if needed for title
+            
+            console.log('=== Folder-Based Overlay Drawing (No Filtering) ===');
+        } else {
+            // Original filtering logic for old CSV upload method
+            detectedBand = this.detectBandFromOverlayData();
+            const filterResult = this.filterOverlayDataToBand(detectedBand);
+            displayDatasets = filterResult.filteredDatasets.length > 0 ? 
+                filterResult.filteredDatasets : this.csvOverlayState.datasets;
+            bandInfo = filterResult.bandInfo;
+            
+            console.log('=== Traditional CSV Overlay Drawing (With Filtering) ===');
         }
         
-        // Use filtered datasets for display
-        const displayDatasets = filteredDatasets.length > 0 ? filteredDatasets : this.csvOverlayState.datasets;
+        console.log(`Total datasets loaded: ${this.csvOverlayState.datasets.length}`);
+        console.log('Datasets info:', this.csvOverlayState.datasets.map(d => ({
+            name: d.name,
+            color: d.color,
+            visible: d.visible,
+            dataPoints: d.frequencyData.length
+        })));
+        console.log(`Detected band: ${detectedBand}`);
+        console.log(`Using datasets for display: ${displayDatasets.length} datasets`);
+        console.log('Display datasets:', displayDatasets.map(d => ({
+            name: d.name,
+            color: d.color,
+            visible: d.visible
+        })));
+        
+        // Update the display title to show detected band
+        if (detectedBand !== 'Unknown') {
+            const titleElement = document.querySelector('.csv-overlay-title');
+            if (titleElement) {
+                const titleText = bandInfo ? 
+                    `Spectrum Analysis - ${detectedBand} (${bandInfo.range})` :
+                    `Spectrum Analysis - ${detectedBand}`;
+                titleElement.textContent = titleText;
+            }
+        }
         
         // Calculate plot area
         const plotWidth = width - margin.left - margin.right;
@@ -4789,14 +5277,27 @@ class FigureExportTool {
             top: margin.top + this.csvOverlayState.offsetY
         };
         
-        // Calculate data ranges - use band range if detected, otherwise use full data range
+        // Calculate data ranges - prioritize custom ranges, then band range, then full data range
         let baseMinFreq, baseMaxFreq, baseMinAmp, baseMaxAmp;
         
-        if (bandInfo && filteredDatasets.length > 0) {
-            // Use band frequency range and calculate amplitude range from filtered data
+        // Check for custom frequency range first
+        if (this.csvOverlayState.viewMinFreq !== undefined && this.csvOverlayState.viewMaxFreq !== undefined) {
+            baseMinFreq = this.csvOverlayState.viewMinFreq;
+            baseMaxFreq = this.csvOverlayState.viewMaxFreq;
+        } else if (bandInfo && filteredDatasets.length > 0) {
             baseMinFreq = bandInfo.startMHz * 1e6;
             baseMaxFreq = bandInfo.endMHz * 1e6;
-            
+        } else {
+            baseMinFreq = this.csvOverlayState.minFreq;
+            baseMaxFreq = this.csvOverlayState.maxFreq;
+        }
+        
+        // Check for custom amplitude range first - THIS IS THE KEY FIX!
+        if (this.csvOverlayState.viewMinAmp !== undefined && this.csvOverlayState.viewMaxAmp !== undefined) {
+            baseMinAmp = this.csvOverlayState.viewMinAmp;
+            baseMaxAmp = this.csvOverlayState.viewMaxAmp;
+        } else if (bandInfo && filteredDatasets.length > 0) {
+            // Calculate amplitude range from filtered data
             baseMinAmp = Infinity;
             baseMaxAmp = -Infinity;
             filteredDatasets.forEach(dataset => {
@@ -4807,8 +5308,6 @@ class FigureExportTool {
             });
         } else {
             // Use original full range
-            baseMinFreq = this.csvOverlayState.minFreq;
-            baseMaxFreq = this.csvOverlayState.maxFreq;
             baseMinAmp = this.csvOverlayState.minAmp;
             baseMaxAmp = this.csvOverlayState.maxAmp;
         }
@@ -4883,36 +5382,50 @@ class FigureExportTool {
             ctx.stroke();
         }
         
-        // Draw axes with crisp lines
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        // X-axis
-        ctx.moveTo(scaledMargin.left, scaledMargin.top + plotHeight + 0.5);
-        ctx.lineTo(scaledMargin.left + plotWidth, scaledMargin.top + plotHeight + 0.5);
-        // Y-axis
-        ctx.moveTo(scaledMargin.left + 0.5, scaledMargin.top);
-        ctx.lineTo(scaledMargin.left + 0.5, scaledMargin.top + plotHeight);
-        ctx.stroke();
+        // Axis lines removed for cleaner appearance - professional look without distracting black lines
+        
+        // Get band frequency ranges for filtering 
+        const bandRanges = this.getBandRanges();
         
         // Draw each filtered dataset with high quality
+        console.log(`=== Drawing ${displayDatasets.length} datasets ===`);
         displayDatasets.forEach((dataset, index) => {
-            if (!dataset.visible) return;
+            console.log(`Drawing dataset ${index}: ${dataset.name}, color: ${dataset.color}, visible: ${dataset.visible}`);
+            if (!dataset.visible) {
+                console.log(`Skipping dataset ${index} - not visible`);
+                return;
+            }
+            
+            // Detect band for this dataset to apply frequency filtering
+            const datasetBand = this.detectBandFromFilename(dataset.name);
+            const bandRange = bandRanges[datasetBand];
+            console.log(`Dataset ${index} detected as ${datasetBand}, frequency range: ${bandRange ? `${bandRange.min/1e6}-${bandRange.max/1e6} MHz` : 'no limit'}`);
             
             // Draw data line with anti-aliasing
             ctx.strokeStyle = dataset.color;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3; // Make lines slightly thicker for better visibility
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.beginPath();
             
             let firstPoint = true;
+            let pointsDrawn = 0;
+            let pointsFiltered = 0;
+            
             for (let i = 0; i < dataset.frequencyData.length; i++) {
                 const freq = dataset.frequencyData[i];
                 const amp = dataset.amplitudeData[i];
                 
+                // Apply band frequency filtering - only plot data within band range
+                if (bandRange && (freq < bandRange.min || freq > bandRange.max)) {
+                    pointsFiltered++;
+                    continue;
+                }
+                
                 // Skip points outside current zoom range
                 if (freq < freqStart || freq > freqEnd) continue;
+                
+                pointsDrawn++;
                 
                 const x = scaledMargin.left + ((freq - freqStart) / freqRange) * plotWidth;
                 const y = scaledMargin.top + plotHeight - ((amp - ampStart) / ampRange) * plotHeight;
@@ -4925,12 +5438,16 @@ class FigureExportTool {
                 }
             }
             ctx.stroke();
+            console.log(`Dataset ${index} (${dataset.name}): drew ${pointsDrawn} points, filtered out ${pointsFiltered} points outside band, total ${dataset.frequencyData.length}`);
             
-            // Draw data points for peak identification
+            // Draw data points for peak identification (with same band filtering)
             ctx.fillStyle = dataset.color;
             for (let i = 0; i < dataset.frequencyData.length; i++) {
                 const freq = dataset.frequencyData[i];
                 const amp = dataset.amplitudeData[i];
+                
+                // Apply same band frequency filtering
+                if (bandRange && (freq < bandRange.min || freq > bandRange.max)) continue;
                 
                 if (freq < freqStart || freq > freqEnd) continue;
                 
@@ -4959,7 +5476,7 @@ class FigureExportTool {
             const freq = freqStart + (freqRange * i / numLabels);
             const x = margin.left + (i / numLabels) * plotWidth; // Use fixed margin
             const freqMHz = freq / 1e6;
-            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 10);
+            ctx.fillText(this.formatFrequency(freqMHz), x, margin.top + plotHeight + 25);
         }
         
         // Y-axis labels (amplitude) - show actual visible range
@@ -4971,20 +5488,21 @@ class FigureExportTool {
         for (let i = 0; i <= numAmpLabels; i++) {
             const amp = ampStart + (ampRange * i / numAmpLabels);
             const y = margin.top + plotHeight - (i / numAmpLabels) * plotHeight; // Use fixed margin
-            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 15, y);
+            ctx.fillText(amp.toFixed(1) + ' dB', margin.left - 25, y);
         }
         
         // Axis titles with fixed positioning
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.font = 'bold 14px Arial';
-        ctx.fillText('Frequency', margin.left + plotWidth / 2, margin.top + plotHeight + 40);
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('Frequency', margin.left + plotWidth / 2, margin.top + plotHeight + 70);
         
         ctx.save();
-        ctx.translate(15, margin.top + plotHeight / 2);
+        ctx.translate(25, margin.top + plotHeight / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.font = 'bold 16px Arial';
         ctx.fillText('Amplitude (dB)', 0, 0);
         ctx.restore();
         
@@ -5075,8 +5593,13 @@ class FigureExportTool {
         const width = canvas.style.width ? parseInt(canvas.style.width) : canvas.width;
         const height = canvas.style.height ? parseInt(canvas.style.height) : canvas.height;
         
-        // Convert click coordinates to frequency/amplitude values
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Convert click coordinates to frequency/amplitude values - use same margins as drawOverlayGraph
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: this.csvOverlayState.datasets.length > 0 ? 140 : 100, 
+            left: 120 
+        };
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
         
@@ -5152,7 +5675,13 @@ class FigureExportTool {
         const freq = dataset.frequencyData[dataIndex];
         const amp = dataset.amplitudeData[dataIndex];
         
-        const margin = { top: 20, right: 40, bottom: 60, left: 80 };
+        // Use same margins as drawOverlayGraph for consistency
+        const margin = { 
+            top: 50, 
+            right: 80, 
+            bottom: this.csvOverlayState.datasets.length > 0 ? 140 : 100, 
+            left: 120 
+        };
         const plotWidth = canvas.width - margin.left - margin.right;
         const plotHeight = canvas.height - margin.top - margin.bottom;
         
@@ -5192,10 +5721,64 @@ class FigureExportTool {
     }
     
     resetZoomOverlay() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Reset to band range, not full data range
+        console.log('Resetting zoom to band range...');
+        this.setViewToBandRange();
+        
+        // Reset zoom parameters
         this.csvOverlayState.scale = 1;
         this.csvOverlayState.offsetX = 0;
         this.csvOverlayState.offsetY = 0;
+        
+        // Mark as using nice scaling
+        this.csvOverlayState.useNiceScaling = true;
+        
+    }
+    
+    // Fallback reset zoom to full data range (for unknown bands)
+    resetZoomOverlayToDataRange() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        console.log('Resetting zoom to full data range (fallback for unknown band)...');
+        
+        // Get data bounds from all visible datasets
+        let minFreq = Infinity, maxFreq = -Infinity;
+        let minAmp = Infinity, maxAmp = -Infinity;
+        
+        this.csvOverlayState.datasets.forEach(dataset => {
+            if (dataset.visible) {
+                dataset.frequencyData.forEach((freq, i) => {
+                    minFreq = Math.min(minFreq, freq);
+                    maxFreq = Math.max(maxFreq, freq);
+                    minAmp = Math.min(minAmp, dataset.amplitudeData[i]);
+                    maxAmp = Math.max(maxAmp, dataset.amplitudeData[i]);
+                });
+            }
+        });
+        
+        if (minFreq === Infinity) return; // No visible data
+        
+        // Calculate nice rounded ranges
+        const niceRanges = this.calculateNiceRanges(minFreq, maxFreq, minAmp, maxAmp);
+        
+        // Set nice view boundaries
+        this.csvOverlayState.viewMinFreq = niceRanges.freqMin;
+        this.csvOverlayState.viewMaxFreq = niceRanges.freqMax;
+        this.csvOverlayState.viewMinAmp = niceRanges.ampMin;
+        this.csvOverlayState.viewMaxAmp = niceRanges.ampMax;
+        
+        // Reset zoom parameters
+        this.csvOverlayState.scale = 1;
+        this.csvOverlayState.offsetX = 0;
+        this.csvOverlayState.offsetY = 0;
+        
+        // Mark as using nice scaling
+        this.csvOverlayState.useNiceScaling = true;
+        
         this.drawOverlayGraph();
+        this.updateOverlayRangeInputs();
     }
     
     autoScaleOverlay() {
@@ -5264,98 +5847,207 @@ class FigureExportTool {
         const canvas = document.getElementById('csvOverlayCanvas');
         if (!canvas) return;
         
-        // Create overlay controls
+        // Create modern overlay controls
         const controls = document.createElement('div');
-        controls.className = 'csv-controls';
+        controls.className = 'csv-controls-modern';
         controls.id = 'csvOverlayControls';
         controls.innerHTML = `
-            <div class="zoom-controls">
-                <button class="control-btn" id="overlayZoomOut">−</button>
-                <span class="zoom-level" id="overlayZoomLevel">${Math.round(this.csvOverlayState.scale * 100)}%</span>
-                <button class="control-btn" id="overlayZoomIn">+</button>
-                <button class="control-btn" id="overlayResetZoom">Reset</button>
-                <button class="control-btn" id="overlayFullScreen" title="Full Screen">⛶ Full Screen</button>
+            <div class="control-panel-header">
+                <span class="panel-title">Plot Controls</span>
+                <button class="panel-collapse-btn" id="toggleOverlayPanel">−</button>
             </div>
-            <div class="peak-detection-controls">
-                <button class="control-btn peak-detect-btn" id="overlayAutoPeaks" title="Automatically detect peaks in all datasets">🔍 Auto Detect Peaks (All)</button>
-                <button class="control-btn" id="overlayPeakSettings" title="Peak detection settings">⚙️</button>
-            </div>
-            <div class="peak-settings-panel" id="overlayPeakSettingsPanel" style="display: none;">
-                <div class="setting-group">
-                    <label>Sensitivity:</label>
-                    <select id="overlayPeakSensitivity">
-                        <option value="low">Low (Major peaks only)</option>
-                        <option value="medium" selected>Medium (Balanced)</option>
-                        <option value="high">High (More sensitive)</option>
-                        <option value="custom">Custom</option>
-                    </select>
+            
+            <div class="control-panel-content" id="overlayPanelContent">
+                <!-- Primary Controls Row -->
+                <div class="control-row primary-controls">
+                    <button class="modern-btn zoom-btn" id="overlayZoomOut" title="Zoom Out">Zoom Out</button>
+                    <div class="zoom-display" id="overlayZoomLevel">${Math.round(this.csvOverlayState.scale * 100)}%</div>
+                    <button class="modern-btn zoom-btn" id="overlayZoomIn" title="Zoom In">Zoom In</button>
+                    <button class="modern-btn reset-btn" id="overlayResetZoom" title="Reset to Nice View">Reset Zoom</button>
+                    <button class="modern-btn fullscreen-btn" id="overlayFullScreen" title="Full Screen View">Full Screen</button>
                 </div>
-                <div class="setting-group" id="overlayCustomSettings" style="display: none;">
-                    <label>Min Height (dB):</label>
-                    <input type="number" id="overlayMinHeight" value="10" step="1">
-                    <label>Min Distance (%):</label>
-                    <input type="number" id="overlayMinDistance" value="2" step="0.5" min="0.1" max="10">
-                </div>
-                <div class="setting-group">
-                    <label>Frequency Range:</label>
-                    <select id="overlayFreqRange">
-                        <option value="full">Full spectrum</option>
-                        <option value="current">Current view only</option>
-                        <option value="band">Current band only</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label>Dataset Selection:</label>
-                    <select id="overlayDatasetSelection">
-                        <option value="all">All datasets</option>
-                        <option value="visible">Visible datasets only</option>
-                        <option value="highest">Highest amplitude dataset</option>
-                    </select>
+
+                <!-- Manual Range Controls - Horizontal Layout -->
+                <div class="control-row range-controls">
+                    <div class="range-group">
+                        <label class="range-label">Frequency (MHz):</label>
+                        <input type="number" class="range-input" id="overlayFreqMin" placeholder="Min" step="0.1" title="Minimum Frequency">
+                        <span>to</span>
+                        <input type="number" class="range-input" id="overlayFreqMax" placeholder="Max" step="0.1" title="Maximum Frequency">
+                        <button class="apply-btn" id="overlayApplyFreq" title="Apply Frequency Range">Apply</button>
+                    </div>
+                    
+                    <div class="range-group">
+                        <label class="range-label">Amplitude (dB):</label>
+                        <input type="number" class="range-input" id="overlayAmpMin" placeholder="Min" step="1" title="Minimum Amplitude">
+                        <span>to</span>
+                        <input type="number" class="range-input" id="overlayAmpMax" placeholder="Max" step="1" title="Maximum Amplitude">
+                        <button class="apply-btn" id="overlayApplyAmp" title="Apply Amplitude Range">Apply</button>
+                    </div>
                 </div>
             </div>
         `;
         
-        canvas.parentElement.appendChild(controls);
+        const parentElement = canvas.parentElement || document.body;
+        parentElement.appendChild(controls);
         
         // Add event listeners
+        this.setupOverlayModernControlListeners();
+        
+        // Update zoom display
+        this.updateOverlayZoomDisplay();
+        
+        // Initialize range inputs with current view
+        this.updateOverlayRangeInputs();
+    }
+
+    setupOverlayModernControlListeners() {
+        // Panel collapse/expand
+        document.getElementById('toggleOverlayPanel').addEventListener('click', () => {
+            const content = document.getElementById('overlayPanelContent');
+            const btn = document.getElementById('toggleOverlayPanel');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                btn.textContent = '−';
+            } else {
+                content.style.display = 'none';
+                btn.textContent = '+';
+            }
+        });
+
+        // Zoom controls
         document.getElementById('overlayZoomIn').addEventListener('click', () => {
             this.csvOverlayState.scale = Math.min(this.csvOverlayState.scale * 1.2, 10);
             this.drawOverlayGraph();
             this.updateOverlayZoomDisplay();
         });
-        
+
         document.getElementById('overlayZoomOut').addEventListener('click', () => {
             this.csvOverlayState.scale = Math.max(this.csvOverlayState.scale / 1.2, 0.1);
             this.drawOverlayGraph();
             this.updateOverlayZoomDisplay();
         });
-        
+
         document.getElementById('overlayResetZoom').addEventListener('click', () => {
             this.resetZoomOverlay();
             this.updateOverlayZoomDisplay();
+            this.updateOverlayRangeInputs();
         });
-        
+
         document.getElementById('overlayFullScreen').addEventListener('click', () => {
             this.enterFullScreenOverlay();
         });
+
+        // Manual range controls
+        const freqButton = document.getElementById('overlayApplyFreq');
+        const ampButton = document.getElementById('overlayApplyAmp');
         
-        // Peak detection controls for overlay
-        document.getElementById('overlayAutoPeaks').addEventListener('click', () => {
-            this.autoDetectOverlayPeaks();
+        if (freqButton) {
+            freqButton.addEventListener('click', () => {
+                this.applyOverlayFrequencyRange();
+            });
+        }
+
+        if (ampButton) {
+            ampButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.applyOverlayAmplitudeRange();
+            });
+        }
+
+
+
+        // Enter key support for range inputs
+        ['overlayFreqMin', 'overlayFreqMax', 'overlayAmpMin', 'overlayAmpMax'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    if (id.includes('Freq')) {
+                        this.applyOverlayFrequencyRange();
+                    } else {
+                        this.applyOverlayAmplitudeRange();
+                    }
+                }
+            });
         });
+    }
+
+    updateOverlayRangeInputs() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+
+        // Get current view bounds (either nice scaling or data bounds)
+        let minFreq = this.csvOverlayState.viewMinFreq || this.csvOverlayState.minFreq;
+        let maxFreq = this.csvOverlayState.viewMaxFreq || this.csvOverlayState.maxFreq;
+        let minAmp = this.csvOverlayState.viewMinAmp || this.csvOverlayState.minAmp;
+        let maxAmp = this.csvOverlayState.viewMaxAmp || this.csvOverlayState.maxAmp;
+
+        // Convert frequency to MHz for display
+        document.getElementById('overlayFreqMin').value = (minFreq / 1e6).toFixed(1);
+        document.getElementById('overlayFreqMax').value = (maxFreq / 1e6).toFixed(1);
+        document.getElementById('overlayAmpMin').value = Math.round(minAmp);
+        document.getElementById('overlayAmpMax').value = Math.round(maxAmp);
+    }
+
+    applyOverlayFrequencyRange() {
+        const minInput = document.getElementById('overlayFreqMin');
+        const maxInput = document.getElementById('overlayFreqMax');
         
-        document.getElementById('overlayPeakSettings').addEventListener('click', () => {
-            const panel = document.getElementById('overlayPeakSettingsPanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        });
+        const minFreqMHz = parseFloat(minInput.value);
+        const maxFreqMHz = parseFloat(maxInput.value);
         
-        document.getElementById('overlayPeakSensitivity').addEventListener('change', (e) => {
-            const customSettings = document.getElementById('overlayCustomSettings');
-            customSettings.style.display = e.target.value === 'custom' ? 'block' : 'none';
-        });
+        if (isNaN(minFreqMHz) || isNaN(maxFreqMHz) || minFreqMHz >= maxFreqMHz) {
+            alert('Please enter valid frequency range (Min < Max)');
+            return;
+        }
+
+        this.csvOverlayState.viewMinFreq = minFreqMHz * 1e6; // Convert to Hz
+        this.csvOverlayState.viewMaxFreq = maxFreqMHz * 1e6;
+        this.csvOverlayState.useNiceScaling = true;
         
-        // Update zoom display
+        // Reset zoom parameters to show the full custom range
+        this.csvOverlayState.scale = 1;
+        this.csvOverlayState.offsetX = 0;
+        this.csvOverlayState.offsetY = 0;
+        
+        // Clear any existing pan/zoom to ensure we see the exact specified range
+        this.csvOverlayState.isDragging = false;
+        
+        this.drawOverlayGraph();
         this.updateOverlayZoomDisplay();
+    }
+
+    applyOverlayAmplitudeRange() {
+        const minInput = document.getElementById('overlayAmpMin');
+        const maxInput = document.getElementById('overlayAmpMax');
+        
+        if (!minInput || !maxInput) {
+            alert('ERROR: Cannot find amplitude input fields');
+            return;
+        }
+        
+        const minAmp = parseFloat(minInput.value);
+        const maxAmp = parseFloat(maxInput.value);
+        
+        if (isNaN(minAmp) || isNaN(maxAmp) || minAmp >= maxAmp) {
+            alert('Please enter valid amplitude range (Min < Max)');
+            return;
+        }
+
+        this.csvOverlayState.viewMinAmp = minAmp;
+        this.csvOverlayState.viewMaxAmp = maxAmp;
+        this.csvOverlayState.useNiceScaling = true;
+        
+        // Reset zoom parameters to show the full custom range
+        this.csvOverlayState.scale = 1;
+        this.csvOverlayState.offsetX = 0;
+        this.csvOverlayState.offsetY = 0;
+        
+        // Clear any existing pan/zoom to ensure we see the exact specified range
+        this.csvOverlayState.isDragging = false;
+        
+        this.drawOverlayGraph();
+        this.updateOverlayZoomDisplay();
+        this.updateOverlayRangeInputs();
     }
     
     updateOverlayZoomDisplay() {
@@ -5575,7 +6267,7 @@ class FigureExportTool {
         
         // Position legend in the bottom margin area, outside the graph
         const legendX = margin.left + (width - margin.left - margin.right) / 2;
-        const legendY = margin.top + (height - margin.top - margin.bottom) + 65; // In the margin area
+        const legendY = margin.top + (height - margin.top - margin.bottom) + 85; // In the margin area, below frequency label
         
         // Calculate dynamic item width based on longest filename
         ctx.font = 'bold 11px Arial';
@@ -6776,6 +7468,806 @@ class FigureExportTool {
         this.fullScreenOverlayState = null;
     }
     
+    // ENHANCED FOLDER-BASED CSV SELECTION SYSTEM
+    setupFolderBasedSelection() {
+        console.log('Setting up folder-based CSV selection...');
+        
+        // Initialize folder selection state
+        this.folderSelectionState = {
+            selectedFolder: null,
+            availableFiles: [],
+            selectedFiles: [],
+            selectedFileData: [],
+            plottedFiles: []
+        };
+        
+        // Setup event listeners
+        this.setupFolderSelectionListeners();
+    }
+    
+    setupFolderSelectionListeners() {
+        // Folder input
+        const folderInput = document.getElementById('folderInput');
+        const folderUploadArea = document.getElementById('folderUploadArea');
+        
+        if (folderInput && folderUploadArea) {
+            folderUploadArea.addEventListener('click', () => folderInput.click());
+            folderInput.addEventListener('change', (e) => this.handleFolderSelection(e));
+        }
+        
+        // Band filter
+        const bandFilter = document.getElementById('bandFilter');
+        if (bandFilter) {
+            bandFilter.addEventListener('change', (e) => this.filterFilesByBand(e.target.value));
+        }
+        
+        // Control buttons
+        const clearSelectionBtn = document.getElementById('clearSelection');
+        const plotSelectedBtn = document.getElementById('plotSelectedBtn');
+        const refreshFolderBtn = document.getElementById('refreshFolderBtn');
+        const clearPlotBtn = document.getElementById('clearPlotBtn');
+        const selectNewBtn = document.getElementById('selectNewBtn');
+        
+        if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', () => this.clearFileSelection());
+        if (plotSelectedBtn) plotSelectedBtn.addEventListener('click', () => this.plotSelectedFiles());
+        if (refreshFolderBtn) refreshFolderBtn.addEventListener('click', () => this.refreshFolderContents());
+        if (clearPlotBtn) clearPlotBtn.addEventListener('click', () => this.clearCurrentPlot());
+        if (selectNewBtn) selectNewBtn.addEventListener('click', () => this.returnToFileSelection());
+    }
+    
+    handleFolderSelection(event) {
+        const files = Array.from(event.target.files);
+        console.log(`Folder selected with ${files.length} files`);
+        
+        // Filter for CSV files
+        const csvFiles = files.filter(file => 
+            file.name.toLowerCase().endsWith('.csv') || 
+            file.name.toLowerCase().endsWith('.txt')
+        );
+        
+        if (csvFiles.length === 0) {
+            alert('No CSV files found in the selected folder. Please select a folder containing CSV data files.');
+            return;
+        }
+        
+        // Store folder info
+        this.folderSelectionState.selectedFolder = files[0].webkitRelativePath.split('/')[0];
+        this.folderSelectionState.availableFiles = csvFiles;
+        
+        // Update UI
+        this.updateFolderStatus();
+        this.displayAvailableFiles();
+        this.showFileSelectionStep();
+        
+        console.log(`Found ${csvFiles.length} CSV files in folder: ${this.folderSelectionState.selectedFolder}`);
+    }
+    
+    updateFolderStatus() {
+        const folderStatus = document.getElementById('folderStatus');
+        if (folderStatus && this.folderSelectionState.selectedFolder) {
+            folderStatus.innerHTML = `<span>📁 ${this.folderSelectionState.selectedFolder} (${this.folderSelectionState.availableFiles.length} CSV files)</span>`;
+            folderStatus.classList.add('has-folder');
+        }
+    }
+    
+    async displayAvailableFiles() {
+        const availableFilesList = document.getElementById('availableFilesList');
+        if (!availableFilesList) return;
+        
+        // Show loading state
+        availableFilesList.innerHTML = '<div class="empty-state">📊 Analyzing CSV files...</div>';
+        
+        // Analyze files for band information
+        const analyzedFiles = await this.analyzeFiles(this.folderSelectionState.availableFiles);
+        
+        // Sort files by band, then by name
+        analyzedFiles.sort((a, b) => {
+            if (a.band !== b.band) {
+                if (a.band === 'Unknown') return 1;
+                if (b.band === 'Unknown') return -1;
+                return a.band.localeCompare(b.band);
+            }
+            return a.name.localeCompare(b.name);
+        });
+        
+        // Create file list
+        availableFilesList.innerHTML = '';
+        
+        if (analyzedFiles.length === 0) {
+            availableFilesList.innerHTML = '<div class="empty-state">No CSV files found</div>';
+            return;
+        }
+        
+        // Update band filter with file counts
+        this.updateBandFilterWithCounts(analyzedFiles);
+        
+        analyzedFiles.forEach((fileInfo, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <input type="checkbox" id="file_${index}" data-index="${index}">
+                <div class="file-item-info">
+                    <div class="file-name">${fileInfo.name}</div>
+                    <div class="file-details">
+                        <span class="file-band">${fileInfo.band}</span>
+                        <span>${fileInfo.rows} data points</span>
+                        <span>${fileInfo.freqRange}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Add click listener for file selection
+            const checkbox = fileItem.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', (e) => this.handleFileSelection(e, fileInfo));
+            fileItem.addEventListener('click', (e) => {
+                if (e.target.type !== 'checkbox') {
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            availableFilesList.appendChild(fileItem);
+        });
+        
+        this.folderSelectionState.analyzedFiles = analyzedFiles;
+    }
+    
+    updateBandFilterWithCounts(analyzedFiles) {
+        const bandFilter = document.getElementById('bandFilter');
+        if (!bandFilter) return;
+        
+        // Count files by band
+        const bandCounts = {};
+        analyzedFiles.forEach(file => {
+            bandCounts[file.band] = (bandCounts[file.band] || 0) + 1;
+        });
+        
+        // Store original options if not already stored
+        if (!this.originalBandOptions) {
+            this.originalBandOptions = Array.from(bandFilter.options).map(option => ({
+                value: option.value,
+                text: option.textContent.split(' (')[0] // Remove any existing count
+            }));
+        }
+        
+        // Update options with counts
+        bandFilter.innerHTML = '';
+        this.originalBandOptions.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value;
+            
+            if (option.value === 'all') {
+                optionElement.textContent = `${option.text} (${analyzedFiles.length} files)`;
+            } else {
+                const count = bandCounts[option.value] || 0;
+                optionElement.textContent = `${option.text} (${count} file${count !== 1 ? 's' : ''})`;
+                if (count === 0) {
+                    optionElement.disabled = true;
+                    optionElement.style.color = '#999';
+                }
+            }
+            
+            bandFilter.appendChild(optionElement);
+        });
+        
+        console.log('Band distribution:', bandCounts);
+    }
+    
+    async analyzeFiles(files) {
+        const analyzedFiles = [];
+        
+        for (const file of files) {
+            try {
+                const text = await this.readFileAsText(file);
+                const analysis = this.quickAnalyzeCsvContent(text, file.name);
+                analyzedFiles.push({
+                    file: file,
+                    name: file.name,
+                    ...analysis
+                });
+            } catch (error) {
+                console.warn(`Failed to analyze file ${file.name}:`, error);
+                analyzedFiles.push({
+                    file: file,
+                    name: file.name,
+                    band: 'Unknown',
+                    rows: 0,
+                    freqRange: 'Unable to read'
+                });
+            }
+        }
+        
+        return analyzedFiles;
+    }
+    
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+    
+    quickAnalyzeCsvContent(csvText, filename) {
+        console.log(`Analyzing CSV content for: ${filename}`);
+        const lines = csvText.trim().split('\n').filter(line => line.trim());
+        console.log(`Found ${lines.length} lines in CSV`);
+        
+        if (lines.length === 0) {
+            return { band: 'Unknown', rows: 0, freqRange: 'No data' };
+        }
+        
+        // Try to detect separator and find first valid data line
+        const separators = [',', ';', '\t'];
+        let separator = ',';
+        let firstDataLineIndex = 0;
+        let minFreq = null, maxFreq = null;
+        
+        // Skip potential header lines and find first data line
+        for (let lineIndex = 0; lineIndex < Math.min(5, lines.length); lineIndex++) {
+            const line = lines[lineIndex];
+            console.log(`Checking line ${lineIndex}: "${line.substring(0, 50)}..."`);
+            
+            // Skip obvious header lines
+            if (line.toLowerCase().includes('frequency') || 
+                line.toLowerCase().includes('amplitude') ||
+                line.toLowerCase().includes('freq') ||
+                line.toLowerCase().includes('amp')) {
+                console.log(`Skipping header line ${lineIndex}`);
+                continue;
+            }
+            
+            // Try different separators
+            for (const sep of separators) {
+                const values = line.split(sep).map(v => v.trim());
+                if (values.length >= 2) {
+                    // Try to parse as numbers
+                    const freq = this.parseNumber(values[0]);
+                    const amp = this.parseNumber(values[1]);
+                    
+                    if (!isNaN(freq) && !isNaN(amp)) {
+                        separator = sep;
+                        firstDataLineIndex = lineIndex;
+                        minFreq = freq;
+                        console.log(`Found valid data starting at line ${lineIndex} with separator '${sep}'`);
+                        console.log(`First data point: freq=${freq}, amp=${amp}`);
+                        break;
+                    }
+                }
+            }
+            
+            if (minFreq !== null) break;
+        }
+        
+        if (minFreq === null) {
+            console.log('Could not find valid numeric data in CSV');
+            return { band: 'Unknown', rows: lines.length, freqRange: 'Invalid format' };
+        }
+        
+        // Get data lines (skip to first valid data)
+        const dataLines = lines.slice(firstDataLineIndex);
+        
+        // Find last valid data point for frequency range
+        try {
+            for (let i = dataLines.length - 1; i >= 0; i--) {
+                const values = dataLines[i].split(separator).map(v => v.trim());
+                if (values.length >= 2) {
+                    const freq = this.parseNumber(values[0]);
+                    if (!isNaN(freq)) {
+                        maxFreq = freq;
+                        break;
+                    }
+                }
+            }
+            
+            if (isNaN(maxFreq)) {
+                maxFreq = minFreq; // Fallback if we can't find last frequency
+            }
+        } catch (error) {
+            console.log('Error finding max frequency:', error);
+            maxFreq = minFreq;
+        }
+        
+        console.log(`Frequency range: ${minFreq} - ${maxFreq}`);
+        
+        // Prioritize band detection from filename, fallback to frequency analysis
+        let band = this.detectBandFromFilename(filename);
+        let detectionMethod = 'filename';
+        
+        if (band === 'Unknown') {
+            band = this.detectBandFromFrequencyRange(minFreq / 1e6, maxFreq / 1e6); // Convert to MHz
+            detectionMethod = 'frequency';
+        }
+        
+        console.log(`${filename}: Band ${band} detected from ${detectionMethod}`);
+        
+        // Format frequency range
+        const freqRange = `${this.formatFrequency(minFreq / 1e6)} - ${this.formatFrequency(maxFreq / 1e6)}`;
+        
+        const result = {
+            band: band,
+            rows: dataLines.length,
+            freqRange: freqRange,
+            minFreq: minFreq,
+            maxFreq: maxFreq
+        };
+        
+        console.log(`Analysis result:`, result);
+        return result;
+    }
+    
+    // Helper function to parse numbers that might be in different formats
+    parseNumber(str) {
+        if (!str) return NaN;
+        
+        // Remove any whitespace
+        str = str.trim();
+        
+        // Handle scientific notation, decimal points, etc.
+        // Replace comma decimal separator with period if needed
+        if (str.includes(',') && !str.includes('.')) {
+            str = str.replace(',', '.');
+        }
+        
+        // Try direct parsing first
+        let num = parseFloat(str);
+        if (!isNaN(num)) {
+            return num;
+        }
+        
+        // Try removing any non-numeric characters except decimal point and e/E
+        const cleaned = str.replace(/[^0-9.eE+-]/g, '');
+        num = parseFloat(cleaned);
+        
+        return num;
+    }
+    
+    detectBandFromFilename(filename) {
+        console.log(`Analyzing filename: "${filename}"`);
+        
+        // Look for band patterns in filename - more comprehensive patterns
+        const bandPatterns = [
+            /\sB([0-7])(?:\s|\.)/i,    // " B0 " or " B0." (most common for your files)
+            /\bB([0-7])\b/i,          // B0, B1, B2, etc. (case insensitive)
+            /\sB([0-7])$/i,           // " B0" at end
+            /\sB([0-7])\s/i,          // " B0 " (surrounded by spaces)
+            /\bBAND\s*([0-7])\b/i,    // BAND0, BAND 1, etc.
+            /\bBND([0-7])\b/i,        // BND0, BND1, etc.
+            /\b([0-7])GHZ\b/i,        // 0GHZ, 1GHZ, etc.
+            /\b([0-7])G\b/i,          // 0G, 1G, etc.
+            /\bB-([0-7])\b/i,         // B-0, B-1, etc.
+            /\bBAND-([0-7])\b/i,      // BAND-0, BAND-1, etc.
+            /_B([0-7])_/i,            // _B0_, _B1_, etc.
+            /-B([0-7])-/i,            // -B0-, -B1-, etc.
+            /\bFREQ([0-7])\b/i,       // FREQ0, FREQ1, etc.
+            /B([0-7])\.csv$/i,        // B0.csv, B1.csv at end
+            /([0-7])\.csv$/i,         // 0.csv, 1.csv, etc.
+            /Band([0-7])/i,           // Band0, Band1, etc.
+        ];
+        
+        for (let i = 0; i < bandPatterns.length; i++) {
+            const pattern = bandPatterns[i];
+            const match = filename.match(pattern);
+            if (match) {
+                const bandNumber = match[1];
+                // Validate band number is 0-7
+                if (bandNumber >= '0' && bandNumber <= '7') {
+                    console.log(`Found band B${bandNumber} using pattern ${i}: ${pattern}`);
+                    return `B${bandNumber}`;
+                }
+            }
+        }
+        
+        // Convert to uppercase for frequency-based detection
+        const upperFilename = filename.toUpperCase();
+        
+        // Look for frequency-based indicators in filename - updated to correct specification
+        if (upperFilename.includes('10KHZ') || upperFilename.includes('160KHZ')) return 'B0';    // 10 to 160 kHz
+        if (upperFilename.includes('150KHZ') || upperFilename.includes('650KHZ')) return 'B1';   // 150 to 650 kHz
+        if (upperFilename.includes('500KHZ') || upperFilename.includes('3MHZ')) return 'B2';     // 500 kHz to 3 MHz
+        if (upperFilename.includes('2.5MHZ') || upperFilename.includes('7.5MHZ')) return 'B3';   // 2.5 to 7.5 MHz
+        if (upperFilename.includes('5MHZ') || upperFilename.includes('30MHZ')) return 'B4';      // 5 to 30 MHz
+        if (upperFilename.includes('25MHZ') || upperFilename.includes('325MHZ')) return 'B5';    // 25 to 325 MHz
+        if (upperFilename.includes('300MHZ') || upperFilename.includes('1.3GHZ') || upperFilename.includes('1300MHZ')) return 'B6';  // 0.3 to 1.3 GHz
+        if (upperFilename.includes('1GHZ') || upperFilename.includes('6GHZ') || upperFilename.includes('6000MHZ')) return 'B7';      // 1.0 to 6.0 GHz
+        
+        console.log('No band pattern found in filename');
+        return 'Unknown';
+    }
+    
+    detectBandFromFrequencyRange(minFreqMHz, maxFreqMHz) {
+        // Check which band this frequency range most likely belongs to
+        for (const [bandKey, bandInfo] of Object.entries(this.bandDefinitions || {})) {
+            if (minFreqMHz >= bandInfo.startMHz * 0.8 && maxFreqMHz <= bandInfo.endMHz * 1.2) {
+                return `B${bandKey}`;
+            }
+        }
+        
+        // Fallback band detection based on frequency ranges - updated to correct specification
+        if (maxFreqMHz <= 0.16) return 'B0';    // 10 to 160 kHz
+        if (maxFreqMHz <= 0.65) return 'B1';    // 150 to 650 kHz
+        if (maxFreqMHz <= 3) return 'B2';       // 500 kHz to 3 MHz
+        if (maxFreqMHz <= 7.5) return 'B3';     // 2.5 to 7.5 MHz
+        if (maxFreqMHz <= 30) return 'B4';      // 5 to 30 MHz
+        if (maxFreqMHz <= 325) return 'B5';     // 25 to 325 MHz
+        if (maxFreqMHz <= 1300) return 'B6';    // 0.3 to 1.3 GHz
+        if (maxFreqMHz <= 6000) return 'B7';    // 1.0 to 6.0 GHz
+        
+        return 'Unknown';
+    }
+    
+    handleFileSelection(event, fileInfo) {
+        const checkbox = event.target;
+        const isSelected = checkbox.checked;
+        
+        if (isSelected) {
+            // Check if we already have 2 files selected
+            if (this.folderSelectionState.selectedFiles.length >= 2) {
+                checkbox.checked = false;
+                alert('You can only select up to 2 files for comparison at a time.');
+                return;
+            }
+            
+            // Check for mixed band warning
+            if (this.folderSelectionState.selectedFiles.length > 0) {
+                const existingBand = this.folderSelectionState.selectedFiles[0].band;
+                const newBand = fileInfo.band;
+                
+                if (existingBand !== newBand && existingBand !== 'Unknown' && newBand !== 'Unknown') {
+                    const proceed = confirm(
+                        `⚠️ MIXED BAND WARNING ⚠️\n\n` +
+                        `You are selecting files from different bands:\n` +
+                        `• Currently selected: ${existingBand}\n` +
+                        `• New selection: ${newBand}\n\n` +
+                        `For accurate analysis, it's recommended to compare files from the same band.\n\n` +
+                        `Do you want to proceed with this mixed-band comparison?`
+                    );
+                    
+                    if (!proceed) {
+                        checkbox.checked = false;
+                        return;
+                    }
+                }
+            }
+            
+            // Add to selection
+            this.folderSelectionState.selectedFiles.push(fileInfo);
+            checkbox.closest('.file-item').classList.add('selected');
+        } else {
+            // Remove from selection
+            this.folderSelectionState.selectedFiles = this.folderSelectionState.selectedFiles.filter(f => f.name !== fileInfo.name);
+            checkbox.closest('.file-item').classList.remove('selected');
+        }
+        
+        this.updateSelectionCounter();
+        this.updatePlotButton();
+        this.updateSelectionWarnings();
+    }
+    
+    updateSelectionCounter() {
+        const selectionCounter = document.getElementById('selectionCounter');
+        if (selectionCounter) {
+            const count = this.folderSelectionState.selectedFiles.length;
+            selectionCounter.textContent = `${count}/2 files selected`;
+        }
+    }
+    
+    updatePlotButton() {
+        const plotSelectedBtn = document.getElementById('plotSelectedBtn');
+        if (plotSelectedBtn) {
+            const hasSelection = this.folderSelectionState.selectedFiles.length > 0;
+            plotSelectedBtn.disabled = !hasSelection;
+            
+            if (hasSelection) {
+                const count = this.folderSelectionState.selectedFiles.length;
+                plotSelectedBtn.textContent = `Plot ${count} Selected File${count > 1 ? 's' : ''}`;
+            } else {
+                plotSelectedBtn.textContent = 'Plot Selected Files';
+            }
+        }
+    }
+    
+    updateSelectionWarnings() {
+        const selectionCounter = document.getElementById('selectionCounter');
+        if (!selectionCounter) return;
+        
+        // Check for mixed bands in selection
+        if (this.folderSelectionState.selectedFiles.length > 1) {
+            const bands = this.folderSelectionState.selectedFiles.map(f => f.band);
+            const uniqueBands = [...new Set(bands)].filter(b => b !== 'Unknown');
+            
+            if (uniqueBands.length > 1) {
+                // Add warning styling and text
+                selectionCounter.style.background = '#fee';
+                selectionCounter.style.color = '#c53030';
+                selectionCounter.style.border = '1px solid #fc8181';
+                selectionCounter.innerHTML = `⚠️ ${this.folderSelectionState.selectedFiles.length}/2 files selected (Mixed bands: ${uniqueBands.join(', ')})`;
+            } else {
+                // Normal styling
+                selectionCounter.style.background = 'rgba(63, 82, 119, 0.1)';
+                selectionCounter.style.color = '#3f5277';
+                selectionCounter.style.border = 'none';
+                const count = this.folderSelectionState.selectedFiles.length;
+                selectionCounter.textContent = `${count}/2 files selected`;
+            }
+        } else {
+            // Normal styling for single or no selection
+            selectionCounter.style.background = 'rgba(63, 82, 119, 0.1)';
+            selectionCounter.style.color = '#3f5277';
+            selectionCounter.style.border = 'none';
+            const count = this.folderSelectionState.selectedFiles.length;
+            selectionCounter.textContent = `${count}/2 files selected`;
+        }
+    }
+    
+    filterFilesByBand(selectedBand) {
+        const fileItems = document.querySelectorAll('.file-item');
+        
+        fileItems.forEach(item => {
+            const bandSpan = item.querySelector('.file-band');
+            if (!bandSpan) return;
+            
+            const fileBand = bandSpan.textContent;
+            
+            if (selectedBand === 'all') {
+                item.style.display = 'flex';
+            } else {
+                if (fileBand === selectedBand) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                    // Uncheck if hidden
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    if (checkbox && checkbox.checked) {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+        });
+    }
+    
+    clearFileSelection() {
+        // Clear all checkboxes
+        document.querySelectorAll('.file-item input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        // Clear selection state
+        this.folderSelectionState.selectedFiles = [];
+        
+        // Remove visual selection
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        this.updateSelectionCounter();
+        this.updatePlotButton();
+        this.updateSelectionWarnings();
+    }
+    
+    async plotSelectedFiles() {
+        if (this.folderSelectionState.selectedFiles.length === 0) {
+            alert('Please select at least one file to plot.');
+            return;
+        }
+        
+        // Final check for mixed bands before plotting
+        if (this.folderSelectionState.selectedFiles.length > 1) {
+            const bands = this.folderSelectionState.selectedFiles.map(f => f.band);
+            const uniqueBands = [...new Set(bands)].filter(b => b !== 'Unknown');
+            
+            if (uniqueBands.length > 1) {
+                const fileNames = this.folderSelectionState.selectedFiles.map(f => `• ${f.name} (${f.band})`).join('\n');
+                const proceed = confirm(
+                    `🔍 FINAL MIXED BAND CHECK 🔍\n\n` +
+                    `You are about to plot files from different bands:\n\n${fileNames}\n\n` +
+                    `Mixed band comparisons may not provide meaningful analysis results.\n` +
+                    `Consider selecting files from the same band for better insights.\n\n` +
+                    `Do you want to proceed with plotting these files?`
+                );
+                
+                if (!proceed) {
+                    return;
+                }
+            }
+        }
+        
+        try {
+            // Clear existing overlay data completely
+            this.csvOverlayState.datasets = [];
+            console.log('Cleared existing datasets, loading new files...');
+            
+            // Load selected files with small delay to ensure proper color assignment
+            for (let i = 0; i < this.folderSelectionState.selectedFiles.length; i++) {
+                const fileInfo = this.folderSelectionState.selectedFiles[i];
+                console.log(`Loading file ${i + 1}/${this.folderSelectionState.selectedFiles.length}: ${fileInfo.name}`);
+                await this.loadSelectedFile(fileInfo);
+                
+                // Small delay between files to ensure proper processing
+                if (i < this.folderSelectionState.selectedFiles.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            // Update plotting state
+            this.folderSelectionState.plottedFiles = [...this.folderSelectionState.selectedFiles];
+            
+            // Final verification of loaded datasets
+            console.log('=== FINAL DATASET VERIFICATION ===');
+            console.log(`Total datasets loaded: ${this.csvOverlayState.datasets.length}`);
+            this.csvOverlayState.datasets.forEach((dataset, index) => {
+                console.log(`Dataset ${index}: ${dataset.name} - Color: ${dataset.color} - Visible: ${dataset.visible} - Points: ${dataset.frequencyData.length}`);
+            });
+            
+            // Auto-zoom to band frequency range
+            this.setViewToBandRange();
+            
+            // Update UI
+            this.showPlottedFilesStep();
+            this.updateOverlayDatasets();
+            this.setupOverlayCanvas();
+            this.setupOverlayCanvasListeners();  // Add mouse/wheel interactions
+            this.addOverlayControls();  // Add the plot control panel
+            this.updateOverlayRangeInputs();  // Update range inputs to show band range
+            this.drawOverlayGraph();
+            this.updateLegend();
+            
+            // Log success with band information
+            const plotInfo = this.folderSelectionState.selectedFiles.map(f => `${f.name} (${f.band})`).join(', ');
+            console.log(`Successfully plotted ${this.folderSelectionState.selectedFiles.length} files: ${plotInfo}`);
+            
+        } catch (error) {
+            console.error('Error plotting files:', error);
+            alert('Error loading files. Please check the file format and try again.');
+        }
+    }
+    
+    async loadSelectedFile(fileInfo) {
+        const text = await this.readFileAsText(fileInfo.file);
+        
+        // Parse CSV data using existing function logic
+        const datasetId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Generate color for this dataset - ensure different colors for each file
+        const colors = ['#cc0000', '#0066cc', '#009900', '#ff6600', '#9900cc', '#cc6600'];
+        const colorIndex = this.csvOverlayState.datasets.length % colors.length;
+        const color = colors[colorIndex];
+        
+        console.log(`Loading file: ${fileInfo.name}`);
+        console.log(`Dataset index: ${this.csvOverlayState.datasets.length}, Color index: ${colorIndex}, Color: ${color}`);
+        console.log(`Assigned color: ${color} to file: ${fileInfo.name}`);
+        
+        const dataset = {
+            id: datasetId,
+            name: fileInfo.name,
+            color: color,
+            visible: true,
+            frequencyData: [],
+            amplitudeData: []
+        };
+        
+        // Parse the CSV data
+        const lines = text.trim().split('\n');
+        
+        for (let i = 1; i < lines.length; i++) { // Skip header
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const [freqStr, ampStr] = line.split(',').map(s => s.trim());
+            const frequency = parseFloat(freqStr);
+            const amplitude = parseFloat(ampStr);
+            
+            if (!isNaN(frequency) && !isNaN(amplitude)) {
+                dataset.frequencyData.push(frequency);
+                dataset.amplitudeData.push(amplitude);
+            }
+        }
+        
+        if (dataset.frequencyData.length === 0) {
+            throw new Error(`No valid data found in ${fileInfo.name}`);
+        }
+        
+        // Add dataset to overlay state
+        this.csvOverlayState.datasets.push(dataset);
+        
+        // Auto-fill form data using existing parseFilename function
+        if (this.csvOverlayState.datasets.length === 1) {
+            // For the first file, parse filename and auto-fill form data
+            this.parseFilename(fileInfo.name, 1); // Use CSV 1 slot for form data
+            console.log(`Auto-filled form data from filename: ${fileInfo.name}`);
+        }
+        
+        console.log(`Loaded ${dataset.frequencyData.length} data points from ${fileInfo.name}`);
+        console.log(`Dataset added to overlay state. Total datasets: ${this.csvOverlayState.datasets.length}`);
+        console.log(`Dataset info:`, {
+            name: dataset.name,
+            color: dataset.color,
+            visible: dataset.visible,
+            dataPoints: dataset.frequencyData.length
+        });
+    }
+    
+    showFileSelectionStep() {
+        document.getElementById('fileSelectionContainer').style.display = 'block';
+        document.getElementById('plottedFilesContainer').style.display = 'none';
+    }
+    
+    showPlottedFilesStep() {
+        document.getElementById('fileSelectionContainer').style.display = 'none';
+        document.getElementById('plottedFilesContainer').style.display = 'block';
+        
+        this.updatePlottedFilesList();
+    }
+    
+    updatePlottedFilesList() {
+        const plottedFilesList = document.getElementById('plottedFilesList');
+        if (!plottedFilesList) return;
+        
+        if (this.folderSelectionState.plottedFiles.length === 0) {
+            plottedFilesList.innerHTML = '<div class="empty-state">No files currently plotted</div>';
+            return;
+        }
+        
+        plottedFilesList.innerHTML = '';
+        
+        this.folderSelectionState.plottedFiles.forEach((fileInfo, index) => {
+            const dataset = this.csvOverlayState.datasets[index];
+            const fileItem = document.createElement('div');
+            fileItem.className = 'plotted-file-item';
+            fileItem.innerHTML = `
+                <div class="plotted-file-info">
+                    <div class="plotted-file-name">${fileInfo.name}</div>
+                    <div class="plotted-file-meta">
+                        <span class="file-band">${fileInfo.band}</span>
+                        <span>${fileInfo.rows} points</span>
+                        <span>${fileInfo.freqRange}</span>
+                    </div>
+                </div>
+                <div class="file-color-indicator" style="background-color: ${dataset?.color || '#999'}"></div>
+            `;
+            
+            plottedFilesList.appendChild(fileItem);
+        });
+    }
+    
+    refreshFolderContents() {
+        if (!this.folderSelectionState.selectedFolder) {
+            alert('Please select a folder first.');
+            return;
+        }
+        
+        // Trigger folder input click to re-select
+        const folderInput = document.getElementById('folderInput');
+        if (folderInput) {
+            folderInput.click();
+        }
+    }
+    
+    clearCurrentPlot() {
+        // Clear plotted data
+        this.csvOverlayState.datasets = [];
+        this.folderSelectionState.plottedFiles = [];
+        
+        // Update UI
+        this.drawOverlayGraph();
+        this.updateLegend();
+        this.returnToFileSelection();
+        
+        console.log('Cleared current plot');
+    }
+    
+    returnToFileSelection() {
+        // Clear current selection
+        this.clearFileSelection();
+        
+        // Show file selection step
+        this.showFileSelectionStep();
+        
+        console.log('Returned to file selection');
+    }
+    
     // Add fallback upload button for CSV if click area isn't working
     addCsvUploadFallback() {
         const uploadArea = document.getElementById('csvOverlayUploadArea');
@@ -6913,6 +8405,64 @@ class FigureExportTool {
         console.log('Immediate CSV upload setup complete');
     }
     
+    setupClickableOverlay() {
+        // Make the CSV overlay instruction area clickable for file upload
+        const instructionOverlay = document.getElementById('csvOverlayInstructionOverlay');
+        const csvOverlayInput = document.getElementById('csvOverlayInput');
+        
+        if (instructionOverlay && csvOverlayInput) {
+            // Remove any existing event listeners to prevent duplicates
+            instructionOverlay.removeEventListener('click', this.overlayClickHandler);
+            
+            // Create a bound click handler
+            this.overlayClickHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Instruction overlay clicked - triggering file upload dialog');
+                csvOverlayInput.click();
+            };
+            
+            // Add click event listener
+            instructionOverlay.addEventListener('click', this.overlayClickHandler);
+            
+            // Also handle drag and drop on the instruction overlay
+            instructionOverlay.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instructionOverlay.style.borderColor = '#3b82f6';
+                instructionOverlay.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 197, 253, 0.15) 100%)';
+            });
+            
+            instructionOverlay.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instructionOverlay.style.borderColor = '#1e3a8a';
+                instructionOverlay.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)';
+            });
+            
+            instructionOverlay.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Files dropped on instruction overlay');
+                
+                // Reset overlay appearance
+                instructionOverlay.style.borderColor = '#1e3a8a';
+                instructionOverlay.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)';
+                
+                // Handle the dropped files
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    console.log(`Processing ${files.length} dropped files`);
+                    this.loadOverlayFiles(files);
+                }
+            });
+            
+            console.log('Clickable overlay setup completed');
+        } else {
+            console.warn('Could not find instruction overlay or file input elements');
+        }
+    }
+    
     debugCsvUpload() {
         console.log('=== CSV Upload Debug ===');
         
@@ -6939,6 +8489,100 @@ class FigureExportTool {
         
         return {uploadArea, csvInput, csvSection};
     }
+    
+    // Get standardized band frequency ranges (in Hz) - correct specification
+    getBandRanges() {
+        return {
+            'B0': { min: 10e3, max: 160e3 },       // 10 to 160 kHz
+            'B1': { min: 150e3, max: 650e3 },      // 150 to 650 kHz  
+            'B2': { min: 500e3, max: 3e6 },        // 500 kHz to 3 MHz
+            'B3': { min: 2.5e6, max: 7.5e6 },      // 2.5 to 7.5 MHz
+            'B4': { min: 5e6, max: 30e6 },         // 5 to 30 MHz
+            'B5': { min: 25e6, max: 325e6 },       // 25 to 325 MHz
+            'B6': { min: 0.3e9, max: 1.3e9 },      // 0.3 to 1.3 GHz
+            'B7': { min: 1.0e9, max: 6.0e9 }       // 1.0 to 6.0 GHz
+        };
+    }
+    
+    // Auto-zoom to the detected band's frequency range
+    setViewToBandRange() {
+        if (this.csvOverlayState.datasets.length === 0) return;
+        
+        // Detect band from first dataset
+        const firstDataset = this.csvOverlayState.datasets[0];
+        const detectedBand = this.detectBandFromFilename(firstDataset.name);
+        
+        console.log(`Setting view to band range for detected band: ${detectedBand}`);
+        
+        const bandRanges = this.getBandRanges();
+        const bandRange = bandRanges[detectedBand];
+        
+        if (bandRange) {
+            // Set frequency view bounds to band range
+            this.csvOverlayState.viewMinFreq = bandRange.min;
+            this.csvOverlayState.viewMaxFreq = bandRange.max;
+            
+            console.log(`Set frequency view to band ${detectedBand}: ${bandRange.min/1e6} - ${bandRange.max/1e6} MHz`);
+            
+            // Calculate amplitude range from all datasets within the band frequency range
+            let minAmp = Infinity;
+            let maxAmp = -Infinity;
+            
+            this.csvOverlayState.datasets.forEach(dataset => {
+                for (let i = 0; i < dataset.frequencyData.length; i++) {
+                    const freq = dataset.frequencyData[i];
+                    const amp = dataset.amplitudeData[i];
+                    
+                    // Only consider data points within band range
+                    if (freq >= bandRange.min && freq <= bandRange.max) {
+                        minAmp = Math.min(minAmp, amp);
+                        maxAmp = Math.max(maxAmp, amp);
+                    }
+                }
+            });
+            
+            // Set amplitude view bounds with some padding
+            if (minAmp !== Infinity && maxAmp !== -Infinity) {
+                const ampPadding = (maxAmp - minAmp) * 0.05; // 5% padding
+                this.csvOverlayState.viewMinAmp = minAmp - ampPadding;
+                this.csvOverlayState.viewMaxAmp = maxAmp + ampPadding;
+                
+                console.log(`Set amplitude view to: ${this.csvOverlayState.viewMinAmp.toFixed(1)} - ${this.csvOverlayState.viewMaxAmp.toFixed(1)} dB`);
+            }
+            
+            // Reset zoom and pan
+            this.csvOverlayState.scale = 1;
+            this.csvOverlayState.offsetX = 0;
+            this.csvOverlayState.offsetY = 0;
+            
+            // Recalculate overlay ranges
+            this.calculateOverlayRanges();
+            
+        } else {
+            console.log(`Unknown band ${detectedBand}, using full data range`);
+            // Fall back to original full data range method for unknown bands
+            this.resetZoomOverlayToDataRange();
+        }
+    }
+    
+    // Debug function to check overlay state
+    debugOverlayState() {
+        console.log('=== Overlay State Debug ===');
+        console.log('CSV Overlay State:', this.csvOverlayState);
+        console.log('Folder Selection State:', this.folderSelectionState);
+        console.log('Current datasets:', this.csvOverlayState.datasets.map(d => ({
+            name: d.name,
+            color: d.color,
+            visible: d.visible,
+            dataPoints: d.frequencyData?.length || 0
+        })));
+        
+        // Force redraw
+        if (this.csvOverlayState.datasets.length > 0) {
+            console.log('Forcing redraw...');
+            this.drawOverlayGraph();
+        }
+    }
 }
 
 // Initialize the application
@@ -6950,6 +8594,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.debugCsvUpload = () => window.figureExportTool.debugCsvUpload();
     window.openCsvFiles = () => window.figureExportTool.openCsvFileDialog();
     window.fixCsvMode = () => window.figureExportTool.fixCsvModeUI();
+    window.debugOverlay = () => window.figureExportTool.debugOverlayState();
     
     // Immediate CSV setup after tool initialization
     const tool = window.figureExportTool;
@@ -7030,4 +8675,5 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('- debugCsvUpload() - Debug CSV upload issues');
     console.log('- openCsvFiles() - Manually open CSV file dialog');
     console.log('- fixCsvMode() - Fix CSV mode UI state if broken');
+    console.log('- debugOverlay() - Debug overlay plotting state and force redraw');
 }); 

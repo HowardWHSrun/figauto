@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Figure Export Tool v3.5 - Turner Engineering Corporation</title>
+    <title>Figure Export Tool v4.1 - Turner Engineering Corporation</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -89,28 +89,69 @@
                     </div>
                 </div>
 
-                <!-- CSV Upload Section -->
+                <!-- CSV Data Selection Section -->
                 <div class="upload-section" id="csvUploadSection">
-                    <h2>Upload CSV Data Files</h2>
+                    <h2>CSV Data Selection</h2>
                     
-                    <!-- CSV files are always displayed in overlay mode -->
-                    
-
-                    
-                    <div class="upload-container overlay-upload">
-                        <div class="upload-area" id="csvOverlayUploadArea">
-                            <input type="file" id="csvOverlayInput" accept=".csv,.txt" multiple style="display: none;">
+                    <!-- Step 1: Folder Selection -->
+                    <div class="folder-selection-container">
+                        <h3>📁 Step 1: Select Data Folder</h3>
+                        <div class="folder-upload-area" id="folderUploadArea">
+                            <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
                             <div class="upload-placeholder">
-                                <p>Click to select CSV files</p>
-                                <small>Hold Ctrl/Cmd to select multiple files</small>
-                                <small>All files will be overlaid on one graph</small>
+                                <div class="folder-icon">📁</div>
+                                <p>Click to browse data folder</p>
+                                <small>Select folder containing CSV files</small>
                             </div>
                         </div>
-                        <div class="csv-overlay-files" id="csvOverlayFiles">
-                            <h4>Loaded Files:</h4>
-                            <div class="file-list" id="overlayFileList">
-                                <!-- File list will be populated here -->
+                        <div class="folder-status" id="folderStatus">
+                            <span>No folder selected</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: File Selection -->
+                    <div class="file-selection-container" id="fileSelectionContainer" style="display: none;">
+                        <h3>📊 Step 2: Choose Files to Compare</h3>
+                        <div class="selection-controls">
+                            <div class="band-filter">
+                                <label for="bandFilter">Filter by Band:</label>
+                                <select id="bandFilter">
+                                    <option value="all">All Bands</option>
+                                    <option value="B0">Band 0 (10-160 kHz)</option>
+                                    <option value="B1">Band 1 (150-650 kHz)</option>
+                                    <option value="B2">Band 2 (500 kHz-3 MHz)</option>
+                                    <option value="B3">Band 3 (2.5-7.5 MHz)</option>
+                                    <option value="B4">Band 4 (5-30 MHz)</option>
+                                    <option value="B5">Band 5 (25-325 MHz)</option>
+                                    <option value="B6">Band 6 (0.3-1.3 GHz)</option>
+                                    <option value="B7">Band 7 (1.0-6.0 GHz)</option>
+                                </select>
                             </div>
+                            <div class="selection-counter">
+                                <span id="selectionCounter">0/2 files selected</span>
+                                <button id="clearSelection" class="btn btn-small">Clear Selection</button>
+                            </div>
+                        </div>
+                        
+                        <div class="available-files-list" id="availableFilesList">
+                            <!-- File list will be populated here -->
+                        </div>
+                        
+                        <div class="plot-controls">
+                            <button id="plotSelectedBtn" class="btn btn-primary" disabled>Plot Selected Files</button>
+                            <button id="refreshFolderBtn" class="btn btn-secondary">Refresh Folder</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Currently Plotted -->
+                    <div class="plotted-files-container" id="plottedFilesContainer" style="display: none;">
+                        <h3>📈 Currently Plotted</h3>
+                        <div class="plotted-files-list" id="plottedFilesList">
+                            <!-- Currently plotted files will be shown here -->
+                        </div>
+                        <div class="plot-actions">
+                            <button id="clearPlotBtn" class="btn btn-warning">Clear Plot</button>
+                            <button id="selectNewBtn" class="btn btn-secondary">Select Different Files</button>
                         </div>
                     </div>
                 </div>
@@ -128,20 +169,8 @@
                             <input type="text" id="csvBand" placeholder="e.g., B6">
                         </div>
                         <div class="form-group">
-                            <label for="csvLocation">Location:</label>
-                            <input type="text" id="csvLocation" placeholder="e.g., Ambient">
-                        </div>
-                        <div class="form-group">
-                            <label for="csvTestType">Test Type:</label>
-                            <input type="text" id="csvTestType" placeholder="e.g., Crane Car hybrid">
-                        </div>
-                        <div class="form-group">
-                            <label for="csvEquipmentDescription">Equipment Description:</label>
-                            <input type="text" id="csvEquipmentDescription" placeholder="e.g., diesel loco off, battery high charging">
-                        </div>
-                        <div class="form-group">
-                            <label for="csvOperatingCondition">Operating Condition:</label>
-                            <input type="text" id="csvOperatingCondition" placeholder="e.g., crane operation">
+                            <label for="csvDescription">Description:</label>
+                            <input type="text" id="csvDescription" placeholder="e.g., 50 Ohm Term Test Site 7">
                         </div>
                         <div class="form-group">
                             <label for="csvTraces">Traces:</label>
@@ -356,7 +385,32 @@
                         <div class="csv-overlay-mode" id="csvOverlayMode">
                             <div class="csv-overlay-container">
                                 <div class="csv-graph-header">
-                                    <h4>Spectrum Comparison</h4>
+                                                                         <!-- CSV Data Title Section - Hidden for clean layout -->
+                                    <div class="csv-data-title" id="csvDataTitle" style="display: none;">
+                                        <h4 class="graph-main-title">Spectrum Comparison</h4>
+                                                                                 <div class="csv-info-display" id="csvInfoDisplay">
+                                            <div class="csv-info-row">
+                                                <span class="info-label">Run ID:</span>
+                                                <span class="info-value" id="titleRunId">-</span>
+                                            </div>
+                                            <div class="csv-info-row">
+                                                <span class="info-label">Band:</span>
+                                                <span class="info-value" id="titleBand">-</span>
+                                            </div>
+                                            <div class="csv-info-row">
+                                                <span class="info-label">Description:</span>
+                                                <span class="info-value" id="titleDescription">-</span>
+                                            </div>
+                                            <div class="csv-info-row">
+                                                <span class="info-label">Traces:</span>
+                                                <span class="info-value" id="titleTraces">-</span>
+                                            </div>
+                                            <div class="csv-info-row">
+                                                <span class="info-label">Comment:</span>
+                                                <span class="info-value" id="titleComment">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="graph-controls">
                                         <button class="control-btn" onclick="figureExportTool.resetZoomOverlay()">Reset Zoom</button>
                                         <button class="control-btn" onclick="figureExportTool.autoScaleOverlay()">Auto Scale</button>
@@ -365,9 +419,11 @@
                                     </div>
                                 </div>
                                 <canvas id="csvOverlayCanvas"></canvas>
-                                <div class="instruction-overlay" id="csvOverlayInstructionOverlay">
-                                    <p>Upload CSV files to see overlay comparison</p>
+                                <div class="instruction-overlay clickable-overlay" id="csvOverlayInstructionOverlay">
+                                    <div class="upload-icon">📁</div>
+                                    <p>Click to Upload CSV Files</p>
                                     <small>Multiple datasets will be displayed with different colors</small>
+                                    <small>Hold Ctrl/Cmd to select multiple files</small>
                                 </div>
                                 <div class="csv-legend" id="csvLegend">
                                     <h5>Legend</h5>
@@ -413,7 +469,7 @@
         <footer>
             <div class="footer-content">
                 <p>&copy; 2025 Turner Engineering Corporation. All rights reserved.</p>
-                <p>Professional EMC Testing Tools | Enhanced Export with Large Text & Connected Layout v3.5</p>
+                <p>Professional EMC Testing Tools | Corrected Band Ranges & Smart Detection v4.1</p>
                 <div class="attribution">
                     <p>Developed by Howard Wang | Supervised by Temba Mateke</p>
                 </div>
